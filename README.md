@@ -6,6 +6,8 @@ ShelXFile may eventually become a new heart of DSR[2] and is already used as fil
 
 ShelXFile always keeps the file order intact. Every SHELX instruction like DFIX or an atom is stored as an class object in the list ShelXlFile.\_reslist. When writing the ShelXlFile content to disk, it wites the \_reslist content to disk.
 
+ShelXFile tries to detect all possible syntax errors that SHELXL would not like either. If ShelXFile.DEBUG is True, more output about syntax and other errors are printed out. Otherwise, the parser is quiet except for really severe errors like a missing unit cell.
+
 Examples:
 ```python
 
