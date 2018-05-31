@@ -8,6 +8,8 @@ ShelXFile always keeps the file order intact. Every SHELX instruction like DFIX 
 
 ShelXFile tries to detect all possible syntax errors that SHELXL would not like either. If ShelXFile.DEBUG is True, more output about syntax and other errors are printed out. Otherwise, the parser is quiet except for really severe errors like a missing unit cell.
 
+Not every part of ShelXFile is complete, for example it will not recognize if you add restraints with atom names that are not in the SHELX file. Please help me improving it!
+
 Examples:
 ```python
 
