@@ -87,7 +87,8 @@ SADI_CCF3 0.04 O1 C2 O1 C3 O1 C4
 ...
 ```
 
-[1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8. https://doi.org/10.1107/S2053229614024218
+[1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8. 
+    https://doi.org/10.1107/S2053229614024218
 
 [2] https://github.com/dkratzert/DSR
 
