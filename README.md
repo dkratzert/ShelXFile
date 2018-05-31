@@ -4,6 +4,8 @@ This is a full implementation of the SHELXL[1] file syntax. Additionally it is a
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
 ShelXFile may eventually become a new heart of DSR[2] and is already used as file parser in StructureFinder[3].
 
+ShelXFile always keeps the file order intact. Every SHELX instruction like DFIX or an atom is stored as an class object in the list ShelXlFile.\_reslist. When writing the ShelXlFile content to disk, it wites the \_reslist content to disk.
+
 Examples:
 ```python
 
@@ -27,14 +29,26 @@ ID: 255
 str(a)
 'F1    4    0.245205    0.192674    0.649231   -21.00000    0.05143    0.03826      0.03193   -0.00579   -0.01865   -0.00485'
 
-a.to_isotropic
-(removes the Uij values and defines U = 0.04)
+a.to_isotropic()
+str(a)
+'F1    4    0.245205    0.192674   0.649231  -21.00000    0.04000'
 
 a.name
 'F1'
 
 a.resinum
 2
+
+a.part
+2
+
+a.find_atoms_around(dist=2.0, only_part=1)
+[ID: 236, ID: 238, ID: 242]
+
+[str(x) for x in a.find_atoms_around(dist=2.2, only_part=2)]
+['C2    1    0.192984    0.140449    0.621265   -21.00000    0.04315    0.02747      0.02385    0.00686   -0.00757    0.00126', 
+'F2    4    0.264027    0.090306    0.642441   -21.00000    0.06073    0.04450      0.03972    0.01630   -0.01260    0.01460', 
+'F3    4    0.078582    0.131920    0.643529   -21.00000    0.05691    0.04955      0.03374    0.01040    0.01881    0.00375']
 
 a.cart_coords
 [1.617897551082389, 4.027560959000001, 13.279336538026433]
