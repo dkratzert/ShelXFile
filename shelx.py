@@ -18,6 +18,10 @@ from __future__ import print_function
 import os
 import re
 import sys
+ver = sys.version_info
+if ver < (3, 4, 0):
+    print("You need at least Python 3.4 to run this program!")
+    sys.exit()
 import textwrap
 import time
 from math import radians, cos, sin, sqrt
@@ -25,12 +29,12 @@ from math import radians, cos, sin, sqrt
 from shelxfile.dsrmath import atomic_distance, Matrix, frac_to_cart, subtract_vect, determinante, my_isnumeric
 
 PROFILE = False
-DEBUG = False
+DEBUG = True
 
 """
 TODO:
 
-Needed for DSR:
+- Atoms.add_atom(position=None) method. default for position is after FVAR table
 - fit fragment without shelxl
 ------------------------------------------------------------
 - make all __repr__() unwrapped strings and wrap lines during write_res_file()
@@ -805,9 +809,9 @@ class HKLF(Command):
         self.matrix = [1, 0, 0, 0, 1, 0, 0, 0, 1]
         self.sm = 1
         self.m = 0
-        if len(p) > 1:
+        if len(p) > 0:
             self.n = p[0]
-        if len(p) > 2:
+        if len(p) > 1:
             self.s = p[1]
         if len(p) > 10:
             self.matrix = p[3:11]
@@ -817,7 +821,7 @@ class HKLF(Command):
             self.m = p[13]
 
     def __repr__(self):
-        return "HKLF {} {}  {}  {} {}".format(self.n, self.s, ' '.join([str(i) for i in self.matrix]), self.sm, self.m)
+        return "HKLF {:,g} {:,g}  {}  {:,g} {:,g}".format(self.n, self.s, ' '.join([str(i) for i in self.matrix]), self.sm, self.m)
 
 
 class SUMP(Command):
@@ -861,13 +865,13 @@ class SYMM(Command):
 
     def __repr__(self):
         return "\n".join(["SYMM  " + "  ".join(x) for x in self.symmcards])
-    
+
     def __str__(self):
         return "\n".join(["SYMM  " + "  ".join(x) for x in self.symmcards])
 
 
 class FVAR():
-    def __init__(self, number=1, value=0.0):
+    def __init__(self, number: int = 1, value: float = 0.0):
         """
         FVAR osf[1] free variables
         """
@@ -876,6 +880,9 @@ class FVAR():
         self.usage = 1
 
     def __str__(self):
+        return str(float(self.fvar_value))
+
+    def __repr__(self):
         return str(float(self.fvar_value))
 
 
@@ -907,10 +914,14 @@ class FVARs():
         return len(self.fvars)
 
     def __str__(self) -> str:
+        # returnes FVAR as list of FVAR instructions with seven numbers in one line
         lines = chunks(self.as_stringlist, 7)
-        fvars = [' '.join(i) for i in lines]
-        fvars = ['FVAR ' + i for i in fvars]
+        fvars = ['   '.join(i) for i in lines]
+        fvars = ['FVAR   ' + i for i in fvars]
         return "\n".join(fvars)
+
+    def __repr__(self):
+        return str([x for x in self.fvars])
 
     @property
     def fvarline(self) -> int:
@@ -920,7 +931,6 @@ class FVARs():
     def set_free_variables(self, fvar: int, dummy_fvar: float = 0.5):
         """
         Inserts additional free variables according to the fvar number.
-        #TODO: make this in FVARS()
         """
         if fvar > 99:
             print('*** SHELXL allows only 99 free variables! ***')
@@ -968,10 +978,6 @@ class FVARs():
     @property
     def as_stringlist(self):
         return [str(x.fvar_value) for x in self.fvars]
-
-    @property
-    def line_number(self) -> list:
-        return self.fvarline
 
 
 class LSCycles():
@@ -1799,6 +1805,9 @@ class ShelXlFile():
     atoms = None
     sump = []
     dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)
+    r1_regex = re.compile(r'^REM\s+R1\s+=', re.IGNORECASE)
+    wr2_regex = re.compile(r'^REM\s+wR2\s+=', re.IGNORECASE)
+    parameters_regex = re.compile(r'REM\s+\d+\s+parameters\s+refined', re.IGNORECASE)
     fvars = None
     sfac_table = None
     _reslist = None
@@ -1843,6 +1852,12 @@ class ShelXlFile():
         self.anis = None
         self.damp = None
         self.unit = None
+        self.R1 = None
+        self.wR2 = None
+        self.data = None
+        self.parameters = None
+        self.dat_to_param = None
+        self.num_restraints = None
         self.sump = []
         self.end = False
         self.maxsof = 1.0
@@ -1853,7 +1868,7 @@ class ShelXlFile():
         self.mpla = []
         self.rtab = []
         self.omit = []
-        self.hklf = []
+        self.hklf = None
         self.grid = []
         self.free = []
         self.titl = ""
@@ -2166,9 +2181,8 @@ class ShelXlFile():
                 # FVAR osf[1] free variables
                 # TODO: assign value
                 for fvvalue in spline[1:]:
-                    fv = FVAR(fvarnum, fvvalue)
                     fvarnum += 1
-                    self.fvars.append(fv)
+                    self.append_card(self.fvars, FVAR(fvarnum, float(fvvalue)), line_num)
                     if self.fvars not in self._reslist:
                         self._reslist[line_num] = self.fvars
                     else:
@@ -2184,11 +2198,11 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'ACTA':
                 # ACTA 2θfull[#] -> optional parameter NOHKL
-                self.acta = self.assign_card(ACTA(self, spline, list_of_lines), line_num)
+                self.acta = self.append_card(self.commands, ACTA(self, spline, list_of_lines), line_num)
                 continue
             elif line[:4] == 'DAMP':
                 # DAMP damp[0.7] limse[15]
-                self.damp = self.assign_card(DAMP(spline, list_of_lines), line_num)
+                self.damp = self.append_card(self.commands, DAMP(spline, list_of_lines), line_num)
                 continue
             elif line[:4] == 'ABIN':
                 # ABIN n1 n2   ->   Reads h, k, l, A and B from the file name.fab
@@ -2420,6 +2434,34 @@ class ShelXlFile():
             elif line[:4] == 'LONE':
                 # Later...
                 continue
+            elif ShelXlFile.r1_regex.match(line):
+                try:
+                    self.R1 = float(spline[3])
+                except IndexError:
+                    pass
+                try:
+                    self.data = float(spline[-2])
+                except IndexError:
+                    pass
+                continue
+            elif ShelXlFile.wr2_regex.match(line):
+                try:
+                    self.wR2 = float(spline[3])
+                except IndexError:
+                    pass
+                continue
+            elif ShelXlFile.parameters_regex.match(line):
+                try:
+                    self.parameters = float(spline[1])
+                    if self.data and self.parameters:
+                        self.dat_to_param = self.data / self.parameters
+                except IndexError:
+                    pass
+                try:
+                    self.num_restraints = float(spline[-2])
+                except IndexError:
+                    pass
+                continue
             elif line[:4] == 'MOLE':
                 # print('*** MOLE is deprecated! Do not use it! ***')
                 pass
@@ -2519,7 +2561,7 @@ class ShelXlFile():
 
     def wrap_line(self, line: str) -> str:
         # Generally, all Shelx opbjects have no line wrap. I do this now:
-        line = textwrap.wrap(str(line), 78, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
+        line = textwrap.wrap(line, 78, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
         if len(line) > 1:
             newline = []
             for n, l in enumerate(line):
@@ -2592,18 +2634,14 @@ class ShelXlFile():
             return reslist
         return reslist
 
-    def reload(self, resfile):
+    def reload(self):
         """
         Reloads the shelx file and parses it again.
         """
-        if resfile:
-            if DEBUG:
-                print('loading file:', resfile)
-            #self.write_shelx_file(resfile)
-            self.__init__(self.resfile)
-        else:
-            if DEBUG:
-                print('*** Can not read empty file data! ***')
+        if DEBUG:
+            print('loading file:', self.resfile)
+        self.__init__(self.resfile)
+
 
     def write_shelx_file(self, filename=None, verbose=False):
         if not filename:
@@ -2617,7 +2655,7 @@ class ShelXlFile():
                     continue
                 if line == '' and self._reslist[num + 1] == '':
                     continue
-                line = self.wrap_line(line)
+                line = self.wrap_line(str(line))
                 f.write(line + '\n')
         if verbose or DEBUG:
             print('File successfully written to {}'.format(os.path.abspath(filename)))
@@ -2860,7 +2898,7 @@ if __name__ == "__main__":
     #get_commands()
     #sys.exit()
 
-    file = r'test-data/p21c.res'
+    file = r'tests/p21c.res'
     try:
         shx = ShelXlFile(file)
     except Exception:
@@ -2875,11 +2913,10 @@ if __name__ == "__main__":
     #print(shx.sfac_table.remove_element('In'))
     print(shx.sfac_table)
     print(shx.unit)
-    print(shx.fvars.line_number)
     shx.cycles.set_refine_cycles(33)
     shx.write_shelx_file(r'./test.ins')
     print('\n\n')
-    print(shx)
+    print(shx.hklf)
     print('######################')
     sys.exit()
     # for x in shx.atoms:
