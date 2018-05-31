@@ -54,15 +54,6 @@ a.find_atoms_around(dist=2.0, only_part=1)
 'F2    4    0.264027    0.090306    0.642441   -21.00000    0.06073    0.04450      0.03972    0.01630   -0.01260    0.01460', 
 'F3    4    0.078582    0.131920    0.643529   -21.00000    0.05691    0.04955      0.03374    0.01040    0.01881    0.00375']
 
-[x for x in a.find_atoms_around(dist=2.5, only_part=2)]
-[ID: 251, ID: 253, ID: 257, ID: 259]
-
-for x in a.find_atoms_around(dist=2.5, only_part=2):
-    x.delete()
-    
-[x for x in a.find_atoms_around(dist=2.5, only_part=2)]
-[]  # Atoms are now deleted from shx._reslist.
-
 a.cart_coords
 [1.617897551082389, 4.027560959000001, 13.279336538026433]
 
@@ -77,6 +68,15 @@ a.occupancy
 
 a.sfac_num
 4
+
+[x for x in a.find_atoms_around(dist=2.5, only_part=2)]
+[ID: 251, ID: 253, ID: 257, ID: 259]
+
+for x in a.find_atoms_around(dist=2.5, only_part=2):
+    x.delete()
+    
+[x for x in a.find_atoms_around(dist=2.5, only_part=2)]
+[]  # Atoms are now deleted from shx._reslist.
 
 shx.write_shelx_file('test.ins')
 (writes current shx object to test.ins)
