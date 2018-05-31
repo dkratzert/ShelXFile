@@ -344,8 +344,7 @@ class Restraints():
 
     def __repr__(self):
         if self.restraints:
-            for x in self.restraints:
-                return x
+            return "\n".join([str(x) for x in self.restraints])
         else:
             return 'No Restraints in file.'
 
@@ -1295,8 +1294,7 @@ class Atoms():
 
     def __repr__(self):
         if self.atoms:
-            for x in self.atoms:
-                return x
+            return '\n'.join([str(x) for x in self.atoms])
         else:
             return 'No Atoms in file.'
 
@@ -1454,21 +1452,21 @@ class Atoms():
         return atoms
 
 
-class Atom(Atoms):
+class Atom():
     """
     An Opbect holding all Properties of a shelxl atom plus some extra information like
     kartesian coordinates and element type.
     """
     #                name    sfac     x         y        z       occ      u11      u12 ...
-    anisatomstr = '{:<4.4s}{:>3}{:>12.6f}{:>12.6f}{:>12.6f}{:>12.5f}{:>11.5f}{:>11.5f}' \
+    _anisatomstr = '{:<4.4s}{:>3}{:>12.6f}{:>12.6f}{:>12.6f}{:>12.5f}{:>11.5f}{:>11.5f}' \
                   ' {:>12.5f}{:>11.5f}{:>11.5f}{:>11.5f}'
     #               name    sfac     x         y         z         occ      u11
-    isoatomstr = '{:<5.5s} {:<3}{:>10.6f}  {:>10.6f}  {:>9.6f}  {:>9.5f}  {:>9.5f}'
-    fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
+    _isoatomstr = '{:<5.5s} {:<3}{:>10.6f}  {:>10.6f}  {:>9.6f}  {:>9.5f}  {:>9.5f}'
+    _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
     def __init__(self, shelx: 'ShelXlFile', spline: list, line_nums: list, line_number: int, part: int = 0,
                  afix: int = 0, residict: dict = None, sof: float = 0) -> None:
-        super(Atom, self).__init__(shelx)
+        #super(Atom, self).__init__(shelx)
         self._line_number = line_number
         self._lines = line_nums
         self.sfac_num = None
@@ -1600,7 +1598,7 @@ class Atom(Atoms):
         self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell)
 
     def __repr__(self) -> str:
-        return 'ID:' + str(self.atomid)
+        return 'ID: ' + str(self.atomid)
 
     def __str__(self) -> str:
         """
@@ -1609,20 +1607,20 @@ class Atom(Atoms):
         """
         if self.afix and self.shx.frag:
             # An atom from a FRAG/FEND instruction
-            return Atom.fragatomstr.format(self.name, self.x, self.y, self.z)
+            return Atom._fragatomstr.format(self.name, self.x, self.y, self.z)
         else:
             if len(self.uvals) > 2:
                 # anisotropic atom
                 try:
-                    return Atom.anisatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, *self.uvals)
+                    return Atom._anisatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, *self.uvals)
                 except(IndexError):
                     return 'REM Error in U values.'
             else:
                 # isotropic atom
                 try:
-                    return Atom.isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, *self.uvals)
+                    return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, *self.uvals)
                 except(IndexError):
-                    return Atom.isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
+                    return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
 
     @property
     def line_numbers(self) -> list:
@@ -1648,10 +1646,6 @@ class Atom(Atoms):
         Makes the current atom isotropic.
         """
         self.uvals = [0.04]
-        # TODO: Check if this works
-        #if len(self.line_numbers) > 1:
-        #    self.shx.delete_on_write.update([self.line_numbers[-1]])
-        #    self.shx.reslist[self.line_numbers[0]] = self.shx.reslist[self.line_numbers[0]].strip('=')
 
     '''
     def __eq__(self, other) -> bool:
