@@ -236,6 +236,7 @@ class ShelXlFile():
                 wrapindex += 1
                 line = line.rpartition('=')[0] + self._reslist[line_num + wrapindex]
                 self.delete_on_write.update([line_num + wrapindex])
+                self._reslist[line_num + wrapindex] = ''
                 list_of_lines.append(line_num + wrapindex)  # list containing the lines of a multiline command
             # The current line splitted:
             spline = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
@@ -317,23 +318,23 @@ class ShelXlFile():
                 # or SADI
                 if len(spline) == 1:
                     self.global_sadi = line_num
-                self.append_card(self.restraints, SADI(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, SADI(self, spline), line_num)
                 continue
             elif line[:4] == 'DFIX':
                 # DFIX d s[0.02] atom pairs
-                self.append_card(self.restraints, DFIX(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, DFIX(self, spline), line_num)
                 continue
             elif line[:4] == 'SIMU':
                 # SIMU s[0.04] st[0.08] dmax[2.0] atomnames
-                self.append_card(self.restraints, SIMU(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, SIMU(self, spline), line_num)
                 continue
             elif line[:4] == 'DELU':
                 # DELU s1[0.01] s2[0.01] atomnames
-                self.append_card(self.restraints, DELU(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, DELU(self, spline), line_num)
                 continue
             elif line[:4] == 'RIGU':
                 # RIGU s1[0.004] s2[0.004] atomnames
-                self.append_card(self.restraints, RIGU(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, RIGU(self, spline), line_num)
                 continue
             elif line[:4] == 'BASF':
                 # BASF scale factors
@@ -345,10 +346,10 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'DANG':
                 # DANG d s[0.04] atom pairs
-                self.append_card(self.restraints, DANG(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, DANG(self, spline), line_num)
                 continue
             elif line[:4] == 'EADP':
-                self.append_card(self.restraints, EADP(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, EADP(self, spline), line_num)
                 continue
             elif line[:3] == 'REM':
                 if dsr_regex.match(line):
@@ -506,11 +507,11 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'BUMP':
                 # BUMP s [0.02]
-                self.append_card(self.restraints, BUMP(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, BUMP(self, spline), line_num)
                 continue
             elif line[:4] == 'CHIV':
                 # CHIV V[0] s[0.1] atomnames
-                self.append_card(self.restraints, CHIV(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, CHIV(self, spline), line_num)
                 continue
             elif line[:4] == 'CONF':
                 # CONF atomnames max_d[1.9] max_a[170]
@@ -523,7 +524,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'DEFS':
                 # DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
-                self.defs = DEFS(spline, list_of_lines)
+                self.defs = DEFS(self, spline)
                 self.assign_card(self.defs, line_num)
                 continue
             elif line[:4] == 'DISP':
@@ -544,7 +545,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'EXYZ':
                 # EXYZ atomnames
-                self.append_card(self.restraints, EXYZ(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, EXYZ(self, spline), line_num)
                 continue
             elif line[:4] == 'FRAG':
                 # FRAG code[17] a[1] b[1] c[1] α[90] β[90] γ[90]
@@ -559,7 +560,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'FLAT':
                 # FLAT s[0.1] four or more atoms
-                self.append_card(self.restraints, FLAT(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, FLAT(self, spline), line_num)
                 continue
             elif line[:4] == 'FREE':
                 # FREE atom1 atom2
@@ -586,7 +587,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'ISOR':
                 # ISOR s[0.1] st[0.2] atomnames
-                self.append_card(self.restraints, ISOR(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, ISOR(self, spline), line_num)
                 continue
             elif line[:4] == 'LAUE':
                 # LAUE E
@@ -614,7 +615,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'NCSY':
                 # NCSY DN sd[0.1] su[0.05] atoms
-                self.append_card(self.restraints, NCSY(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, NCSY(self, spline), line_num)
                 continue
             elif line[:4] == 'NEUT':
                 # NEUT
@@ -639,7 +640,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'SAME':
                 # SAME s1[0.02] s2[0.04] atomnames
-                self.append_card(self.restraints, SAME(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, SAME(self, spline), line_num)
                 continue
             elif line[:4] == 'SHEL':
                 # SHEL lowres[infinite] highres[0]
@@ -833,7 +834,7 @@ class ShelXlFile():
 
     def wrap_line(self, line: str) -> str:
         # Generally, all Shelx opbjects have no line wrap. I do this now:
-        line = textwrap.wrap(line, 78, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
+        line = textwrap.wrap(line, 79, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
         if len(line) > 1:
             newline = []
             for n, l in enumerate(line):

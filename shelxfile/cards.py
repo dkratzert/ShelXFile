@@ -5,20 +5,24 @@ from misc import DEBUG, ParseUnknownParam, split_fvar_and_parameter, chunks, Par
 
 class Restraint():
 
-    def __init__(self, spline: list, line_nums: list):
+    def __init__(self, shx, spline: list):
         """
         Base class for parsing restraints.
         TODO: resolve ranges like SADI_CCF3 O1 > F9
         Therefore, make method to get atoms of residue CCF3 and residue x<-number
         and between C21 ans C25 for atoms outside residues.
         """
-        self.line_numbers = line_nums
+        self.shx = shx
         self.residue_class = ''
         self.residue_number = 0
         self.textline = ' '.join(spline)
         self.name = None
         self.atoms = []
         self.atoms_involved = []
+
+    @property
+    def position(self):
+        return self.shx._reslist.index(self)
 
     def _parse_line(self, spline, pairs=False):
         self.spline = spline
@@ -536,6 +540,7 @@ class Atom():
                   ' {:>12.5f}{:>11.5f}{:>11.5f}{:>11.5f}'
     #               name    sfac     x         y         z         occ      u11
     _isoatomstr = '{:<5.5s} {:<3}{:>10.6f}  {:>10.6f}  {:>9.6f}  {:>9.5f}  {:>9.5f}'
+    _qpeakstr = '{:<5.5s} {:<3}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
     _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
     def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: int = 0,
@@ -672,7 +677,7 @@ class Atom():
         self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell)
 
     def __repr__(self) -> str:
-        return 'ID: ' + str(self.atomid)
+        return 'Atom ID: ' + str(self.atomid)
 
     def __str__(self) -> str:
         """
@@ -690,7 +695,9 @@ class Atom():
                 except(IndexError):
                     return 'REM Error in U values.'
             else:
-                # isotropic atom
+                # isotropic atom 
+                if self.qpeak:
+                    return Atom._qpeakstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04, self.peak_height)
                 try:
                     return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, *self.uvals)
                 except(IndexError):
@@ -809,8 +816,8 @@ class DEFS(Restraint):
     ss = 0.04
     maxsof = 1
 
-    def __init__(self, spline: list, line_nums: list):
-        super(DEFS, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(DEFS, self).__init__(shx, spline)
         DEFS.active = True
         p, _ = self._parse_line(spline)
         if _:
@@ -836,8 +843,8 @@ class NCSY(Restraint):
     NCSY DN sd[0.1] su[0.05] atoms
     """
 
-    def __init__(self, spline: list, line_nums: list):
-        super(NCSY, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(NCSY, self).__init__(shx, spline)
         self.sd = 0.1
         self.su = 0.05
         self.DN = None
@@ -857,8 +864,8 @@ class ISOR(Restraint):
     ISOR s[0.1] st[0.2] atomnames
     """
 
-    def __init__(self, spline: list, line_nums: list):
-        super(ISOR, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(ISOR, self).__init__(shx, spline)
         self.s = 0.1
         self.st = 0.2
         p, self.atoms = self._parse_line(spline, pairs=False)
@@ -873,8 +880,8 @@ class FLAT(Restraint):
     FLAT s[0.1] four or more atoms
     """
 
-    def __init__(self, spline: list, line_nums: list):
-        super(FLAT, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(FLAT, self).__init__(shx, spline)
         self.s = 0.1
         p, self.atoms = self._parse_line(spline, pairs=False)
         if len(p) > 0:
@@ -889,8 +896,8 @@ class BUMP(Restraint):
     BUMP s [0.02]
     """
 
-    def __init__(self, spline, line_nums):
-        super(BUMP, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline):
+        super(BUMP, self).__init__(shx, spline)
         self.s = 0.02
         p, _ = self._parse_line(spline, pairs=False)
         if len(p) > 0:
@@ -904,8 +911,8 @@ class DFIX(Restraint):
     DFIX d s[0.02] atom pairs
     """
 
-    def __init__(self, spline, line_nums):
-        super(DFIX, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline):
+        super(DFIX, self).__init__(shx, spline)
         self.s = 0.02
         p, self.atoms = self._parse_line(spline, pairs=True)
         if len(p) > 0:
@@ -925,8 +932,8 @@ class DANG(Restraint):
     DANG d s[0.04] atom pairs
     """
 
-    def __init__(self, spline, line_nums):
-        super(DANG, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline):
+        super(DANG, self).__init__(shx, spline)
         self.s = 0.04
         p, self.atoms = self._parse_line(spline, pairs=True)
         if len(p) > 0:
@@ -945,8 +952,8 @@ class SADI(Restraint):
     SADI s[0.02] pairs of atoms
     """
 
-    def __init__(self, spline, line_nums):
-        super(SADI, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline):
+        super(SADI, self).__init__(shx, spline)
         self.s = 0.02
         p, self.atoms = self._parse_line(spline, pairs=True)
         if len(p) > 0:
@@ -959,8 +966,8 @@ class SAME(Restraint):
     SAME s1[0.02] s2[0.04] atomnames
     """
 
-    def __init__(self, spline, line_nums):
-        super(SAME, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline):
+        super(SAME, self).__init__(shx, spline)
         self.s1 = 0.02
         self.s2 = 0.04
         p, self.atoms = self._parse_line(spline, pairs=False)
@@ -975,8 +982,8 @@ class RIGU(Restraint):
     RIGU s1[0.004] s2[0.004] atomnames
     """
 
-    def __init__(self, spline: list, line_nums: list):
-        super(RIGU, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(RIGU, self).__init__(shx, spline)
         self.s1 = 0.004
         self.s2 = 0.004
         p, self.atoms = self._parse_line(spline, pairs=False)
@@ -991,8 +998,8 @@ class SIMU(Restraint):
     SIMU s[0.04] st[0.08] dmax[2.0] atomnames
     """
 
-    def __init__(self, spline: list, line_nums: list):
-        super(SIMU, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(SIMU, self).__init__(shx, spline)
         self.s = 0.04
         self.st = 0.08
         self.dmax = 2.0
@@ -1010,8 +1017,8 @@ class DELU(Restraint):
     DELU s1[0.01] s2[0.01] atomnames
     """
 
-    def __init__(self, spline: list, line_nums: list):
-        super(DELU, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(DELU, self).__init__(shx, spline)
         self.s1 = 0.01
         self.s2 = 0.01
         p, self.atoms = self._parse_line(spline, pairs=False)
@@ -1026,8 +1033,8 @@ class CHIV(Restraint):
     CHIV V[0] s[0.1] atomnames
     """
 
-    def __init__(self, spline: list, line_nums: list):
-        super(CHIV, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(CHIV, self).__init__(shx, spline)
         self.s = 0.1
         self.V = 0.0
         p, self.atoms = self._parse_line(spline, pairs=False)
@@ -1042,8 +1049,8 @@ class EADP(Restraint):
     EADP atomnames
     """
 
-    def __init__(self, spline: list, line_nums: list) -> None:
-        super(EADP, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list) -> None:
+        super(EADP, self).__init__(shx, spline)
         _, self.atoms = self._parse_line(spline, pairs=False)
 
 
@@ -1052,8 +1059,8 @@ class EXYZ(Restraint):
     EADP atomnames
     """
 
-    def __init__(self, spline: list, line_nums: list) -> None:
-        super(EXYZ, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list) -> None:
+        super(EXYZ, self).__init__(shx, spline)
         _, self.atoms = self._parse_line(spline, pairs=False)
 
 

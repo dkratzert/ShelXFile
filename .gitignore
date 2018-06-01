@@ -1,5 +1,6 @@
 # by DK
 .idea/
+shelXlesaves/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -108,3 +109,5 @@ venv.bak/
 .idea/codeStyles/codeStyleConfig.xml
 .idea/codeStyles/Project.xml
 .idea/vcs.xml
+
+test.ins
