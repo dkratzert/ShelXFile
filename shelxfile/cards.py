@@ -134,6 +134,8 @@ class Command():
     def __str__(self):
         return self.textline
 
+    def __repr__(self):
+        return self.textline
 
 class ACTA(Command):
     """
@@ -322,12 +324,6 @@ class REM(Command):
     def __init__(self, spline: list, line_nums: list) -> None:
         super(REM, self).__init__(spline, line_nums)
 
-    def __repr__(self):
-        return self.textline
-
-    def __str__(self):
-        return self.textline
-
 
 class BOND(Command):
     """
@@ -337,9 +333,6 @@ class BOND(Command):
     def __init__(self, spline: list, line_nums: list) -> None:
         super(BOND, self).__init__(spline, line_nums)
         _, self.atoms = self._parse_line(spline)
-
-    def __repr__(self) -> str:
-        return self.textline.strip('\n\r')
 
 
 class Atoms():
@@ -1143,9 +1136,6 @@ class SUMP(Command):
 
     def __getitem__(self, item):
         return self.fvars[item]
-
-    def __repr__(self):
-        return self.textline
 
 
 class SYMM(Command):
