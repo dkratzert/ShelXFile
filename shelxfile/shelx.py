@@ -32,6 +32,7 @@ from dsrmath import Matrix
 TODO:
 
 - Atoms.add_atom(position=None) method. default for position is after FVAR table
+- Fix line wrapping behavior. I can not insert lines with \n. They get too long and wrapped with "=\n "
 - fit fragment without shelxl
 ------------------------------------------------------------
 - make all __repr__() unwrapped strings and wrap lines during write_res_file()
@@ -192,6 +193,7 @@ class ShelXlFile():
             if DEBUG:
                 raise
             else:
+                print('*** Parser Error ***')
                 return
         else:
             self.run_after_parse()
@@ -833,7 +835,7 @@ class ShelXlFile():
                 continue
             if line == '' and self._reslist[num + 1] == '':
                 continue
-            line = self.wrap_line(line)
+            #line = self.wrap_line(line)
             resl.append(line)
         return "\n".join(resl)
 
@@ -843,10 +845,10 @@ class ShelXlFile():
         line = textwrap.wrap(line, 79, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
         if len(line) > 1:
             newline = []
-            for n, l in enumerate(line):
+            for n, ln in enumerate(line):
                 if n < len(line) - 1:
-                    l += ' =\n'
-                newline.append(l)
+                    ln += ' =\n'
+                newline.append(ln)
             line = ' '.join(newline)
         else:
             line = ''.join(line)
@@ -921,7 +923,6 @@ class ShelXlFile():
             print('loading file:', self.resfile)
         self.__init__(self.resfile)
 
-
     def write_shelx_file(self, filename=None, verbose=False):
         if not filename:
             filename = self.resfile
@@ -935,7 +936,7 @@ class ShelXlFile():
                 if line == '' and self._reslist[num + 1] == '':
                     continue
                 line = self.wrap_line(str(line))
-                f.write(line + '\n')
+                f.write(str(line) + '\n')
         if verbose or DEBUG:
             print('File successfully written to {}'.format(os.path.abspath(filename)))
             return True

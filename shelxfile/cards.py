@@ -223,6 +223,10 @@ class Command():
     def position(self):
         return self.shx._reslist.index(self)
 
+    def __iter__(self):
+        for x in self.__repr__().split():
+            yield x
+
     def split(self):
         return self.textline.split()
 
@@ -266,11 +270,17 @@ class ACTA(Command):
         del self.shx.acta
         return self.textline.strip('\r\n')
 
-    def __repr__(self):
+    def _as_str(self):
         if self.twotheta:
             return "ACTA {:,g}".format(self.twotheta[0])
         else:
             return "ACTA"
+
+    def __repr__(self):
+        return self._as_str()
+
+    def __str__(self):
+        return self._as_str()
 
 
 class BLOC(Command):
@@ -803,6 +813,10 @@ class Atom():
         self.element = self.shx.sfac2elem(self.sfac_num).upper()
         self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell)
 
+    def __iter__(self):
+        for x in self.__repr__().split():
+            yield x
+
     def __repr__(self) -> str:
         return 'Atom ID: ' + str(self.atomid)
 
@@ -1296,11 +1310,14 @@ class SYMM(Command):
         symmcard = ''.join(spline[1:]).split(',')  # removes whitespace
         return symmcard
 
-    def __repr__(self):
+    def _as_str(self):
         return "SYMM  " + ", ".join(self.symmcard)
 
+    def __repr__(self):
+        return self._as_str()
+
     def __str__(self) -> str:
-        return "SYMM  " + ", ".join(self.symmcard)
+        return self._as_str()
 
 
 class SymmCards():
@@ -1312,11 +1329,14 @@ class SymmCards():
         self.shx = shx
         self._symmcards = []
 
-    def __repr__(self) -> str:
+    def _as_str(self) -> str:
         return "\n".join([str(x) for x in self._symmcards])
 
+    def __repr__(self) -> str:
+        return self._as_str()
+
     def __str__(self) -> str:
-        return "\n".join([str(x) for x in self._symmcards])
+        return self._as_str()
 
     def __getitem__(self, item):
         return self._symmcards[item]
@@ -1327,7 +1347,6 @@ class SymmCards():
 
     def append(self, obj):
         self._symmcards.append(obj)
-
 
 
 class LSCycles():
@@ -1384,6 +1403,10 @@ class LSCycles():
         """
         return self.__repr__()
 
+    def __iter__(self):
+        for x in self.__repr__().split():
+            yield x
+
     def __repr__(self):
         return '{} {} {} {}'.format('CGLS' if self.cgls else 'L.S.', self.cycles,
                                     self.nrf if self.nrf else '', self.nextra if self.nextra else '').strip()
@@ -1408,22 +1431,23 @@ class SFACTable():
             yield x['element'].capitalize()
 
     def __repr__(self):
-        regular = []
-        exponential = []
+        sftext = ''
+        elements = []
         for sf in self.sfac_table:
             if not self.is_exp(sf):
-                regular.append(sf['element'].capitalize())
+                elements.append(sf['element'].capitalize())
             else:
+                if elements:
+                    sftext += "\nSFAC " + " ".join(elements)
+                    elements = []
                 values = []
                 for x in ['element', 'a1', 'b1', 'a2', 'b2', 'a3', 'b3', 'a4', 'b4', 'c',
                           'fprime', 'fdprime', 'mu', 'r', 'wt']:
                     values.append(sf[x])
-                exponential.append("SFAC " + "  ".join(values))
-        sfac = "SFAC {:<4s}".format("  ".join(regular))
-        if exponential:
-            return "\n".join(exponential) + "\n" + sfac
-        else:
-            return sfac
+                sftext += "\nSFAC " + "  ".join(values)
+        if elements:
+            sftext += "\nSFAC " + "  ".join(elements)
+        return sftext[1:]
 
     def __getitem__(self, index: int):
         """
@@ -1593,9 +1617,15 @@ class WGHT(Command):
         if len(p) > 5:
             self.f = p[5]
 
-    def __repr__(self):
-        wght = 'WGHT {} {}'.format(self.a, self.b)
+    def _as_string(self):
+        wght = 'WGHT   {} {}'.format(self.a, self.b)
         # It is very unlikely that someone changes other parameter than a and b:
         if (self.c + self.d + self.e + self.f) != 0.33333:
             wght += ' {} {} {} {}'.format(self.c, self.d, self.e, self.f)
         return wght
+
+    def __repr__(self):
+        return self._as_string()
+
+    def __str__(self):
+        return self._as_string()
