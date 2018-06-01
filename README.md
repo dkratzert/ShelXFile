@@ -14,7 +14,7 @@ Examples:
 ```python
 
 from shelxfile.shelx import ShelXlFile
-shx = ShelXlFile('./p21c.res')
+shx = ShelXlFile('./tests/p21c.res')
 
 shx.cell
 [10.5086, 20.9035, 20.5072, 90.0, 94.13, 90.0]
