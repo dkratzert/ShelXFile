@@ -25,16 +25,22 @@ C1    1    0.028576    0.234542    0.337234   -31.00000    0.02311    0.03617   
 C2    1    0.121540    0.194460    0.298291   -31.00000    0.02960    0.04586      0.01555   -0.00485   -0.00023    0.01102
 ...
 
-a = shx.atoms.get_atom_by_name('F1_2')
+a = shx.atoms.get_atom_by_name('F1_2')  # Atom F1 in residue 2
 
 a
-ID: 255
+Atom ID: 273
 
 str(a)
 'F1    4    0.245205    0.192674    0.649231   -21.00000    0.05143    0.03826      0.03193   -0.00579   -0.01865   -0.00485'
 
 a.to_isotropic()
 str(a)
+'F1    4    0.245205    0.192674   0.649231  -21.00000    0.04000'
+
+a.position
+273
+
+str(shx._reslist[273])  # In regular code, do not access shx._reslist directly!
 'F1    4    0.245205    0.192674   0.649231  -21.00000    0.04000'
 
 a.name
@@ -47,7 +53,7 @@ a.part
 2
 
 a.find_atoms_around(dist=2.0, only_part=1)
-[ID: 236, ID: 238, ID: 242]
+[Atom ID: 254, Atom ID: 256, Atom ID: 260]
 
 [str(x) for x in a.find_atoms_around(dist=2.2, only_part=2)]
 ['C2    1    0.192984    0.140449    0.621265   -21.00000    0.04315    0.02747      0.02385    0.00686   -0.00757    0.00126', 
@@ -60,9 +66,6 @@ a.cart_coords
 a.frac_coords
 [0.245205, 0.192674, 0.649231]
 
-a.line_numbers
-[255, 256]
-
 a.occupancy
 1.0
 
@@ -70,7 +73,7 @@ a.sfac_num
 4
 
 [x for x in a.find_atoms_around(dist=2.5, only_part=2)]
-[ID: 251, ID: 253, ID: 257, ID: 259]
+[Atom ID: 269, Atom ID: 271, Atom ID: 275, Atom ID: 277]
 
 for x in a.find_atoms_around(dist=2.5, only_part=2):
     x.delete()
