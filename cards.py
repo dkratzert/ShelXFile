@@ -135,110 +135,15 @@ class Command():
         return self.textline
 
 
-class ShelX():
-    delete_on_write = None
-    atoms = None
-    sump = []
-    fvars = None
-    sfac_table = None
-    _reslist = None
-    restraints = None
-    dsrlines = None
-    symmcards = None
-
-    def __init__(self, resfile: str):
-        """
-        Reads the shelx file and extracts information.
-
-        :param resfile: file path
-        """
-        self.shelx_max_line_length = 79  # maximum character lenth per line in SHELXL
-        self.nohkl = False
-        self.a, self.b, self.c, self.alpha, self.beta, self.gamma, self.V = None, None, None, None, None, None, None
-        self.ansc = None
-        self.abin = None
-        self.acta = None
-        self.fmap = None
-        self.xnpd = None
-        self.wpdb = None
-        self.wigl = None
-        self.temp = 20
-        self.swat = None
-        self.stir = None
-        self.spec = None
-        self.twst = None
-        self.plan = None
-        self.prig = None
-        self.merg = None
-        self.more = None
-        self.move = None
-        self.defs = None
-        self.zerr = None
-        self.wght = None
-        self.frag = None
-        self.twin = None
-        self.basf = None
-        self.latt = None
-        self.anis = None
-        self.damp = None
-        self.unit = None
-        self.R1 = None
-        self.wR2 = None
-        self.data = None
-        self.parameters = None
-        self.dat_to_param = None
-        self.num_restraints = None
-        self.sump = []
-        self.end = False
-        self.maxsof = 1.0
-        self.commands = []
-        self.size = {}
-        self.htab = []
-        self.shel = []
-        self.mpla = []
-        self.rtab = []
-        self.omit = []
-        self.hklf = None
-        self.grid = []
-        self.free = []
-        self.titl = ""
-        self.exti = 0
-        self.eqiv = []
-        self.disp = []
-        self.conn = []
-        self.conv = []
-        self.bind = []
-        self.ansr = 0.001
-        self.bloc = []
-        self.cell = []
-        self.dsrlines = []
-        self.dsrline_nums = []
-        self.symmcards = []
-        self.hfixes = []
-        self.Z = 1
-        self.rem = []
-        self.indexes = {}
-        self.atoms = None
-        self.fvars = None
-        self.restraints = None
-        self.sfac_table = None
-        self.delete_on_write = set()
-        self.wavelen = None
-        self.global_sadi = None
-        self.cycles = None
-        self.list = 0
-        self.theta_full = 0
-        self.non_h = None
-        self.error_line_num = -1  # Only used to tell the line number during an exception.
-        self.restrdict = {}
-        self.resfile = resfile
-
-
 class ACTA(Command):
     """
     ACTA 2θfull[#]
+    >>> from shelxfile.shelx import ShelXlFile
+    >>> shx = ShelXlFile('../tests/p21c.res')
+    >>> shx.acta
+    
     """
-    def __init__(self, shx: 'ShelX', spline: list, line_nums: list):
+    def __init__(self, shx, spline: list, line_nums: list):
         super(ACTA, self).__init__(spline, line_nums)
         self.twotheta, _ = self._parse_line(spline)
         self.shx = shx
@@ -268,7 +173,7 @@ class FVAR():
 
 
 class FVARs():
-    def __init__(self, shx: 'ShelX'):
+    def __init__(self, shx):
         super(FVARs, self).__init__()
         self.fvars = []  # free variables
         self.shx = shx
@@ -441,7 +346,7 @@ class Atoms():
     """
     All atoms from a SHELXL file with their properties.
     """
-    def __init__(self, shx: 'ShelX'):
+    def __init__(self, shx):
         self.shx = shx
         self.atoms = []
         self.atomsdict = {}
@@ -484,13 +389,16 @@ class Atoms():
                 del self.atoms[n]
                 del self.atomsdict[at.name+'_{}'.format(at.resinum)]
                 del self.nameslist[self.nameslist.index(at.fullname.upper())]
-                self.shx.delete_on_write.update(at.line_numbers)
+                for x in at.line_numbers:
+                    del self.shx._reslist[x]
+                #self.shx.delete_on_write.update(at.line_numbers)
 
     @property
     def number(self) -> int:
         """
         The number of atoms in the current SHELX file.
-        >>> shx = ShelXlFile('./p21c.res')
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.atoms.number
         148
         """
@@ -507,8 +415,9 @@ class Atoms():
     def has_atom(self, atom_name: str) -> bool:
         """
         Returns true if shelx file has atom.
-        
-        >>> shx = ShelXlFile('./p21c.res')
+
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.atoms.has_atom('Al1')
         True
         >>> shx.atoms.has_atom('Al1_0')
@@ -527,9 +436,10 @@ class Atoms():
         """
         Returns an Atom object using an atom name with residue number like C1, C1_0, F2_4, etc.
         C1 means atom C1 in residue 0.
-        >>> shx = ShelXlFile('./p21c.res')
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.atoms.get_atom_by_name('Al1')
-        ID:70
+        ID: 88
         """
         if '_' not in atom_name:
             atom_name += '_0'
@@ -543,7 +453,8 @@ class Atoms():
     def get_all_atomcoordinates(self) -> dict:
         """
         Returns a dictionary {'C1': ['1.123', '0.7456', '3.245'], 'C2_2': ...}
-        >>> shx = ShelXlFile('./p21c.res')
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.atoms.get_all_atomcoordinates() # doctest: +ELLIPSIS
         {'O1_4': [0.074835, 0.238436, 0.402457], 'C1_4': [0.028576, 0.234542, 0.337234], ...}
         """
@@ -571,7 +482,8 @@ class Atoms():
     def residues(self) -> list:
         """
         Returns a list of the residue numbers in the shelx file.
-        >>> shx = ShelXlFile('./p21c.res')
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.atoms.residues
         [0, 1, 2, 3, 4]
         """
@@ -581,18 +493,22 @@ class Atoms():
     def q_peaks(self) -> list:
         r"""
         Returns a list of q-peaks in the file.
-        >>> shx = ShelXlFile('./p21c.res')
-        >>> shx.atoms.q_peaks # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
-        [ID:330, ID:331, ID:332, ID:333, ID:334, ID:335, ID:336, ID:337, ID:338, ID:339, ID:340, ID:341, ID:342, ID:343, ID:344, ID:345, ID:346, ID:347, ID:348, ID:349]
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
+        >>> shx.atoms.q_peaks[:5] # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
+        [ID: 346, ID: 347, ID: 348, ID: 349, ID: 350]
         """
         return [x for x in self.atoms if x.qpeak]
 
     def distance(self, atom1: str, atom2: str) -> float:
         """
         Calculates the (shortest) distance of two atoms given as text names e.g. C1_3.
-        >>> shx = ShelXlFile('./p21c.res')
-        >>> shx.atoms.distance('C22', 'C23')
-        1.4016798832482247
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
+        >>> shx.atoms.distance('F1_2', 'F2_2')
+        2.1543987012711194
+        >>> shx.atoms.distance('C2_2', 'F1_2')
+        1.3328539898488683
         """
         a1 = self.get_atom_by_name(atom1)
         a2 = self.get_atom_by_name(atom2)
@@ -604,7 +520,8 @@ class Atoms():
     def atoms_in_class(self, name: str) -> list:
         """
         Returns a list of atoms in residue class 'name'
-        >>> shx = ShelXlFile('./p21c.res')
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.atoms.atoms_in_class('CCF3')
         ['O1', 'C1', 'C2', 'F1', 'F2', 'F3', 'C3', 'F4', 'F5', 'F6', 'C4', 'F7', 'F8', 'F9']
         """
@@ -628,7 +545,7 @@ class Atom():
     _isoatomstr = '{:<5.5s} {:<3}{:>10.6f}  {:>10.6f}  {:>9.6f}  {:>9.5f}  {:>9.5f}'
     _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
-    def __init__(self, shelx: 'ShelX', spline: list, line_nums: list, line_number: int, part: int = 0,
+    def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: int = 0,
                  afix: int = 0, residict: dict = None, sof: float = 0) -> None:
         #super(Atom, self).__init__(shelx)
         self._line_number = line_number
@@ -803,6 +720,19 @@ class Atom():
         return [self.xc, self.yc, self.zc]
 
     def delete(self):
+        """
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
+        >>> shx.atoms[:3]
+        [ID: 53, ID: 55, ID: 57]
+        >>> shx._reslist[55:58]
+        [ID: 55, '         0.01096   -0.01000    0.00201    0.00356', ID: 57]
+        >>> del shx.atoms[55]
+        >>> shx.atoms[:3]
+        [ID: 53, ID: 57, ID: 59]
+        >>> shx._reslist[55:58]
+        ['         0.01096   -0.01000    0.00201    0.00356', '         0.01555   -0.00485   -0.00023    0.01102', ID: 59]
+        """
         del self.shx.atoms[self.atomid]
 
     def to_isotropic(self) -> None:
@@ -827,13 +757,12 @@ class Atom():
     def find_atoms_around(self, dist=1.2, only_part=0) -> list:
         """
         Finds atoms around the current atom.
-
-        >>> file = './p21c.res'
-        >>> shx = ShelXlFile(os.path.normpath(file))
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> at = shx.atoms.get_atom_by_name('Al1')
         >>> found = at.find_atoms_around(2)
         >>> [n.atomid for n in found]
-        [72, 74]
+        [90, 92]
         >>> del shx.atoms[17]
 
         """
@@ -1242,7 +1171,7 @@ class SYMM(Command):
 
 
 class LSCycles():
-    def __init__(self, shx: 'ShelX', spline: list, line_number: int = 0):
+    def __init__(self, shx, spline: list, line_number: int = 0):
         """
         L.S. nls[0] nrf[0] nextra[0]
         If nrf is positive, it is the number of these cycles that should be performed before applying ANIS.
@@ -1279,7 +1208,8 @@ class LSCycles():
     def set_refine_cycles(self, number: int):
         """
         Sets the number of refinement cycles for the current res file.
-        >>> shx = ShelXlFile('./p21c.res')
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.cycles.set_refine_cycles(44)
         >>> shx._reslist[shx.cycles.line_number]
         L.S. 44
@@ -1300,7 +1230,7 @@ class LSCycles():
 
 
 class SFACTable():
-    def __init__(self, shx: 'ShelX'):
+    def __init__(self, shx):
         """
         Holds the information of SFAC instructions. Either with default values and only elements
         SFAC elements
@@ -1349,7 +1279,8 @@ class SFACTable():
     def parse_element_line(self, spline: list):
         """
         Adds a new SFAC card to the list of cards.
-        >>> shx = ShelXlFile('./p21c.res')
+        >>> from shelxfile.shelx import ShelXlFile
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.sfac_table
         SFAC C  H  O  F  Al  Ga
         >>> shx.unit

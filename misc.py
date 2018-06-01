@@ -14,7 +14,7 @@ import time
 
 from shelxfile.dsrmath import frac_to_cart, subtract_vect, determinante
 
-DEBUG = True
+DEBUG = False
 PROFILE = False
 
 dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)

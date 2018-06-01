@@ -1037,8 +1037,8 @@ class ShelXlFile():
         try:
             afixnum = int(spline[1])
         except(ValueError, IndexError):
-            if DEBUG:
-                print('*** Wrong AFIX definition in line {}. Check your AFIX instructions ***'.format(line_num))
+            #if DEBUG:
+            print('*** Wrong AFIX definition in line {}. Check your AFIX instructions ***'.format(line_num))
             afixnum = 0
         if len(spline) > 2:
             d = float(spline[2])
@@ -1081,7 +1081,7 @@ class ShelXlFile():
     def elem2sfac(self, atom_type: str) -> int:
         """
         returns an sfac-number for the element given in "atom_type"
-        >>> shx = ShelXlFile('p21c.res')
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.elem2sfac('O')
         3
         >>> shx.elem2sfac('c')
@@ -1097,7 +1097,7 @@ class ShelXlFile():
         """
         returns an element and needs an sfac-number
         :param sfacnum: string like '2'
-        >>> shx = ShelXlFile('./p21c.res')
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.sfac2elem(1)
         'C'
         >>> shx.sfac2elem(2)
