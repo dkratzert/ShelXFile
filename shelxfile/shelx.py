@@ -355,7 +355,7 @@ class ShelXlFile():
                 if dsr_regex.match(line):
                     self.dsrlines.append(" ".join(spline))
                     self.dsrline_nums.extend(list_of_lines)
-                self.append_card(self.rem, REM(spline, list_of_lines), line_num)
+                self.append_card(self.rem, REM(self, spline), line_num)
                 continue
             elif line[:4] == 'AFIX':
                 pass
@@ -393,7 +393,7 @@ class ShelXlFile():
                 #    raise ParseOrderError
                 # if not self.zerr:
                 #    raise ParseOrderError
-                self.append_card(self.symmcards, SYMM(spline, list_of_lines), line_num)
+                self.append_card(self.symmcards, SYMM(self, spline), line_num)
                 lastcard = 'SYMM'
                 continue
             elif line[:4] == 'SFAC':
@@ -420,7 +420,7 @@ class ShelXlFile():
                     raise ParseOrderError
                 if self.sfac_table:
                     try:
-                        self.unit = self.assign_card(UNIT(spline, list_of_lines), line_num)
+                        self.unit = self.assign_card(UNIT(self, spline), line_num)
                     except ValueError:
                         if DEBUG:
                             print('*** Non-numeric value in SFAC instruction! ***')
@@ -467,15 +467,15 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'WGHT':
                 # WGHT a[0.1] b[0] c[0] d[0] e[0] f[.33333]
-                self.wght = self.assign_card(WGHT(spline, list_of_lines), line_num)
+                self.wght = self.assign_card(WGHT(self, spline), line_num)
                 continue
             elif line[:4] == 'ACTA':
                 # ACTA 2θfull[#] -> optional parameter NOHKL
-                self.acta = self.append_card(self.commands, ACTA(self, spline, list_of_lines), line_num)
+                self.acta = self.append_card(self.commands, ACTA(self, spline), line_num)
                 continue
             elif line[:4] == 'DAMP':
                 # DAMP damp[0.7] limse[15]
-                self.damp = self.append_card(self.commands, DAMP(spline, list_of_lines), line_num)
+                self.damp = self.append_card(self.commands, DAMP(self, spline), line_num)
                 continue
             elif line[:4] == 'ABIN':
                 # ABIN n1 n2   ->   Reads h, k, l, A and B from the file name.fab
@@ -503,7 +503,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'BOND':
                 # BOND atomnames
-                self.append_card(self.commands, BOND(spline, list_of_lines), line_num)
+                self.append_card(self.commands, BOND(self, spline), line_num)
                 continue
             elif line[:4] == 'BUMP':
                 # BUMP s [0.02]
@@ -572,7 +572,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'HKLF':
                 # HKLF N[0] S[1] r11...r33[1 0 0 0 1 0 0 0 1] sm[1] m[0]
-                self.hklf = HKLF(spline, list_of_lines)
+                self.hklf = HKLF(self, spline)
                 self.assign_card(self.hklf, line_num)
                 continue
             elif line.startswith('END'):
@@ -666,7 +666,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'SUMP':
                 # SUMP c sigma c1 m1 c2 m2 ...
-                self.append_card(self.sump, SUMP(spline, list_of_lines), line_num)
+                self.append_card(self.sump, SUMP(self, spline), line_num)
                 continue
             elif line[:4] == 'SWAT':
                 # SWAT g[0] U[2]
@@ -678,7 +678,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'TWIN':
                 # TWIN 3x3 matrix [-1 0 0 0 -1 0 0 0 -1] N[2]
-                self.twin = TWIN(spline, list_of_lines)
+                self.twin = TWIN(self, spline)
                 self.assign_card(self.twin, line_num)
                 continue
             elif line[:4] == 'TWST':
@@ -777,7 +777,7 @@ class ShelXlFile():
         """
         Place ACTA after UNIT
         """
-        self.add_line(self.unit.line_numbers[-1] + 1, acta)
+        self.add_line(self.unit._line_numbers[-1] + 1, acta)
 
     def orthogonal_matrix(self):
         """
@@ -938,6 +938,7 @@ class ShelXlFile():
     def append_card(self, obj, card, line_num):
         obj.append(card)
         self._reslist[line_num] = card
+        return card
 
     def assign_card(self, card, line_num):
         self._reslist[line_num] = card

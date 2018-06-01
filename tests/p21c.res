@@ -11,7 +11,7 @@ LIST 4 ! automatically inserted. Change 6 to 4 for CHECKCIF!!
 L.S.  10
 PLAN  20
 TEMP -173.18
-ACTA
+ACTA 45
 SIZE 0.12 0.23 0.33
 DELU 0.04
 BOND $H

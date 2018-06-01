@@ -97,8 +97,8 @@ class Command():
     A class to parse all general commands except restraints.
     """
 
-    def __init__(self, spline: list, line_nums: list):
-        self.line_numbers = line_nums
+    def __init__(self, shx, spline: list):
+        self.shx = shx
         self.residue_class = ''
         self.residue_number = 0
         self.textline = ' '.join(spline)
@@ -132,6 +132,10 @@ class Command():
                 words.append(x)
         return numparams, words
 
+    @property
+    def position(self):
+        return self.shx._reslist.index(self)
+
     def split(self):
         return self.textline.split()
 
@@ -147,19 +151,22 @@ class ACTA(Command):
     >>> from shelxfile.shelx import ShelXlFile
     >>> shx = ShelXlFile('./tests/p21c.res')
     >>> shx.acta
-    
+    ACTA 45
     """
-    def __init__(self, shx, spline: list, line_nums: list):
-        super(ACTA, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(ACTA, self).__init__(shx, spline)
         self.twotheta, _ = self._parse_line(spline)
         self.shx = shx
 
     def remove_acta_card(self):
-        self.shx.delete_on_write.update([self.shx._reslist.index(self)])
+        del self.shx._reslist[self.shx._reslist.index(self)]
         return self.textline.strip('\r\n')
 
     def __repr__(self):
-        return "ACTA {}".format(self.twotheta if self.twotheta else '')
+        if self.twotheta:
+            return "ACTA {:,g}".format(self.twotheta[0])
+        else:
+            return "ACTA"
 
 
 class FVAR():
@@ -325,8 +332,8 @@ class REM(Command):
     Parses REM lines
     """
 
-    def __init__(self, spline: list, line_nums: list) -> None:
-        super(REM, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list) -> None:
+        super(REM, self).__init__(shx, spline)
 
 
 class BOND(Command):
@@ -334,8 +341,8 @@ class BOND(Command):
     BOND atomnames
     """
 
-    def __init__(self, spline: list, line_nums: list) -> None:
-        super(BOND, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list) -> None:
+        super(BOND, self).__init__(shx, spline)
         _, self.atoms = self._parse_line(spline)
 
 
@@ -386,7 +393,7 @@ class Atoms():
                 del self.atoms[n]
                 del self.atomsdict[at.name+'_{}'.format(at.resinum)]
                 del self.nameslist[self.nameslist.index(at.fullname.upper())]
-                for x in at.line_numbers:
+                for x in at._line_numbers:
                     del self.shx._reslist[x]
                 #self.shx.delete_on_write.update(at.line_numbers)
 
@@ -436,7 +443,7 @@ class Atoms():
         >>> from shelxfile.shelx import ShelXlFile
         >>> shx = ShelXlFile('./tests/p21c.res')
         >>> shx.atoms.get_atom_by_name('Al1')
-        ID: 88
+        Atom ID: 88
         """
         if '_' not in atom_name:
             atom_name += '_0'
@@ -493,7 +500,7 @@ class Atoms():
         >>> from shelxfile.shelx import ShelXlFile
         >>> shx = ShelXlFile('./tests/p21c.res')
         >>> shx.atoms.q_peaks[:5] # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
-        [ID: 346, ID: 347, ID: 348, ID: 349, ID: 350]
+        [Atom ID: 346, Atom ID: 347, Atom ID: 348, Atom ID: 349, Atom ID: 350]
         """
         return [x for x in self.atoms if x.qpeak]
 
@@ -653,7 +660,7 @@ class Atom():
             x, y, z = [float(x) for x in line[2:5]]
         except ValueError as e:
             if DEBUG:
-                print(e, 'Line:', self.line_numbers[-1])
+                print(e, 'Line:', self._line_numbers[-1])
             raise ParseUnknownParam
         if abs(x) > 4:
             fvar, x = split_fvar_and_parameter(x)
@@ -704,12 +711,16 @@ class Atom():
                     return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
 
     @property
-    def line_numbers(self) -> list:
+    def _line_numbers(self) -> list:
         return self._lines
 
-    @line_numbers.setter
-    def line_numbers(self, value: list):
+    @_line_numbers.setter
+    def _line_numbers(self, value: list):
         self._lines = value
+
+    @property
+    def position(self):
+        return self.shx._reslist.index(self)
 
     @property
     def frac_coords(self):
@@ -724,14 +735,14 @@ class Atom():
         >>> from shelxfile.shelx import ShelXlFile
         >>> shx = ShelXlFile('./tests/p21c.res')
         >>> shx.atoms[:3]
-        [ID: 53, ID: 55, ID: 57]
+        [Atom ID: 53, Atom ID: 55, Atom ID: 57]
         >>> shx._reslist[55:58]
-        [ID: 55, '         0.01096   -0.01000    0.00201    0.00356', ID: 57]
+        [Atom ID: 55, '', Atom ID: 57]
         >>> del shx.atoms[55]
         >>> shx.atoms[:3]
-        [ID: 53, ID: 57, ID: 59]
+        [Atom ID: 53, Atom ID: 57, Atom ID: 59]
         >>> shx._reslist[55:58]
-        ['         0.01096   -0.01000    0.00201    0.00356', '         0.01555   -0.00485   -0.00023    0.01102', ID: 59]
+        ['', '', Atom ID: 59]
         """
         del self.shx.atoms[self.atomid]
 
@@ -1068,8 +1079,8 @@ class DAMP(Command):
     """
     DAMP damp[0.7] limse[15]
     """
-    def __init__(self, spline, line_nums):
-        super(DAMP, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(DAMP, self).__init__(shx, spline)
         values, _ = self._parse_line(spline, intnums=False)
         self.damp, self.limse = 0, 0
         if len(values) > 0:
@@ -1088,8 +1099,8 @@ class HFIX(Command):
     """
     HFIX mn U[#] d[#] atomnames
     """
-    def __init__(self, spline: list, line_nums: list):
-        super(HFIX, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(HFIX, self).__init__(shx, spline)
         self.params, self.atoms = self._parse_line(spline, intnums=True)
 
     def __repr__(self):
@@ -1101,8 +1112,8 @@ class HKLF(Command):
     """
     HKLF N[0] S[1] r11...r33[1 0 0 0 1 0 0 0 1] sm[1] m[0]
     """
-    def __init__(self, spline: list, line_nums: list):
-        super(HKLF, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(HKLF, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
         self.n = 0
         self.s = 1
@@ -1130,8 +1141,8 @@ class SUMP(Command):
     SUMP c sigma c1 m1 c2 m2 ...
     """
 
-    def __init__(self, spline, line_nums):
-        super(SUMP, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(SUMP, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
         self.c = p.pop(0)
         self.fvars = {}
@@ -1150,8 +1161,8 @@ class SYMM(Command):
     Container for a symm card.
     """
 
-    def __init__(self, spline, line_nums):
-        super(SYMM, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(SYMM, self).__init__(shx, spline)
         self.symmcards = self._parse_line(spline)
 
     def _parse_line(self, spline, intnums=False):
@@ -1332,8 +1343,8 @@ class UNIT(Command):
     """
     UNIT n1 n2 ...
     """
-    def __init__(self, spline: list, line_nums: list):
-        super(UNIT, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(UNIT, self).__init__(shx, spline)
         self.values, _ = self._parse_line(spline)
 
     def add_number(self, number: float):
@@ -1378,8 +1389,8 @@ class TWIN(Command):
     m-1   (2*abs(m)/2)-1
     """
 
-    def __init__(self, spline: list, line_nums: list):
-        super(TWIN, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(TWIN, self).__init__(shx, spline)
         self.matrix = [-1, 0, 0, 0, -1, 0, 0, 0, -1]
         self.allowed_N = 2
         self.n_value = 2
@@ -1408,15 +1419,14 @@ class WGHT(Command):
     Usually only WGHT a b
     """
 
-    def __init__(self, spline: list, line_nums: list):
-        super(WGHT, self).__init__(spline, line_nums)
+    def __init__(self, shx, spline: list):
+        super(WGHT, self).__init__(shx, spline)
         self.a = 0.1
         self.b = 0.0
         self.c = 0.0
         self.d = 0.0
         self.e = 0.0
         self.f = 0.33333
-        self.line_numbers = line_nums[0]
         p, _ = self._parse_line(spline)
         if len(p) > 0:
             self.a = p[0]
