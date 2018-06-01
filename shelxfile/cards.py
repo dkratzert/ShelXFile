@@ -2,6 +2,94 @@ from dsrmath import atomic_distance, frac_to_cart, my_isnumeric
 from misc import DEBUG, ParseUnknownParam, split_fvar_and_parameter, chunks, ParseParamError, ParseNumError, \
     ParseOrderError
 
+"""
+SHELXL cards:
+
+ABIN n1 n2 
+ACTA 2θfull[#]
+AFIX mn d[#] sof[11] U[10.08]
+ANIS n 
+ANIS names
+ANSC six coefficients
+ANSR anres[0.001]
+BASF scale factors
+BIND atom1 atom2
+BIND m n
+BLOC n1 n2 atomnames
+BOND atomnames
+BUMP s [0.02]
+CELL λ a b c α β γ
+CGLS nls[0] nrf[0] nextra[0]
+CHIV V[0] s[0.1] atomnames
+CONF atomnames max_d[1.9] max_a[170]
+CONN bmax[12] r[#] atomnames or CONN bmax[12]
+DAMP damp[0.7] limse[15]
+DANG d s[0.04] atom pairs
+DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
+DELU s1[0.01] s2[0.01] atomnames
+DFIX d s[0.02] atom pairs
+DISP E f' f"[#] mu[#]
+EADP atomnames
+END
+EQIV $n symmetry operation
+EXTI x[0] 
+EXYZ atomnames
+FEND
+FLAT s[0.1] four or more atoms
+FMAP code[2] axis[#] nl[53]
+FRAG code[17] a[1] b[1] c[1] α[90] β[90] γ[90]
+FREE atom1 atom2
+FVAR osf[1] free variables
+GRID sl[#] sa[#] sd[#] dl[#] da[#] dd[#]
+HFIX mn U[#] d[#] atomnames
+HKLF N[0] S[1] r11...r33[1 0 0 0 1 0 0 0 1] sm[1] m[0]
+HTAB dh[2.0]
+HTAB donor-atom acceptor-atom
+ISOR s[0.1] st[0.2] atomnames
+LATT N[1]
+LAUE E
+LIST m[#] mult[1]
+L.S. nls[0] nrf[0] nextra[0]
+MERG n[2]
+MORE m[1]
+MOVE dx[0] dy[0] dz[0] sign[1]
+MPLA na atomnames
+NCSY DN sd[0.1] su[0.05] atoms
+NEUT
+OMIT atomnames
+OMIT s[-2] 2θ(lim)[180]
+OMIT h k l
+PART n sof
+PLAN npeaks[20] d1[#] d2[#]
+PRIG p[#]
+REM
+RESI class[ ] number[0] alias
+RIGU s1[0.004] s2[0.004] atomnames
+RTAB codename atomnames
+SADI s[0.02] pairs of atoms
+SAME s1[0.02] s2[0.04] atomnames
+SFAC elements
+SFAC E a1 b1 a2 b2 a3 b3 a4 b4 c f' f" mu r wt
+SHEL lowres[infinite] highres[0]
+SIMU s[0.04] st[0.08] dmax[2.0] atomnames
+SIZE dx dy dz
+SPEC del[0.2]
+STIR sres step[0.01]
+SUMP c sigma c1 m1 c2 m2 ... 
+SWAT g[0] U[2] 
+SYMM symmetry operation
+TEMP T[20]
+TITL [ ]
+TWIN 3x3 matrix [-1 0 0 0 -1 0 0 0 -1] N[2]
+TWST N[0]
+UNIT n1 n2 ...
+WGHT a[0.1] b[0] c[0] d[0] e[0] f[.33333]
+WIGL del[0.2] dU[0.2]
+WPDB n[1]
+XNPD Umin[-0.001]
+ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
+"""
+
 
 class Restraint():
 
@@ -102,7 +190,6 @@ class Command():
         self.residue_class = ''
         self.residue_number = 0
         self.textline = ' '.join(spline)
-        self.name = None
         self.atoms = []
 
     def _parse_line(self, spline, intnums=False):
@@ -145,14 +232,29 @@ class Command():
     def __repr__(self):
         return self.textline
 
+
 class ACTA(Command):
     """
     ACTA 2θfull[#]
+    
     >>> from shelxfile.shelx import ShelXlFile
     >>> shx = ShelXlFile('./tests/p21c.res')
     >>> shx.acta
     ACTA 45
+    >>> shx._reslist.index(shx.acta)
+    13
+    >>> ac = shx.acta.remove_acta_card()
+    >>> shx._reslist[13]
+    'SIZE 0.12 0.23 0.33'
+    >>> ac
+    'ACTA 45'
+    >>> shx.restore_acta_card(ac)
+    >>> shx._reslist.index(shx.acta)
+    9
+    >>> shx._reslist[8:10]
+    [UNIT 1  2  3  4  5  6, ACTA 45]
     """
+
     def __init__(self, shx, spline: list):
         super(ACTA, self).__init__(shx, spline)
         self.twotheta, _ = self._parse_line(spline)
@@ -160,6 +262,8 @@ class ACTA(Command):
 
     def remove_acta_card(self):
         del self.shx._reslist[self.shx._reslist.index(self)]
+        del self.shx.commands[self.shx.commands.index(self)]
+        del self.shx.acta
         return self.textline.strip('\r\n')
 
     def __repr__(self):
@@ -167,6 +271,21 @@ class ACTA(Command):
             return "ACTA {:,g}".format(self.twotheta[0])
         else:
             return "ACTA"
+
+
+class BLOC(Command):
+    """
+    BLOC n1 n2 atomnames
+    """
+
+    def __init__(self, shx, spline: list):
+        super(BLOC, self).__init__(shx, spline)
+        params, self.atoms = self._parse_line(spline)
+        if len(params) > 1:
+            self.n2 = params[1]
+        if len(params) > 0:
+            self.n1 = params[0]
+        self.shx = shx
 
 
 class FVAR():
@@ -350,6 +469,7 @@ class Atoms():
     """
     All atoms from a SHELXL file with their properties.
     """
+
     def __init__(self, shx):
         self.shx = shx
         self.atoms = []
@@ -391,11 +511,11 @@ class Atoms():
                 if DEBUG:
                     print("deleting atom", at.name)
                 del self.atoms[n]
-                del self.atomsdict[at.name+'_{}'.format(at.resinum)]
+                del self.atomsdict[at.name + '_{}'.format(at.resinum)]
                 del self.nameslist[self.nameslist.index(at.fullname.upper())]
                 for x in at._line_numbers:
                     del self.shx._reslist[x]
-                #self.shx.delete_on_write.update(at.line_numbers)
+                # self.shx.delete_on_write.update(at.line_numbers)
 
     @property
     def number(self) -> int:
@@ -464,9 +584,9 @@ class Atoms():
         """
         atdict = {}
         for at in self.atoms:
-            #if at.qpeak:
+            # if at.qpeak:
             #    atdict[at.name] = at.frac_coords
-            #else:
+            # else:
             atdict[at.name.upper() + '_' + str(at.resinum)] = at.frac_coords
         return atdict
 
@@ -544,7 +664,7 @@ class Atom():
     """
     #                name    sfac     x         y        z       occ      u11      u12 ...
     _anisatomstr = '{:<4.4s}{:>3}{:>12.6f}{:>12.6f}{:>12.6f}{:>12.5f}{:>11.5f}{:>11.5f}' \
-                  ' {:>12.5f}{:>11.5f}{:>11.5f}{:>11.5f}'
+                   ' {:>12.5f}{:>11.5f}{:>11.5f}{:>11.5f}'
     #               name    sfac     x         y         z         occ      u11
     _isoatomstr = '{:<5.5s} {:<3}{:>10.6f}  {:>10.6f}  {:>9.6f}  {:>9.5f}  {:>9.5f}'
     _qpeakstr = '{:<5.5s} {:<3}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
@@ -552,11 +672,11 @@ class Atom():
 
     def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: int = 0,
                  afix: int = 0, residict: dict = None, sof: float = 0) -> None:
-        #super(Atom, self).__init__(shelx)
+        # super(Atom, self).__init__(shelx)
         self._line_number = line_number
         self._lines = line_nums
         self.sfac_num = None
-        self.name = None      # Name without residue number like "C1"
+        self.name = None  # Name without residue number like "C1"
         self.fullname = None  # Name including residue nimber like "C1_2"
         # Site occupation factor including free variable like 31.0
         self.sof = None
@@ -654,7 +774,7 @@ class Atom():
 
     def parse_line(self, line):
         self.name = line[0][:4]
-        self.fullname = self.name+'_{}'.format(self.resinum)
+        self.fullname = self.name + '_{}'.format(self.resinum)
         uvals = [float(x) for x in line[6:12]]
         try:
             x, y, z = [float(x) for x in line[2:5]]
@@ -698,15 +818,18 @@ class Atom():
             if len(self.uvals) > 2:
                 # anisotropic atom
                 try:
-                    return Atom._anisatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, *self.uvals)
+                    return Atom._anisatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof,
+                                                    *self.uvals)
                 except(IndexError):
                     return 'REM Error in U values.'
             else:
                 # isotropic atom 
                 if self.qpeak:
-                    return Atom._qpeakstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04, self.peak_height)
+                    return Atom._qpeakstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04,
+                                                 self.peak_height)
                 try:
-                    return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, *self.uvals)
+                    return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof,
+                                                   *self.uvals)
                 except(IndexError):
                     return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
 
@@ -794,21 +917,21 @@ class Restraints():
     """
 
     def __init__(self):
-        self.restraints = []
+        self._restraints = []
 
     def append(self, restr):
-        self.restraints.append(restr)
+        self._restraints.append(restr)
 
     def __iter__(self):
-        for x in self.restraints:
+        for x in self._restraints:
             yield x
 
     def __getitem__(self, item):
-        return self.restraints[item]
+        return self._restraints[item]
 
     def __repr__(self):
-        if self.restraints:
-            return "\n".join([str(x) for x in self.restraints])
+        if self._restraints:
+            return "\n".join([str(x) for x in self._restraints])
         else:
             return 'No Restraints in file.'
 
@@ -1079,6 +1202,7 @@ class DAMP(Command):
     """
     DAMP damp[0.7] limse[15]
     """
+
     def __init__(self, shx, spline: list):
         super(DAMP, self).__init__(shx, spline)
         values, _ = self._parse_line(spline, intnums=False)
@@ -1099,6 +1223,7 @@ class HFIX(Command):
     """
     HFIX mn U[#] d[#] atomnames
     """
+
     def __init__(self, shx, spline: list):
         super(HFIX, self).__init__(shx, spline)
         self.params, self.atoms = self._parse_line(spline, intnums=True)
@@ -1112,6 +1237,7 @@ class HKLF(Command):
     """
     HKLF N[0] S[1] r11...r33[1 0 0 0 1 0 0 0 1] sm[1] m[0]
     """
+
     def __init__(self, shx, spline: list):
         super(HKLF, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
@@ -1132,7 +1258,8 @@ class HKLF(Command):
             self.m = p[13]
 
     def __repr__(self):
-        return "HKLF {:,g} {:,g}  {}  {:,g} {:,g}".format(self.n, self.s, ' '.join([str(i) for i in self.matrix]), self.sm, self.m)
+        return "HKLF {:,g} {:,g}  {}  {:,g} {:,g}".format(self.n, self.s, ' '.join([str(i) for i in self.matrix]),
+                                                          self.sm, self.m)
 
 
 class SUMP(Command):
@@ -1163,19 +1290,44 @@ class SYMM(Command):
 
     def __init__(self, shx, spline: list):
         super(SYMM, self).__init__(shx, spline)
-        self.symmcards = self._parse_line(spline)
+        self.symmcard = self._parse_line(spline)
 
-    def _parse_line(self, spline, intnums=False):
-        symmcards = []
-        line = ''.join(spline[1:])  # removes whitespace
-        symmcards.append(line.split(','))
-        return symmcards
+    def _parse_line(self, spline: list, intnums: bool = False) -> list:
+        symmcard = ''.join(spline[1:]).split(',')  # removes whitespace
+        return symmcard
 
     def __repr__(self):
-        return "\n".join(["SYMM  " + "  ".join(x) for x in self.symmcards])
+        return "SYMM  " + ", ".join(self.symmcard)
 
-    def __str__(self):
-        return "\n".join(["SYMM  " + "  ".join(x) for x in self.symmcards])
+    def __str__(self) -> str:
+        return "SYMM  " + ", ".join(self.symmcard)
+
+
+class SymmCards():
+    """
+    Contains the list of SYMM cards
+    """
+
+    def __init__(self, shx):
+        self.shx = shx
+        self._symmcards = []
+
+    def __repr__(self) -> str:
+        return "\n".join([str(x) for x in self._symmcards])
+
+    def __str__(self) -> str:
+        return "\n".join([str(x) for x in self._symmcards])
+
+    def __getitem__(self, item):
+        return self._symmcards[item]
+
+    def __iter__(self):
+        for x in self._symmcards:
+            yield x
+
+    def append(self, obj):
+        self._symmcards.append(obj)
+
 
 
 class LSCycles():
@@ -1223,7 +1375,7 @@ class LSCycles():
         L.S. 44
         """
         self.cycles = number
-        #self.shx.reslist[self.shx.reslist.index(self)] = self.text.strip('\r\n')
+        # self.shx.reslist[self.shx.reslist.index(self)] = self.text.strip('\r\n')
 
     @property
     def text(self):
@@ -1282,7 +1434,6 @@ class SFACTable():
         if index < 0:
             index = len(self.sfac_table) + index + 1
         return self.sfac_table[index - 1]['element'].capitalize()
-
 
     def parse_element_line(self, spline: list):
         """
@@ -1343,6 +1494,7 @@ class UNIT(Command):
     """
     UNIT n1 n2 ...
     """
+
     def __init__(self, shx, spline: list):
         super(UNIT, self).__init__(shx, spline)
         self.values, _ = self._parse_line(spline)

@@ -19,7 +19,7 @@ import sys
 
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Atoms, Atom, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
-    SFACTable, UNIT, BASF, TWIN, WGHT
+    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex
 
@@ -90,13 +90,14 @@ class ShelXlFile():
     def __init__(self: 'ShelXlFile', resfile: str):
         """
         Reads the shelx file and extracts information.
-        #TODO: Exchange reslist items with SHELX objects like SFAC or ATOM. Add Reslist() class.
-        #TODO: line number of objects are then inside each object self.sxh.index(self)
+
         :param resfile: file path
         """
         self.shelx_max_line_length = 79  # maximum character lenth per line in SHELXL
         self.nohkl = False
-        self.a, self.b, self.c, self.alpha, self.beta, self.gamma, self.V = None, None, None, None, None, None, None
+        self._a, self._b, self._c, self._alpha, self._beta, self._gamma, self.V = \
+            None, None, None, None, None, None, None
+        self.cell = []
         self.ansc = None
         self.abin = None
         self.acta = None
@@ -151,11 +152,10 @@ class ShelXlFile():
         self.conv = []
         self.bind = []
         self.ansr = 0.001
-        self.bloc = []
-        self.cell = []
+        self.bloc = None
         self.dsrlines = []
         self.dsrline_nums = []
-        self.symmcards = []
+        self.symmcards = SymmCards(self)
         self.hfixes = []
         self.Z = 1
         self.rem = []
@@ -195,7 +195,6 @@ class ShelXlFile():
                 return
         else:
             self.run_after_parse()
-
 
     @time_this_method
     def parse_shx_file(self):
@@ -367,8 +366,8 @@ class ShelXlFile():
                     # raise ParseOrderError
                 if len(spline) >= 8:
                     self.cell = [float(x) for x in spline[2:8]]
-                    self.a, self.b, self.c, self.alpha, self.beta, self.gamma = self.cell
-                    self.V = self.vol_unitcell(self.a, self.b, self.c, self.alpha, self.beta, self.gamma)
+                    self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell
+                    self.V = self.vol_unitcell(self._a, self._b, self._c, self._alpha, self._beta, self._gamma)
                     # self.A = self.orthogonal_matrix()
                 self.wavelen = float(spline[1])
                 lastcard = 'CELL'
@@ -393,7 +392,12 @@ class ShelXlFile():
                 #    raise ParseOrderError
                 # if not self.zerr:
                 #    raise ParseOrderError
-                self.append_card(self.symmcards, SYMM(self, spline), line_num)
+                self.symmcards.append(SYMM(self, spline))
+                if self.symmcards not in self._reslist:
+                    self._reslist[line_num] = self.symmcards
+                else:
+                    self.delete_on_write.update([line_num])
+                    self._reslist[line_num] = ' '
                 lastcard = 'SYMM'
                 continue
             elif line[:4] == 'SFAC':
@@ -411,6 +415,7 @@ class ShelXlFile():
                     self._reslist[line_num] = self.sfac_table
                 else:
                     self.delete_on_write.update([line_num])
+                    self._reslist[line_num] = ' '
                 lastcard = 'SFAC'
                 continue
             elif line[:4] == 'UNIT':
@@ -452,7 +457,6 @@ class ShelXlFile():
                 continue
             elif line[:4] == "FVAR":
                 # FVAR osf[1] free variables
-                # TODO: assign value
                 for fvvalue in spline[1:]:
                     fvarnum += 1
                     self.append_card(self.fvars, FVAR(fvarnum, float(fvvalue)), line_num)
@@ -498,8 +502,7 @@ class ShelXlFile():
                 continue
             elif line[:4] == 'BLOC':
                 # BLOC n1 n2 atomnames
-                # TODO: Make class that resolves atomnames and cycles
-                self.bloc.append(spline[1:])
+                self.bloc = self.append_card(self.commands, BLOC(self, spline), line_num)
                 continue
             elif line[:4] == 'BOND':
                 # BOND atomnames
@@ -777,7 +780,9 @@ class ShelXlFile():
         """
         Place ACTA after UNIT
         """
-        self.add_line(self.unit._line_numbers[-1] + 1, acta)
+        self.acta = ACTA(self, acta.split())
+        self.commands.append(self.acta)
+        self._reslist.insert(self.unit.position + 1, self.acta)
 
     def orthogonal_matrix(self):
         """
@@ -798,10 +803,10 @@ class ShelXlFile():
         [ 0.282708]
         [ 0.526803]
         """
-        return Matrix([[self.a, self.b * cos(self.gamma), self.c * cos(self.beta)],
-                       [0, self.b * sin(self.gamma),
-                        (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))],
-                       [0, 0, self.V / (self.a * self.b * sin(self.gamma))]])
+        return Matrix([[self._a, self._b * cos(self._gamma), self._c * cos(self._beta)],
+                       [0, self._b * sin(self._gamma),
+                        (self._c * (cos(self._alpha) - cos(self._beta) * cos(self._gamma)) / sin(self._gamma))],
+                       [0, 0, self.V / (self._a * self._b * sin(self._gamma))]])
 
     @staticmethod
     def vol_unitcell(a, b, c, al, be, ga) -> float:
@@ -832,7 +837,8 @@ class ShelXlFile():
             resl.append(line)
         return "\n".join(resl)
 
-    def wrap_line(self, line: str) -> str:
+    @staticmethod
+    def wrap_line(line: str) -> str:
         # Generally, all Shelx opbjects have no line wrap. I do this now:
         line = textwrap.wrap(line, 79, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
         if len(line) > 1:
@@ -936,6 +942,10 @@ class ShelXlFile():
         return True
 
     def append_card(self, obj, card, line_num):
+        """
+        Appends SHELX card to an object list, e.g. self.restraints and
+        assigns the line_num in reslist with the card instance.
+        """
         obj.append(card)
         self._reslist[line_num] = card
         return card
@@ -1220,92 +1230,3 @@ if __name__ == "__main__":
         print(f)
         shx = ShelXlFile(f, debug=False)
         # print(len(shx.atoms), f)
-
-
-"""
-SHELXL cards:
-
-ABIN n1 n2 
-ACTA 2θfull[#]
-AFIX mn d[#] sof[11] U[10.08]
-ANIS n 
-ANIS names
-ANSC six coefficients
-ANSR anres[0.001]
-BASF scale factors
-BIND atom1 atom2
-BIND m n
-BLOC n1 n2 atomnames 
-BOND atomnames
-BUMP s [0.02]
-CELL λ a b c α β γ
-CGLS nls[0] nrf[0] nextra[0]
-CHIV V[0] s[0.1] atomnames
-CONF atomnames max_d[1.9] max_a[170]
-CONN bmax[12] r[#] atomnames or CONN bmax[12]
-DAMP damp[0.7] limse[15]
-DANG d s[0.04] atom pairs
-DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
-DELU s1[0.01] s2[0.01] atomnames
-DFIX d s[0.02] atom pairs
-DISP E f' f"[#] mu[#]
-EADP atomnames
-END
-EQIV $n symmetry operation
-EXTI x[0] 
-EXYZ atomnames
-FEND
-FLAT s[0.1] four or more atoms
-FMAP code[2] axis[#] nl[53]
-FRAG code[17] a[1] b[1] c[1] α[90] β[90] γ[90]
-FREE atom1 atom2
-FVAR osf[1] free variables
-GRID sl[#] sa[#] sd[#] dl[#] da[#] dd[#]
-HFIX mn U[#] d[#] atomnames
-HKLF N[0] S[1] r11...r33[1 0 0 0 1 0 0 0 1] sm[1] m[0]
-HTAB dh[2.0]
-HTAB donor-atom acceptor-atom
-ISOR s[0.1] st[0.2] atomnames
-LATT N[1]
-LAUE E
-LIST m[#] mult[1]
-L.S. nls[0] nrf[0] nextra[0]
-MERG n[2]
-MORE m[1]
-MOVE dx[0] dy[0] dz[0] sign[1]
-MPLA na atomnames
-NCSY DN sd[0.1] su[0.05] atoms
-NEUT
-OMIT atomnames
-OMIT s[-2] 2θ(lim)[180]
-OMIT h k l
-PART n sof
-PLAN npeaks[20] d1[#] d2[#]
-PRIG p[#]
-REM
-RESI class[ ] number[0] alias
-RIGU s1[0.004] s2[0.004] atomnames
-RTAB codename atomnames
-SADI s[0.02] pairs of atoms
-SAME s1[0.02] s2[0.04] atomnames
-SFAC elements
-SFAC E a1 b1 a2 b2 a3 b3 a4 b4 c f' f" mu r wt
-SHEL lowres[infinite] highres[0]
-SIMU s[0.04] st[0.08] dmax[2.0] atomnames
-SIZE dx dy dz
-SPEC del[0.2]
-STIR sres step[0.01]
-SUMP c sigma c1 m1 c2 m2 ... 
-SWAT g[0] U[2] 
-SYMM symmetry operation
-TEMP T[20]
-TITL [ ]
-TWIN 3x3 matrix [-1 0 0 0 -1 0 0 0 -1] N[2]
-TWST N[0]
-UNIT n1 n2 ...
-WGHT a[0.1] b[0] c[0] d[0] e[0] f[.33333]
-WIGL del[0.2] dU[0.2]
-WPDB n[1]
-XNPD Umin[-0.001]
-ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
-"""

@@ -1,10 +1,10 @@
 TITL p21c in P2(1)/c
-    p21c.res
     created by SHELXL-2018/3 at 16:18:25 on 03-May-2018
 CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 ZERR 4 0.0003 0.0005 0.0005 0 0.001 0
 LATT 1
-SYMM -X,0.5+Y,0.5-Z
+SYMM -X,0.5+Y,   0.5-Z
+SYMM  1-X,  1.5+Y,  Z
 SFAC  C  H  O  F  AL  GA
 UNIT  1  2  3  4  5  6
 LIST 4 ! automatically inserted. Change 6 to 4 for CHECKCIF!!
@@ -32,21 +32,21 @@ SIMU_CCF3 O1 > F9
 RIGU_CCF3 O1 > F9
 SAME_CCF3 O1 > F9
 REM For further cards:
+BLOC 1 -1 C1 C2 F1 
+BLOC 4
  
  
  
  
  
-  
-   
-   
-    
-     
-      
-      
-      
-      
-      
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 WGHT    0.049000
 FVAR       0.08684   0.48096   0.55764
 RESI 4 CCF3
@@ -339,8 +339,8 @@ REM wR2 = 0.1005, GooF = S = 1.016, Restrained GooF = 0.950 for all data
 REM R1 = 0.0400 for 7085 Fo > 4sig(Fo) and 0.0794 for all 10786 data
 REM 945 parameters refined using 1842 restraints
 
-END  
-     
+END 
+ 
 WGHT      0.0491      0.0000 
 
 REM Highest difference peak  0.407,  deepest hole -0.691,  1-sigma level  0.073
