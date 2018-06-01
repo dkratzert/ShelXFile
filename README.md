@@ -81,9 +81,6 @@ for x in a.find_atoms_around(dist=2.5, only_part=2):
 [x for x in a.find_atoms_around(dist=2.5, only_part=2)]
 []  # Atoms are now deleted from shx._reslist.
 
-shx.write_shelx_file('test.ins')
-(writes current shx object to test.ins)
-
 shx.restraints
 SADI_CCF3 0.02 C1 C2 C1 C3 C1 C4
 SADI_CCF3 0.02 F1 C2 F2 C2 F3 C2 F4 C3 F5 C3 F6 C3 F7 C4 F8 C4 F9 C4
@@ -102,6 +99,12 @@ shx.restraints[1].residue_class
 
 shx.restraints[1].s
 0.02
+
+shx.write_shelx_file('test.ins')
+Writes current shx object to test.ins
+All lines in ShelXlFile._reslist get wrapped after 79 characters with " =\n " as
+specified by SHELXL during the file writing.
+
 ```
 
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.

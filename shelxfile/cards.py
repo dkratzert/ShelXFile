@@ -352,9 +352,8 @@ class FVARs():
         return str([x for x in self.fvars])
 
     @property
-    def fvarline(self) -> int:
-        self._fvarline = self.shx._reslist.index(self)
-        return self._fvarline
+    def position(self) -> int:
+        return self.shx._reslist.index(self)
 
     def set_free_variables(self, fvar: int, dummy_fvar: float = 0.5):
         """

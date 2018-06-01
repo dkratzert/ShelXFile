@@ -833,15 +833,38 @@ class ShelXlFile():
                     pass
                     # print('Deleted line {}'.format(num + 1))
                 continue
-            if line == '' and self._reslist[num + 1] == '':
-                continue
-            #line = self.wrap_line(line)
+            try:
+                if line == '' and self._reslist[num + 1] == '':
+                    continue
+            except IndexError:
+                pass
+            # Prevent wrapping long lines with \n breaks by splitting first:
+            line = "\n".join([self.wrap_line(x) for x in str(line).split("\n")])
             resl.append(line)
         return "\n".join(resl)
 
+    def write_shelx_file(self, filename=None, verbose=False):
+        if not filename:
+            filename = self.resfile
+        with open(filename, 'w') as f:
+            for num, line in enumerate(self._reslist):
+                if num in self.delete_on_write:
+                    if DEBUG:
+                        pass
+                        #print('Deleted line {}'.format(num + 1))
+                    continue
+                if line == '' and self._reslist[num + 1] == '':
+                    continue
+                # Prevent wrapping long lines with \n breaks by splitting first:
+                line = "\n".join([self.wrap_line(x) for x in str(line).split("\n")])
+                f.write(str(line) + '\n')
+        if verbose or DEBUG:
+            print('File successfully written to {}'.format(os.path.abspath(filename)))
+            return True
+        return True
+
     @staticmethod
     def wrap_line(line: str) -> str:
-        # Generally, all Shelx opbjects have no line wrap. I do this now:
         line = textwrap.wrap(line, 79, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
         if len(line) > 1:
             newline = []
@@ -923,25 +946,6 @@ class ShelXlFile():
             print('loading file:', self.resfile)
         self.__init__(self.resfile)
 
-    def write_shelx_file(self, filename=None, verbose=False):
-        if not filename:
-            filename = self.resfile
-        with open(filename, 'w') as f:
-            for num, line in enumerate(self._reslist):
-                if num in self.delete_on_write:
-                    if DEBUG:
-                        pass
-                        #print('Deleted line {}'.format(num + 1))
-                    continue
-                if line == '' and self._reslist[num + 1] == '':
-                    continue
-                line = self.wrap_line(str(line))
-                f.write(str(line) + '\n')
-        if verbose or DEBUG:
-            print('File successfully written to {}'.format(os.path.abspath(filename)))
-            return True
-        return True
-
     def append_card(self, obj, card, line_num):
         """
         Appends SHELX card to an object list, e.g. self.restraints and
@@ -965,9 +969,7 @@ class ShelXlFile():
         They must however contain at least one letter
 
         Allowed residue numbers is now from -999 to 9999 (2017/1)
-
         TODO: support alias
-
         :param resi: ['number', 'class']
         :type resi: list or string
 
@@ -1153,8 +1155,7 @@ class ShelXlFile():
         dblines = dblines + '\n'.join(dblist)
         dblines = dblines + '\nFEND\n'
         # insert the db entry right after FVAR
-        print(self.fvars.line_number)
-        self.add_line(self.fvars.line_number, dblines)
+        self.add_line(self.fvars.position, dblines)
 
 
 
