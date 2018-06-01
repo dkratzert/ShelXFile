@@ -13,8 +13,6 @@
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
 """
-from __future__ import print_function
-
 import os
 import re
 import sys
@@ -22,17 +20,13 @@ import sys
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Atoms, Atom, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT
-from shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
+from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex
 
-ver = sys.version_info
-if ver < (3, 4, 0):
-    print("You need at least Python 3.4 to run this program!")
-    sys.exit()
 import textwrap
 from math import radians, cos, sin, sqrt
 
-from shelxfile.dsrmath import Matrix
+from dsrmath import Matrix
 
 """
 TODO:
@@ -1081,7 +1075,7 @@ class ShelXlFile():
     def elem2sfac(self, atom_type: str) -> int:
         """
         returns an sfac-number for the element given in "atom_type"
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.elem2sfac('O')
         3
         >>> shx.elem2sfac('c')
@@ -1097,7 +1091,7 @@ class ShelXlFile():
         """
         returns an element and needs an sfac-number
         :param sfacnum: string like '2'
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXlFile('../tests/p21c.res')
         >>> shx.sfac2elem(1)
         'C'
         >>> shx.sfac2elem(2)

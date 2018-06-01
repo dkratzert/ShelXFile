@@ -12,7 +12,7 @@
 import re
 import time
 
-from shelxfile.dsrmath import frac_to_cart, subtract_vect, determinante
+from dsrmath import frac_to_cart, subtract_vect, determinante
 
 DEBUG = False
 PROFILE = False

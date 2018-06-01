@@ -1,5 +1,5 @@
-from shelxfile.dsrmath import atomic_distance, frac_to_cart, my_isnumeric
-from shelxfile.misc import DEBUG, ParseUnknownParam, split_fvar_and_parameter, chunks, ParseParamError, ParseNumError, \
+from dsrmath import atomic_distance, frac_to_cart, my_isnumeric
+from misc import DEBUG, ParseUnknownParam, split_fvar_and_parameter, chunks, ParseParamError, ParseNumError, \
     ParseOrderError
 
 
@@ -505,10 +505,10 @@ class Atoms():
         Calculates the (shortest) distance of two atoms given as text names e.g. C1_3.
         >>> from shelxfile.shelx import ShelXlFile
         >>> shx = ShelXlFile('./tests/p21c.res')
-        >>> shx.atoms.distance('F1_2', 'F2_2')
-        2.1543987012711194
-        >>> shx.atoms.distance('C2_2', 'F1_2')
-        1.3328539898488683
+        >>> round(shx.atoms.distance('F1_2', 'F2_2'), 6)
+        2.154399
+        >>> round(shx.atoms.distance('C2_2', 'F1_2'), 6)
+        1.332854
         """
         a1 = self.get_atom_by_name(atom1)
         a2 = self.get_atom_by_name(atom2)
