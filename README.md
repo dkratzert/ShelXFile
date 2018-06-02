@@ -105,8 +105,9 @@ Writes current shx object to test.ins
 All lines in ShelXlFile._reslist get wrapped after 79 characters with " =\n " as
 specified by SHELXL during the file writing.
 
+No matter if you loaded a .res or .ins file with refine(), SHELXL refine the structure of the ShelXlFile() object. The default is zero least squares cycles:
 shx.refine(5)
--------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------'
  Running SHELXL with "/usr/local/bin/shelxl -b3000 /Users/daniel/GitHub/ShelXFile/tests/p21c" and "L.S. 5"
  SHELXL Version 2018/3
  SHELXL says:
