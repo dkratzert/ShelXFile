@@ -939,19 +939,24 @@ class ShelXlFile():
     def refine(self, cycles: int = 0) -> bool:
         bc = 0
         acta = ''
-        #if cycles == 0:
-        #    bc = int(self.cycles.cycles)
-        #    acta = self.acta.remove_acta_card()
+        bc = int(self.cycles.cycles)
+        try:
+            self._reslist[self.index_of(self.acta)] = ' '
+        except ValueError:
+            pass
+        # THis does not work:
+        #acta = self.acta.remove_acta_card()
         self.cycles.cycles = cycles
         filen, _ = os.path.splitext(self.resfile)
         self.write_shelx_file(filen + '.ins')
-        #ref = ShelxlRefine(self, self.resfile)
-        #ref.run_shelxl()
-        #self.reload()
-        #if cycles == 0:
-        #    self.restore_acta_card(acta)
-        #    self.cycles.cycles = bc
-        #self.write_shelx_file(filen + '.res')
+        #shutil.copyfile(filen+'.res', filen+'.ins')
+        ref = ShelxlRefine(self, self.resfile)
+        ref.run_shelxl()
+        self.reload()
+        # Does not work:
+        #self.restore_acta_card(acta)
+        self.cycles.cycles = bc
+        self.write_shelx_file(filen + '.res')
         return True
 
     def append_card(self, obj, card, line_num):
