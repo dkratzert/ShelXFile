@@ -17,6 +17,7 @@ import os
 import re
 import sys
 
+from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards
@@ -87,6 +88,7 @@ class ShelXlFile():
     restraints = None
     dsrlines = None
     symmcards = None
+    resfile = None
 
     def __init__(self: 'ShelXlFile', resfile: str):
         """
@@ -933,6 +935,13 @@ class ShelXlFile():
         if DEBUG:
             print('loading file:', self.resfile)
         self.__init__(self.resfile)
+
+    def refine(self) -> bool:
+        self.cycles.cycles = 0
+        self.write_shelx_file(self.resfile + '.ins')
+        ref = ShelxlRefine(self, self.resfile)
+        ref.run_shelxl()
+        return True
 
     def append_card(self, obj, card, line_num):
         """

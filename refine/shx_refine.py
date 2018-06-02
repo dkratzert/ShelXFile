@@ -18,7 +18,6 @@ import sys
 from shutil import which, disk_usage, copyfile
 
 from misc import remove_file, sep_line, find_line
-from shelxfile.shelx import ShelXlFile
 
 __metaclass__ = type  # use new-style classes
 
@@ -51,10 +50,10 @@ class ShelxlRefine():
     The resfilename should be without ending.
     """
 
-    def __init__(self, shx: ShelXlFile, resfile_name: str, shelxpath: str = None):
+    def __init__(self, shx, resfile_name: str, shelxpath: str = None):
         self.shx = shx
         self.shelxpath = shelxpath
-        self.resfile_name = str(resfile_name)
+        self.resfile_name, ext = os.path.splitext(resfile_name)
         self._shelx_command = self.find_shelxl_exe()
         self.backup_file = os.path.abspath(str(self.resfile_name + '.shx-bak'))
 
@@ -76,10 +75,11 @@ class ShelxlRefine():
                 sys.exit()
             return self.shelxpath
         for name in names:
-            shx_exe.extend(which(name))  # list of shelxl executables in path
+            shx_exe.append(which(name))  # list of shelxl executables in path
             try:
                 exe = shx_exe[0]
-            except IndexError:
+            except IndexError as e:
+                print(e)
                 continue
             version = get_xl_version_string(exe)
             if not version:
@@ -197,6 +197,7 @@ class ShelxlRefine():
         This method runs shelxl 2013 on the res file self.resfile_name
         """
         resfile = self.resfile_name + '.res'
+        insfile = self.resfile_name + '.ins'
         hklfile = self.resfile_name + '.hkl'
         if not os.path.exists(hklfile):
             print('You need a proper hkl file to run SHELXL.')
