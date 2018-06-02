@@ -109,14 +109,15 @@ shx.write_shelx_file('test.ins')
 No matter if you loaded a .res or .ins file with refine(), SHELXL refines the structure of the ShelXlFile() object. 
 The default for refine() are zero least squares cycles:
 ```python
-shx.refine(5)
+shx.refine(2)
 ```
 ```
 -------------------------------------------------------------------------------
- Running SHELXL with "/usr/local/bin/shelxl -b3000 /Users/daniel/GitHub/ShelXFile/tests/p21c" and "L.S. 5"
+ Running SHELXL with "/usr/local/bin/shelxl -b3000 /Users/daniel/GitHub/ShelXFile/tests/p21c" and "L.S. 2"
+ wR2 =  0.1005 before cycle   1 for   10786 data and    945 /    945 parameters
+ wR2 =  0.1005 before cycle   2 for   10786 data and    945 /    945 parameters
+ wR2 =  0.1005 before cycle   3 for   10786 data and      0 /    945 parameters
  SHELXL Version 2018/3
- SHELXL says:
-  ** Cell contents from UNIT instruction and atom list do not agree **
 ```
 
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.
