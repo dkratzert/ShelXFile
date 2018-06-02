@@ -119,7 +119,7 @@ shx.refine(2)
  wR2 =  0.1005 before cycle   3 for   10786 data and      0 /    945 parameters
  SHELXL Version 2018/3
 ```
-
+# References
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.
 https://doi.org/10.1107/S2053229614024218
 
