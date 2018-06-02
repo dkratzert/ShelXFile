@@ -107,7 +107,7 @@ specified by SHELXL during the file writing.
 shx.write_shelx_file('test.ins')
 ```
 No matter if you loaded a .res or .ins file with refine(), SHELXL refines the structure of the ShelXlFile() object. 
-The default for refine() are zero least squares cycles:
+The default for refine() are zero least-squares cycles:
 ```python
 shx.refine(2)
 ```
