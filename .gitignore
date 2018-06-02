@@ -115,3 +115,4 @@ tests/shxsaves/
 *.shx-bak
 tests/p21c.ins
 tests/p21c.lst
+*.fcf

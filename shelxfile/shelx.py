@@ -936,11 +936,21 @@ class ShelXlFile():
             print('loading file:', self.resfile)
         self.__init__(self.resfile)
 
-    def refine(self) -> bool:
-        self.cycles.cycles = 0
-        self.write_shelx_file(self.resfile + '.ins')
+    def refine(self, cycles: int = 0) -> bool:
+        bc = 0
+        if cycles == 0:
+            bc = int(self.cycles.cycles)
+            acta = self.acta.remove_acta_card()
+        self.cycles.cycles = cycles
+        filen, _ = os.path.splitext(self.resfile)
+        self.write_shelx_file(filen + '.ins')
         ref = ShelxlRefine(self, self.resfile)
         ref.run_shelxl()
+        self.reload()
+        if cycles == 0:
+            self.restore_acta_card(acta)
+            self.cycles.cycles = bc
+        self.write_shelx_file(filen + '.res')
         return True
 
     def append_card(self, obj, card, line_num):

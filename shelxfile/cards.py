@@ -962,9 +962,13 @@ class LSCycles():
         for x in self.__repr__().split():
             yield x
 
-    def __repr__(self):
+    def _as_str(self):
         return '{} {} {} {}'.format('CGLS' if self.cgls else 'L.S.', self.cycles,
                                     self.nrf if self.nrf else '', self.nextra if self.nextra else '').strip()
+
+    def __repr__(self):
+        return self._as_str()
+        
 
 
 class SFACTable():

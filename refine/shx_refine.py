@@ -48,6 +48,7 @@ class ShelxlRefine():
     """
     A class to do a shelxl refinement. It is only for shelxl 2017 and above!
     The resfilename should be without ending.
+    #TODO: If cycles != 0, show cycle results from output. 
     """
 
     def __init__(self, shx, resfile_name: str, shelxpath: str = None):
@@ -197,7 +198,6 @@ class ShelxlRefine():
         This method runs shelxl 2013 on the res file self.resfile_name
         """
         resfile = self.resfile_name + '.res'
-        insfile = self.resfile_name + '.ins'
         hklfile = self.resfile_name + '.hkl'
         if not os.path.exists(hklfile):
             print('You need a proper hkl file to run SHELXL.')
