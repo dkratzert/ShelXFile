@@ -17,13 +17,13 @@ import os
 import re
 import sys
 
-from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Atoms, Atom, Restraints, DEFS, NCSY, ISOR, FLAT, \
+from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards
+from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
-    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex
+    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
 
-import textwrap
 from math import radians, cos, sin, sqrt
 
 from dsrmath import Matrix
@@ -32,21 +32,19 @@ from dsrmath import Matrix
 TODO:
 
 - Atoms.add_atom(position=None) method. default for position is after FVAR table
-- Fix line wrapping behavior. I can not insert lines with \n. They get too long and wrapped with "=\n "
 - fit fragment without shelxl
+- check if atoms in restraints are also in structure
+- restraints involved with an atom should also be part of the atoms properties
 ------------------------------------------------------------
-- make all __repr__() unwrapped strings and wrap lines during write_res_file()
+- deleting atoms should also remove them from restraints  
 - add remove_hydrogen_atoms(atom) method.
 - shx.remove_all_H([list of atoms], or all)
-- check if atoms in restraints are also in structure
-- deleting atoms should also remove them from restraints  
+- bond list
 - shx.update_weight
 - shx.weight_difference
-- bond list
 - shx.atoms.angle(at1, at2, at3)
 - shx.atoms.tors(at1, at2, at3, at4)
 - shx.atom.change_type('xx')
-- restraints involved with an atom should also be part of the atoms properties
 - implement an add_afix(afixm, afixn, atoms, frag_fend=False, position=None, afix_options=None)
   default position is directly behind FVAR or FRAG/FEND if enabled
 - will read in lst file after refinement to fill shx.lst_file properties.
@@ -74,6 +72,8 @@ SHX_CARDS = ('TITL', 'CELL', 'ZERR', 'LATT', 'SYMM', 'SFAC', 'UNIT', 'LIST', 'L.
 class ShelXlFile():
     """
     Class for data from a SHELXL res file. Includes Atoms, cards and unit cell.
+
+    :type restraints: List[Restraint]
     """
     delete_on_write = None
     atoms = None
@@ -777,6 +777,8 @@ class ShelXlFile():
                 if int(self.twin.allowed_N) != len(basfs):
                     if DEBUG:
                         print('*** Invalid TWIN instruction! BASF with wrong number of parameters. ***')
+        #for a in self.atoms:
+        #    a.resolve_restraints()
 
     def restore_acta_card(self, acta: str):
         """
@@ -839,7 +841,7 @@ class ShelXlFile():
             except IndexError:
                 pass
             # Prevent wrapping long lines with \n breaks by splitting first:
-            line = "\n".join([self.wrap_line(x) for x in str(line).split("\n")])
+            line = "\n".join([wrap_line(x) for x in str(line).split("\n")])
             resl.append(line)
         return "\n".join(resl)
 
@@ -856,26 +858,12 @@ class ShelXlFile():
                 if line == '' and self._reslist[num + 1] == '':
                     continue
                 # Prevent wrapping long lines with \n breaks by splitting first:
-                line = "\n".join([self.wrap_line(x) for x in str(line).split("\n")])
+                line = "\n".join([wrap_line(x) for x in str(line).split("\n")])
                 f.write(str(line) + '\n')
         if verbose or DEBUG:
             print('File successfully written to {}'.format(os.path.abspath(filename)))
             return True
         return True
-
-    @staticmethod
-    def wrap_line(line: str) -> str:
-        line = textwrap.wrap(line, 79, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
-        if len(line) > 1:
-            newline = []
-            for n, ln in enumerate(line):
-                if n < len(line) - 1:
-                    ln += ' =\n'
-                newline.append(ln)
-            line = ' '.join(newline)
-        else:
-            line = ''.join(line)
-        return line
 
     # @time_this_method
     def read_file_to_list(self, resfile: str) -> list:

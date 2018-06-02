@@ -10,6 +10,7 @@
 # ----------------------------------------------------------------------------
 #
 import re
+import textwrap
 import time
 
 from dsrmath import frac_to_cart, subtract_vect, determinante
@@ -217,7 +218,7 @@ class TextLine:
 
 class ResList():
     """
-    Contains the lines of the res file as unordered list.
+    Contains the lines of the res file as unordered linked list.
     """
     def __init__(self):
         """
@@ -297,3 +298,17 @@ class ResList():
             last.set_next(temp)
         self.tail = temp
         self.size += 1
+
+
+def wrap_line(line: str) -> str:
+    line = textwrap.wrap(line, 79, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
+    if len(line) > 1:
+        newline = []
+        for n, ln in enumerate(line):
+            if n < len(line) - 1:
+                ln += ' =\n'
+            newline.append(ln)
+        line = ' '.join(newline)
+    else:
+        line = ''.join(line)
+    return line
