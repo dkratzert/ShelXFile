@@ -113,9 +113,7 @@ shx.refine(5)
 ```
 ```
 -------------------------------------------------------------------------------
-
  Running SHELXL with "/usr/local/bin/shelxl -b3000 /Users/daniel/GitHub/ShelXFile/tests/p21c" and "L.S. 5"
-
  SHELXL Version 2018/3
  SHELXL says:
   ** Cell contents from UNIT instruction and atom list do not agree **
