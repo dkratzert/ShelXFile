@@ -116,3 +116,4 @@ tests/shxsaves/
 tests/p21c.ins
 tests/p21c.lst
 *.fcf
+tests/p21c.cif

@@ -105,6 +105,12 @@ Writes current shx object to test.ins
 All lines in ShelXlFile._reslist get wrapped after 79 characters with " =\n " as
 specified by SHELXL during the file writing.
 
+shx.refine(5)
+-------------------------------------------------------------------------------
+ Running SHELXL with "/usr/local/bin/shelxl -b3000 /Users/daniel/GitHub/ShelXFile/tests/p21c" and "L.S. 5"
+ SHELXL Version 2018/3
+ SHELXL says:
+  ** Cell contents from UNIT instruction and atom list do not agree **
 ```
 
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.

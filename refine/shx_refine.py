@@ -206,7 +206,7 @@ class ShelxlRefine():
                         '{}'.format(self.resfile_name)]
         self.backup_shx_file()
         print(sep_line)
-        print(' Running SHELXL with "{}" and "L.S. 0"'.format(' '.join(command_line)))
+        print(' Running SHELXL with "{}" and "{}"'.format(' '.join(command_line), self.shx.cycles))
         p = subprocess.Popen(command_line,
                              stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE,
