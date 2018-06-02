@@ -13,20 +13,17 @@ from __future__ import print_function
 
 import os
 import re
-import shutil
 import subprocess
 import sys
+from shutil import which, disk_usage, copyfile
 
-import misc
-from constants import sep_line
-from misc import find_line, check_file_exist
-from options import OptionsParser
-from shelx import remove_line, ShelXlFile
+from misc import remove_file, sep_line, find_line
+from shelxfile.shelx import ShelXlFile
 
 __metaclass__ = type  # use new-style classes
 
 
-def get_xl_version_string(exe):
+def get_xl_version_string(exe: str) -> str:
     """
     Extracts the version string from a SHELXL executable.
     This is fast and needs no hashes etc.
@@ -42,30 +39,24 @@ def get_xl_version_string(exe):
                 version = f.read(6)  # read version string
                 return version.decode('ascii')
             else:
-                return None
-    except(IOError):
-        print("Could not determine SHELXL version. DSR might fail to run.")
-        return None
+                return ''
+    except IOError:
+        print("Could not determine SHELXL version. Refinement might fail to run.")
+        return ''
 
 
 class ShelxlRefine():
     """
-    A class to do a shelxl refinement. It is only for shelxl 2013 and above!
+    A class to do a shelxl refinement. It is only for shelxl 2017 and above!
     The resfilename should be without ending.
     """
 
-    def __init__(self, shx: ShelXlFile, resfile_name: str, options: OptionsParser):
-        """
-        :param reslist: SHELXL .res file as list
-        :param resfile_name: SHELXL res file name
-        :param options: command line options
-        """
+    def __init__(self, shx: ShelXlFile, resfile_name: str, shelxpath: str = None):
         self.shx = shx
-        self.options = options
+        self.shelxpath = shelxpath
         self.resfile_name = str(resfile_name)
-        self._reslist = shx._reslist
         self._shelx_command = self.find_shelxl_exe()
-        self.backup_file = os.path.abspath(str(self.resfile_name + '.dsr-bak'))
+        self.backup_file = os.path.abspath(str(self.resfile_name + '.shx-bak'))
 
         if not self._shelx_command:
             print('\nSHELXL executable not found in system path! No fragment fitting possible.\n')
@@ -79,13 +70,13 @@ class ShelxlRefine():
         names = ['shelxl', 'xl']
         download = 'You can download SHELXL at http://shelx.uni-goettingen.de'
         shx_exe = []
-        if self.options.shelxl_ex:
-            if not check_file_exist(self.options.shelxl_ex):
+        if self.shelxpath:
+            if not disk_usage(self.shelxpath):
                 print("SHELXL executable not found! Can not proceed...")
                 sys.exit()
-            return self.options.shelxl_ex
+            return self.shelxpath
         for name in names:
-            shx_exe.extend(misc.which(name))  # list of shelxl executables in path
+            shx_exe.extend(which(name))  # list of shelxl executables in path
             try:
                 exe = shx_exe[0]
             except IndexError:
@@ -93,12 +84,12 @@ class ShelxlRefine():
             version = get_xl_version_string(exe)
             if not version:
                 print('Your SHELXL version', exe, 'is too old for this Program')
-                print('Please use SHELXL 2013/4 or above!')
+                print('Please use SHELXL 2017 or above!')
                 print(download)
                 sys.exit()
             version = version.split('/')
-            if int(version[0]) < 2013:
-                print('Your SHELXL version is too old. Please use SHELXL 2013/4 or above!')
+            if int(version[0]) < 2017:
+                print('Your SHELXL version is too old. Please use SHELXL 2017 or above!')
                 print(download)
                 sys.exit()
             else:
@@ -114,49 +105,10 @@ class ShelxlRefine():
             barray = 3000
         return barray
 
-    def afix_is_closed(self, line):
-        """
-        check if last afix before dsr command was closed with afix 0
-
-        - returns False if last AFIX was not closed
-        - returns True if last AFIX was closed
-        - returns True if no AFIX found at all
-        """
-        afix = re.compile(r'AFIX\s+\d', re.IGNORECASE)
-        afixes = []
-        for num, i in enumerate(self._reslist):
-            i = i.upper()
-            if num <= line:
-                if i.match(afix):
-                    afixes.append(i.split()[1])
-        try:
-            if str(afixes[-2]) != '0':
-                return False  # last afix not closed
-            else:
-                return True  # last afix is closed
-        except(IndexError):
-            # in this case, no other afix is present and deletion of afix 9 is save
-            return True
-
-    def remove_afix(self, random_num):
-        """
-        removes the AFIX 9 after refinement.
-        note: find_line matches case insensitive
-        """
-        regex = 'REM ' + random_num
-        afix_line = misc.find_line(self._reslist, regex)
-        if afix_line:
-            remove_line(self._reslist, afix_line, remove=True)  # The REM ID
-            remove_line(self._reslist, afix_line - 1, remove=True)  # The AFIX x
-            afix_line2 = misc.find_line(self._reslist, regex)
-            if afix_line2:
-                remove_line(self._reslist, afix_line2, remove=True)
-                remove_line(self._reslist, afix_line2 - 1, remove=True)
-
     def backup_shx_file(self):
         """
         makes a copy of the res file
-        make backup in dsrsaves before every fragment fit.
+        make backup in shxsaves before every fragment fit.
         name: self.resfile_name-date-time-seconds.res
         """
         import datetime
@@ -164,9 +116,9 @@ class ShelxlRefine():
         timestamp = (str(now.year) + '_' + str(now.month) + '_' + str(now.day) + '_' +
                      str(now.hour) + '-' + str(now.minute) + '-' + str(now.second))
         resfile = os.path.abspath(str(self.resfile_name + '.res'))
-        bakup_dir = os.path.abspath(os.path.dirname(resfile)) + os.path.sep + os.path.relpath('dsrsaves')
+        bakup_dir = os.path.abspath(os.path.dirname(resfile)) + os.path.sep + os.path.relpath('shxsaves')
         try:
-            shutil.copyfile(resfile, self.backup_file)
+            copyfile(resfile, self.backup_file)
         except IOError:
             print('*** Unable to make backup file from {}. ***'.format(resfile))
             sys.exit()
@@ -176,10 +128,10 @@ class ShelxlRefine():
             except(IOError, OSError):
                 print('*** Unable to create backup directory {}. ***'.format(bakup_dir))
         try:
-            shutil.copyfile(resfile,
+            copyfile(resfile,
                             bakup_dir + os.path.sep + os.path.split(self.resfile_name)[1] + '_' + timestamp + '.res')
         except IOError:
-            print('\n*** Unable to make backup file from {} in dsrsaves. ***'.format(resfile))
+            print('\n*** Unable to make backup file from {} in shxsaves. ***'.format(resfile))
 
     def restore_shx_file(self):
         """
@@ -188,11 +140,11 @@ class ShelxlRefine():
         resfile = os.path.abspath(str(self.resfile_name + '.res'))
         try:
             print('*** Restoring previous res file. ***')
-            shutil.copyfile(self.backup_file, resfile)
+            copyfile(self.backup_file, resfile)
         except IOError:
             print('Unable to restore res file from {}.'.format(self.backup_file))
         try:
-            misc.remove_file(self.backup_file)
+            remove_file(self.backup_file)
         except IOError:
             print('Unable to delete backup file {}.'.format(self.backup_file))
 
@@ -226,7 +178,7 @@ class ShelxlRefine():
                 print('\nWarning: Are you sure that all atoms are in the correct order?\n')
             if re.match(r'.*CANNOT\s+OPEN\s+FILE.*hkl.*', out):
                 print('*** No hkl file found! ***')
-                print('*** You need a proper hkl file to use DSR! ***')
+                print('*** You need a proper hkl file to run SHELXL! ***')
                 sys.exit()
             if re.match(r'.*\*\* Extinction \(EXTI\) or solvent.*', out):
                 continue
@@ -246,8 +198,8 @@ class ShelxlRefine():
         """
         resfile = self.resfile_name + '.res'
         hklfile = self.resfile_name + '.hkl'
-        if not check_file_exist(hklfile):
-            print('You need a proper hkl file to use DSR.')
+        if not os.path.exists(hklfile):
+            print('You need a proper hkl file to run SHELXL.')
             sys.exit()
         command_line = ['{}'.format(self._shelx_command), "-b{}".format(self.get_b_array()),
                         '{}'.format(self.resfile_name)]
@@ -269,7 +221,7 @@ class ShelxlRefine():
         child_stdout_and_stderr.close()
         # output only the most importand things from shelxl:
         self.pretty_shx_output(output)
-        status = check_file_exist(resfile)  # status is False if shelx was unsecessful
+        status = os.path.exists(resfile)  # status is False if shelx was unsecessful
         if not status:  # fail
             print(sep_line)
             print('\nError: SHELXL terminated unexpectedly.')
@@ -284,12 +236,12 @@ class ShelxlRefine():
         :param list_file: SHELXL listing file
         :type list_file: list
         """
-        is_resfile_there = misc.check_file_exist(self.resfile_name + '.res')
+        is_resfile_there = os.path.exists(self.resfile_name + '.res')
         if is_resfile_there and is_resfile_there == 'zero':
             print('Something failed in SHELXL. Please check your .ins and .lst file!')
             self.restore_shx_file()
             try:
-                misc.remove_file(self.backup_file)
+                remove_file(self.backup_file)
             except IOError:
                 print('Unable to delete backup file {}.'.format(self.backup_file))
             sys.exit()
@@ -297,7 +249,7 @@ class ShelxlRefine():
             print('Something failed in SHELXL. Please check your .ins and .lst file!')
             self.restore_shx_file()
             try:
-                misc.remove_file(self.backup_file)
+                remove_file(self.backup_file)
             except IOError:
                 print('Unable to delete backup file {}.'.format(self.backup_file))
             sys.exit()
@@ -338,7 +290,7 @@ class ShelxlRefine():
                   '\n*** but consider (data+restraints)/parameter = {:.1f} ***'
                   .format(data_to_parameter_ratio, restr_ratio))
         try:
-            misc.remove_file(self.backup_file)
+            remove_file(self.backup_file)
         except IOError:
             print('Unable to delete backup file {}.'.format(self.backup_file))
 

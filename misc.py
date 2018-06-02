@@ -9,9 +9,11 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
+import os
 import re
 import textwrap
 import time
+from shutil import get_terminal_size
 
 from dsrmath import frac_to_cart, subtract_vect, determinante
 
@@ -50,6 +52,87 @@ class ParseUnknownParam(Exception):
     def __init__(self):
         if DEBUG:
             print("*** UNKNOWN PARAMETER ***")
+
+
+try:
+    width, height = get_terminal_size()  # @UnusedVariable
+except():
+    width = 80
+sep_line = (width-1)*'-'
+
+
+def remove_file(filename, exit_dsr=False):
+    """
+    removes the file "filename" from disk
+    program exits when exit is true
+    platon gets terminated if terminate is true
+
+    >>> remove_file('foobar')
+    """
+    if os.path.isfile(filename):
+        try:
+            os.remove(filename)
+        except(IOError, OSError):
+            return False
+        return True
+
+
+def find_line(inputlist: list, regex: str, start: int = None):
+    """
+    returns the index number of the line where regex is found in the inputlist
+    if stop is true, stop searching with first line found
+    :param inputlist: list of strings
+    :type inputlist: list
+    :param regex: regular expression to search
+    :type regex: string
+    :param start: line number where to start the search
+    :param start: start searching at line start
+    :type start: string or int
+    >>> input = ['Hallo blub', 'foo bar blub', '123', '1 blub 2 3 4']
+    >>> find_line(input, '.*blub.*')
+    0
+    >>> input = [['foo'],['bar']]
+    >>> find_line(input, '.*blub.*') #doctest: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: expected string or ...
+    """
+    if start:
+        start = int(start)
+        inputlist_slice = inputlist[start:]
+        for i, string in enumerate(inputlist_slice, start):
+            if re.match(regex, string, re.IGNORECASE):
+                return i  # returns the index number if regex found
+    else:
+        for i, string in enumerate(inputlist):
+            if re.match(regex, string, re.IGNORECASE):
+                return i  # returns the index number if regex found
+    return False  # returns False if no regex found (xt solution has no fvar)
+
+
+def which(name: str, flags=os.X_OK, exts=None) -> list:
+    """
+    Search PATH for executable files with the given name.
+
+    On MS-Windows the only flag that has any meaning is os.F_OK. Any other
+    flags will be ignored.
+    """
+    if exts is None:
+        exts = ['.exe', '.EXE', '.bat']
+    result = []
+    # exts = filter(None, os.environ.get('PATHEXT', '').split(os.pathsep))
+    path = os.getenv('PATH', None)
+    if path is None:
+        return []
+    for p in os.getenv('PATH', '').split(os.pathsep):
+        p = os.path.join(p, name)
+        if os.access(p, flags):
+            result.append(p)
+        for e in exts:
+            pext = p + e
+            if os.access(pext, flags):
+                result.append(pext)
+    return result
 
 
 def split_fvar_and_parameter(parameter: float) -> tuple:
