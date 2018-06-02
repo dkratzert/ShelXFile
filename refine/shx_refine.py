@@ -217,12 +217,17 @@ class ShelxlRefine():
         out = child_stdout_and_stderr.readline().decode('ascii')
         output = []
         while out:
+            if "cycle" in out:
+                print(out.rstrip("\n\r"))
             output.append(out)
             out = child_stdout_and_stderr.readline().decode('ascii')
         child_stdout_and_stderr.close()
         # output only the most importand things from shelxl:
         self.pretty_shx_output(output)
-        status = os.path.exists(resfile)  # status is False if shelx was unsecessful
+        status = True
+        if os.stat(resfile).st_size < 10:
+            # status is False if shelx was unsecessful
+            status = False 
         if not status:  # fail
             print(sep_line)
             print('\nError: SHELXL terminated unexpectedly.')

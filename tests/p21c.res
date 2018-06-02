@@ -30,20 +30,7 @@ SIMU_CCF3 O1 > F9
 RIGU_CCF3 O1 > F9
 SAME_CCF3 O1 > F9
 REM For further cards:
-BLOC 1 -1 C1 C2 F1
-BLOC 4
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
  
 WGHT   0.049 0.0
 FVAR   0.08684   0.48096   0.55764
