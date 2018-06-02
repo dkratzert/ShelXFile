@@ -1,6 +1,6 @@
 # ShelXFile
 
-This is a full implementation of the SHELXL<sup>[1])(http://shelx.uni-goettingen.de)</sup> file syntax. Additionally it is able to edit SHELX properties using Python.
+This is a full implementation of the SHELXL<sup>[1](http://shelx.uni-goettingen.de)</sup> file syntax. Additionally it is able to edit SHELX properties using Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
 ShelXFile may eventually become a new heart of DSR<sup>[2]</sup> and is already used as file parser in StructureFinder<sup>[3]</sup>.
 
