@@ -1,8 +1,8 @@
 # ShelXFile
 
-This is a full implementation of the SHELXL<sup>[1]</sup> file syntax. Additionally it is able to edit SHELX properties using Python.
+This is a full implementation of the SHELXL<sup>[[1](https://github.com/dkratzert/ShelXFile/blob/master/README.md#references)]</sup> file syntax. Additionally it is able to edit SHELX properties using Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
-ShelXFile may eventually become a new heart of DSR<sup>[2]</sup> and is already used as file parser in StructureFinder<sup>[3]</sup>.
+ShelXFile may eventually become a new heart of DSR<sup>[[2](https://github.com/dkratzert/ShelXFile/blob/master/README.md#references)]</sup> and is already used as file parser in StructureFinder<sup>[[3](https://github.com/dkratzert/ShelXFile/blob/master/README.md#references)]</sup>.
 
 ShelXFile always keeps the file order intact. Every SHELX instruction like DFIX or an atom is stored as an class object in the list ShelXlFile.\_reslist. When writing the ShelXlFile content to disk, it wites the \_reslist content to disk.
 
@@ -107,18 +107,19 @@ specified by SHELXL during the file writing.
 shx.write_shelx_file('test.ins')
 ```
 No matter if you loaded a .res or .ins file with refine(), SHELXL refines the structure of the ShelXlFile() object. 
-The default for refine() are zero least squares cycles:
+The default for refine() are zero least-squares cycles:
 ```python
-shx.refine(5)
+shx.refine(2)
 ```
 ```
 -------------------------------------------------------------------------------
- Running SHELXL with "/usr/local/bin/shelxl -b3000 /Users/daniel/GitHub/ShelXFile/tests/p21c" and "L.S. 5"
+ Running SHELXL with "/usr/local/bin/shelxl -b3000 /Users/daniel/GitHub/ShelXFile/tests/p21c" and "L.S. 2"
+ wR2 =  0.1143 before cycle   1 for   10786 data and    945 /    945 parameters
+ wR2 =  0.1025 before cycle   2 for   10786 data and    945 /    945 parameters
+ wR2 =  0.1006 before cycle   3 for   10786 data and      0 /    945 parameters
  SHELXL Version 2018/3
- SHELXL says:
-  ** Cell contents from UNIT instruction and atom list do not agree **
 ```
-
+## References
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.
 https://doi.org/10.1107/S2053229614024218
 
