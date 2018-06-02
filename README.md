@@ -2,7 +2,7 @@
 
 This is a full implementation of the SHELXL<sup>[[1](http://shelx.uni-goettingen.de)]</sup> file syntax. Additionally it is able to edit SHELX properties using Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
-ShelXFile may eventually become a new heart of DSR<sup>[2]</sup> and is already used as file parser in StructureFinder<sup>[3]</sup>.
+ShelXFile may eventually become a new heart of DSR<sup>[[2](## References)]</sup> and is already used as file parser in StructureFinder<sup>[3]</sup>.
 
 ShelXFile always keeps the file order intact. Every SHELX instruction like DFIX or an atom is stored as an class object in the list ShelXlFile.\_reslist. When writing the ShelXlFile content to disk, it wites the \_reslist content to disk.
 
@@ -119,7 +119,7 @@ shx.refine(2)
  wR2 =  0.1005 before cycle   3 for   10786 data and      0 /    945 parameters
  SHELXL Version 2018/3
 ```
-# References
+## References
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.
 https://doi.org/10.1107/S2053229614024218
 
