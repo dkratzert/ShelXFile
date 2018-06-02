@@ -99,17 +99,18 @@ shx.restraints[1].residue_class
 
 shx.restraints[1].s
 0.02
-
-shx.write_shelx_file('test.ins')
 ```
 Writes current shx object to test.ins
 All lines in ShelXlFile._reslist get wrapped after 79 characters with " =\n " as
 specified by SHELXL during the file writing.
-
+```python
+shx.write_shelx_file('test.ins')
+```
 No matter if you loaded a .res or .ins file with refine(), SHELXL refine the structure of the ShelXlFile() object. 
 The default is zero least squares cycles:
 ```python
 shx.refine(5)
+```
 ```
 -------------------------------------------------------------------------------
 
@@ -118,7 +119,7 @@ shx.refine(5)
  SHELXL Version 2018/3
  SHELXL says:
   ** Cell contents from UNIT instruction and atom list do not agree **
-
+```
 
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.
 https://doi.org/10.1107/S2053229614024218
