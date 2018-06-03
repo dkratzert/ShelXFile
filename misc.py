@@ -395,3 +395,51 @@ def wrap_line(line: str) -> str:
     else:
         line = ''.join(line)
     return line
+
+
+def range_resolver(atoms_range: list, atom_names: list) -> list:
+    """
+    Resolves the atom names of ranges like "C1 > C5"
+    and works for each restraint line separately.
+    :param atoms_range: atoms with a range definition
+    :param atom_names: names of atoms in the fragment
+    >>> r = "C2 > C5".split()
+    >>> atlist = 'C1 C2 C3 C4 C5'.split()
+    >>> range_resolver(r, atlist)
+    ['C2', 'C3', 'C4', 'C5']
+    >>> r = "C2_2 > C5_2".split()
+    >>> atlist = 'C1_1 C1_2 C2_2 C3_2 C4_2 C5_2'.split()
+    >>> range_resolver(r, atlist)
+    ['C2_2', 'C3_2', 'C4_2', 'C5_2']
+    >>> r = "C2_1 > C5_1".split()
+    >>> atlist = 'C1_1 C1_2 C2_2 C3_2 C4_2 C5_2'.split()
+    >>> range_resolver(r, atlist) # doctest +ELLIPSIS
+    Traceback (most recent call last):
+     ...
+    ValueError: 'C2_1' is not in list
+    """
+    # dict with lists of positions of the > or < sign:
+    rightleft = {'>': [], '<': []}
+    for rl in rightleft:
+        for num, i in enumerate(atoms_range):
+            i = i.upper()
+            if rl == i:
+                # fill the dictionary:
+                rightleft[rl].append(num)
+    for rl in rightleft:
+        # for each sign:
+        for i in rightleft[rl]:
+            # for each position of < or >:
+            if rl == '>':
+                # forward range
+                left = atom_names.index(atoms_range[i - 1]) + 1
+                right = atom_names.index(atoms_range[i + 1])
+                atoms_range[i:i + 1] = atom_names[left:right]
+            else:
+                # backward range
+                left = atom_names.index(atoms_range[i - 1])
+                right = atom_names.index(atoms_range[i + 1]) + 1
+                names = atom_names[right:left]
+                names.reverse()  # counting backwards
+                atoms_range[i:i + 1] = names
+    return atoms_range
