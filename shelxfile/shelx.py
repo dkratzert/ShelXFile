@@ -20,7 +20,7 @@ import sys
 from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
-    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF
+    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -155,7 +155,7 @@ class ShelXlFile():
         self.conv = []
         self.bind = []
         self.ansr = 0.001
-        self.bloc = None
+        self.bloc = []
         self.dsrlines = []
         self.dsrline_nums = []
         self.symmcards = SymmCards(self)
@@ -502,15 +502,15 @@ class ShelXlFile():
             elif line[:4] == 'BIND':
                 # BIND atom1 atom2
                 if len(spline) == 3:
-                    self.bind.append(spline[1:])
+                    self.append_card(self.bind , BIND(self, spline), line_num)
                 continue
             elif line[:4] == 'BLOC':
                 # BLOC n1 n2 atomnames
-                self.bloc = self.append_card(self.commands, BLOC(self, spline), line_num)
+                self.append_card(self.bloc, BLOC(self, spline), line_num)
                 continue
             elif line[:4] == 'BOND':
                 # BOND atomnames
-                self.append_card(self.commands, BOND(self, spline), line_num)
+                self.bond = self.append_card(self.commands, BOND(self, spline), line_num)
                 continue
             elif line[:4] == 'BUMP':
                 # BUMP s [0.02]
@@ -538,7 +538,7 @@ class ShelXlFile():
                 # DISP E f' f"[#] mu[#]
                 if not lastcard == 'SFAC':
                     raise ParseOrderError
-                self.disp.append(spline[1:])
+                self.append_card(self.disp, DISP(self, spline), line_num)
                 continue
             elif line[:4] == 'EQIV':
                 # EQIV $n symmetry operation

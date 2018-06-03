@@ -443,3 +443,4 @@ def range_resolver(atoms_range: list, atom_names: list) -> list:
                 names.reverse()  # counting backwards
                 atoms_range[i:i + 1] = names
     return atoms_range
+

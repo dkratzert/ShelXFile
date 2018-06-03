@@ -437,6 +437,17 @@ class REM(Command):
         super(REM, self).__init__(shx, spline)
 
 
+class BIND(Command):
+    """
+    BIND atom1 atom2
+    BIND m n
+    """
+
+    def __init__(self, shx, spline: list) -> None:
+        super(BIND, self).__init__(shx, spline)
+        self.parts, self.atoms = self._parse_line(spline)
+
+
 class BOND(Command):
     """
     BOND atomnames
@@ -445,6 +456,16 @@ class BOND(Command):
     def __init__(self, shx, spline: list) -> None:
         super(BOND, self).__init__(shx, spline)
         _, self.atoms = self._parse_line(spline)
+
+
+class DISP(Command):
+    """
+    DISP E f' f"[#] mu[#]
+    """
+
+    def __init__(self, shx, spline: list) -> None:
+        super(DISP, self).__init__(shx, spline)
+        self.element, self.parameter = self._parse_line(spline)
 
 
 class Restraints():
