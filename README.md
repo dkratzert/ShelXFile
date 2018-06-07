@@ -37,7 +37,7 @@ a.to_isotropic()
 str(a)
 'F1    4    0.245205    0.192674   0.649231  -21.00000    0.04000'
 
-a.position
+a.position  # position in the SHELX .res file
 273
 
 str(shx._reslist[273])  # In regular code, do not access shx._reslist directly!
