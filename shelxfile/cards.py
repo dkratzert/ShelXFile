@@ -240,6 +240,43 @@ class Command():
         return self.textline
 
 
+class HTAB(Command):
+    """
+    HTAB dh[2.0]
+    HTAB donor-atom acceptor-atom
+    """
+    def __init__(self, shx, spline: list):
+        super(HTAB, self).__init__(shx, spline)
+        self.dh = None
+        dh, atoms = self._parse_line(spline)
+        if dh:
+            self.dh = dh[0]
+        if len(atoms) == 2:
+            self.donor = atoms[0]
+            self.acceptor = atoms[1]
+
+
+class GRID(Command):
+    """
+    GRID sl[#] sa[#] sd[#] dl[#] da[#] dd[#]
+    """
+    def __init__(self, shx, spline: list):
+        super(GRID, self).__init__(shx, spline)
+        params, _ = self._parse_line(spline)
+        if len(params) > 0:
+            self.sl = params[0]
+        if len(params) > 1:
+            self.sa = params[1]
+        if len(params) > 2:
+            self.sd = params[2]
+        if len(params) > 3:
+            self.dl = params[3]
+        if len(params) > 4:
+            self.da = params[4]
+        if len(params) > 5:
+            self.dd = params[5]
+
+
 class ACTA(Command):
     """
     ACTA 2θfull[#]
