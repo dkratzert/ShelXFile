@@ -20,7 +20,7 @@ import sys
 from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
-    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID
+    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -591,7 +591,8 @@ class ShelXFile():
                 continue
             elif line[:4] == 'HTAB':
                 # HTAB dh[2.0]  or  HTAB donor-atom acceptor-atom
-                self.htab = spline[1:]
+                self.htab = HTAB(self, spline)
+                self.assign_card(self.htab, line_num)
                 continue
             elif line[:4] == 'ISOR':
                 # ISOR s[0.1] st[0.2] atomnames
