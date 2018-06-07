@@ -244,7 +244,7 @@ class ACTA(Command):
     """
     ACTA 2θfull[#]
     
-    >>> from shelxfile.shelx import ShelXlFile
+    >>> from shelxfile.shelx import ShelXFile
     >>> shx = ShelXlFile('./tests/p21c.res')
     >>> shx.acta
     ACTA 45
@@ -933,7 +933,7 @@ class LSCycles():
     def set_refine_cycles(self, number: int):
         """
         Sets the number of refinement cycles for the current res file.
-        >>> from shelxfile.shelx import ShelXlFile
+        >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXlFile('./tests/p21c.res')
         >>> shx.cycles.set_refine_cycles(44)
         >>> shx._reslist[shx.cycles.line_number]
@@ -1011,7 +1011,7 @@ class SFACTable():
     def parse_element_line(self, spline: list):
         """
         Adds a new SFAC card to the list of cards.
-        >>> from shelxfile.shelx import ShelXlFile
+        >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXlFile('./tests/p21c.res')
         >>> shx.sfac_table
         SFAC C  H  O  F  Al  Ga

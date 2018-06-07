@@ -70,7 +70,7 @@ SHX_CARDS = ('TITL', 'CELL', 'ZERR', 'LATT', 'SYMM', 'SFAC', 'UNIT', 'LIST', 'L.
              'BEDE', 'LONE', 'REM', 'END')
 
 
-class ShelXlFile():
+class ShelXFile():
     """
     Class for data from a SHELXL res file. Includes Atoms, cards and unit cell.
 
@@ -90,7 +90,7 @@ class ShelXlFile():
     symmcards = None
     resfile = None
 
-    def __init__(self: 'ShelXlFile', resfile: str):
+    def __init__(self: 'ShelXFile', resfile: str):
         """
         Reads the shelx file and extracts information.
 
@@ -714,7 +714,7 @@ class ShelXlFile():
             elif line[:4] == 'LONE':
                 # Later...
                 continue
-            elif ShelXlFile.r1_regex.match(line):
+            elif ShelXFile.r1_regex.match(line):
                 try:
                     self.R1 = float(spline[3])
                 except IndexError:
@@ -724,13 +724,13 @@ class ShelXlFile():
                 except IndexError:
                     pass
                 continue
-            elif ShelXlFile.wr2_regex.match(line):
+            elif ShelXFile.wr2_regex.match(line):
                 try:
                     self.wR2 = float(spline[3])
                 except IndexError:
                     pass
                 continue
-            elif ShelXlFile.parameters_regex.match(line):
+            elif ShelXFile.parameters_regex.match(line):
                 try:
                     self.parameters = float(spline[1])
                     if self.data and self.parameters:
@@ -818,7 +818,7 @@ class ShelXlFile():
     def vol_unitcell(a, b, c, al, be, ga) -> float:
         """
         calculates the volume of a unit cell
-        >>> v = ShelXlFile.vol_unitcell(2, 2, 2, 90, 90, 90)
+        >>> v = ShelXFile.vol_unitcell(2, 2, 2, 90, 90, 90)
         >>> print(v)
         8.0
         """
@@ -890,8 +890,8 @@ class ShelXlFile():
                             if include_filename in includefiles:
                                 raise ValueError('*** Recoursive include files detected! ***')
                             includefiles.append(include_filename)
-                            newfile = ShelXlFile.read_nested_file_to_list(os.path.join(os.path.dirname(resfile),
-                                                                                       include_filename))
+                            newfile = ShelXFile.read_nested_file_to_list(os.path.join(os.path.dirname(resfile),
+                                                                                      include_filename))
                             if newfile:
                                 for num, l in enumerate(newfile):
                                     lnum = n + 1 + num
@@ -986,17 +986,17 @@ class ShelXlFile():
         :param resi: ['number', 'class']
         :type resi: list or string
 
-        >>> sorted(list(ShelXlFile.get_resi_definition_dict('RESI 1 TOL'.split()[1:])))
+        >>> sorted(list(ShelXFile.get_resi_definition_dict('RESI 1 TOL'.split()[1:])))
         ['ID', 'class', 'number']
-        >>> sorted(ShelXlFile.get_resi_definition_dict('RESI 1 TOL'.split()[1:]).items())
+        >>> sorted(ShelXFile.get_resi_definition_dict('RESI 1 TOL'.split()[1:]).items())
         [('ID', None), ('class', 'TOL'), ('number', 1)]
-        >>> ShelXlFile.get_resi_definition_dict('RESI 1 TOL'.split()[1:])
+        >>> ShelXFile.get_resi_definition_dict('RESI 1 TOL'.split()[1:])
         {'class': 'TOL', 'number': 1, 'ID': None}
-        >>> ShelXlFile.get_resi_definition_dict('RESI A:100 TOL'.split()[1:])
+        >>> ShelXFile.get_resi_definition_dict('RESI A:100 TOL'.split()[1:])
         {'class': 'TOL', 'number': 100, 'ID': 'A'}
-        >>> ShelXlFile.get_resi_definition_dict('RESI -10 TOL'.split()[1:])
+        >>> ShelXFile.get_resi_definition_dict('RESI -10 TOL'.split()[1:])
         {'class': 'TOL', 'number': -10, 'ID': None}
-        >>> ShelXlFile.get_resi_definition_dict('RESI b:-10 TOL'.split()[1:])
+        >>> ShelXFile.get_resi_definition_dict('RESI b:-10 TOL'.split()[1:])
         {'class': 'TOL', 'number': -10, 'ID': 'b'}
         """
         resi_dict = {'class': None, 'number': None, 'ID': None}
@@ -1021,7 +1021,7 @@ class ShelXlFile():
         PART n sof
         partstring: string like 'PART 2 -21'
 
-        >>> ShelXlFile.get_partnumber(partstring='PART 2 -21')
+        >>> ShelXFile.get_partnumber(partstring='PART 2 -21')
         (2, -21.0)
         """
         part = partstring.upper().split()
@@ -1043,14 +1043,14 @@ class ShelXlFile():
 
         AFIX mn d[#] sof[11] U[10.08]
 
-        >>> ShelXlFile.get_afix_numbers(['AFIX', 137], 1)
+        >>> ShelXFile.get_afix_numbers(['AFIX', 137], 1)
         (137, 0.0, 11, 10.08)
-        >>> ShelXlFile.get_afix_numbers(['AFIX', '137b'], 1)
+        >>> ShelXFile.get_afix_numbers(['AFIX', '137b'], 1)
         *** Wrong AFIX definition in line 1. Check your AFIX instructions ***
         (0, 0.0, 11, 10.08)
-        >>> ShelXlFile.get_afix_numbers(['AFIX', 13, 1.234], 1)
+        >>> ShelXFile.get_afix_numbers(['AFIX', 13, 1.234], 1)
         (13, 1.234, 11, 10.08)
-        >>> ShelXlFile.get_afix_numbers(['AFIX', 13, 1.234, -21, 10.05], 1)
+        >>> ShelXFile.get_afix_numbers(['AFIX', 13, 1.234, -21, 10.05], 1)
         (13, 1.234, -21.0, 10.05)
         """
         d = 0.0
@@ -1075,17 +1075,17 @@ class ShelXlFile():
         """
         Returns True is line contains an atom.
         atomline:  'O1    3    0.120080   0.336659   0.494426  11.00000   0.01445 ...'
-        >>> ShelXlFile.is_atom(atomline = 'O1    3    0.120080   0.336659   0.494426  11.00000   0.01445 ...')
+        >>> ShelXFile.is_atom(atomline = 'O1    3    0.120080   0.336659   0.494426  11.00000   0.01445 ...')
         True
-        >>> ShelXlFile.is_atom(atomline = 'O1    0.120080   0.336659   0.494426  11.00000   0.01445 ...')
+        >>> ShelXFile.is_atom(atomline = 'O1    0.120080   0.336659   0.494426  11.00000   0.01445 ...')
         False
-        >>> ShelXlFile.is_atom(atomline = 'O1  4  0.120080    0.494426  11.00000   0.01445 ...')
+        >>> ShelXFile.is_atom(atomline = 'O1  4  0.120080    0.494426  11.00000   0.01445 ...')
         True
-        >>> ShelXlFile.is_atom("AFIX 123")
+        >>> ShelXFile.is_atom("AFIX 123")
         False
-        >>> ShelXlFile.is_atom("AFIX")
+        >>> ShelXFile.is_atom("AFIX")
         False
-        >>> ShelXlFile.is_atom('O1    3    0.120080   0.336659   0.494426')
+        >>> ShelXFile.is_atom('O1    3    0.120080   0.336659   0.494426')
         True
         """
         # no empty line, not in cards and not space at start:
@@ -1103,7 +1103,7 @@ class ShelXlFile():
     def elem2sfac(self, atom_type: str) -> int:
         """
         returns an sfac-number for the element given in "atom_type"
-        >>> shx = ShelXlFile('../tests/p21c.res')
+        >>> shx = ShelXFile('../tests/p21c.res')
         >>> shx.elem2sfac('O')
         3
         >>> shx.elem2sfac('c')
@@ -1119,7 +1119,7 @@ class ShelXlFile():
         """
         returns an element and needs an sfac-number
         :param sfacnum: string like '2'
-        >>> shx = ShelXlFile('../tests/p21c.res')
+        >>> shx = ShelXFile('../tests/p21c.res')
         >>> shx.sfac2elem(1)
         'C'
         >>> shx.sfac2elem(2)
@@ -1177,7 +1177,7 @@ if __name__ == "__main__":
         """
         >>> file = r'p21c.res'
         >>> try:
-        >>>     shx = ShelXlFile(file)
+        >>>     shx = ShelXFile(file)
         >>> except Exception:
         >>>    raise
         """
@@ -1199,7 +1199,7 @@ if __name__ == "__main__":
 
     file = r'tests/p21c.res'
     try:
-        shx = ShelXlFile(file)
+        shx = ShelXFile(file)
     except Exception:
         raise
 

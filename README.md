@@ -4,7 +4,7 @@ This is a full implementation of the SHELXL<sup>[[1](https://github.com/dkratzer
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
 ShelXFile may eventually become a new heart of DSR<sup>[[2](https://github.com/dkratzert/ShelXFile/blob/master/README.md#references)]</sup> and is already used as file parser in StructureFinder<sup>[[3](https://github.com/dkratzert/ShelXFile/blob/master/README.md#references)]</sup>.
 
-ShelXFile always keeps the file order intact. Every SHELX instruction like DFIX or an atom is stored as an class object in the list ShelXlFile.\_reslist. When writing the ShelXlFile content to disk, it wites the \_reslist content to disk.
+ShelXFile always keeps the file order intact. Every SHELX instruction like DFIX or an atom is stored as an class object in the list ShelXFile.\_reslist. When writing the ShelXFile content to disk, it wites the \_reslist content to disk.
 
 ShelXFile tries to detect all possible syntax errors that SHELXL would not like either. If ShelXFile.DEBUG is True, more output about syntax and other errors are printed out. Otherwise, the parser is quiet except for really severe errors like a missing unit cell.
 
@@ -14,7 +14,7 @@ Examples:
 ```python
 
 from shelxfile.shelx import ShelXlFile
-shx = ShelXlFile('./tests/p21c.res')
+shx = ShelXFile('./tests/p21c.res')
 
 shx.cell
 [10.5086, 20.9035, 20.5072, 90.0, 94.13, 90.0]
@@ -101,12 +101,12 @@ shx.restraints[1].s
 0.02
 ```
 Writes current shx object to test.ins
-All lines in ShelXlFile._reslist get wrapped after 79 characters with " =\n " as
+All lines in ShelXFile._reslist get wrapped after 79 characters with " =\n " as
 specified by SHELXL during the file writing.
 ```python
 shx.write_shelx_file('test.ins')
 ```
-No matter if you loaded a .res or .ins file with refine(), SHELXL refines the structure of the ShelXlFile() object. 
+No matter if you loaded a .res or .ins file with refine(), SHELXL refines the structure of the ShelXFile() object. 
 The default for refine() are zero least-squares cycles:
 ```python
 shx.refine(2)
