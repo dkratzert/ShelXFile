@@ -189,11 +189,10 @@ class Command():
     """
 
     def __init__(self, shx, spline: list):
-        self.shx = shx
+        self._shx = shx
         self.residue_class = ''
         self.residue_number = 0
         self.textline = ' '.join(spline)
-        self.atoms = []
 
     def _parse_line(self, spline, intnums=False):
         """
@@ -224,7 +223,7 @@ class Command():
 
     @property
     def position(self):
-        return self.shx.index_of(self)
+        return self._shx.index_of(self)
 
     def __iter__(self):
         for x in self.__repr__().split():
@@ -250,15 +249,47 @@ class FRAG(Command):
         self.code = params[0]
         self.cell = params[1:7]
 
+
 class FREE(Command):
     """
     FREE atom1 atom2
     """
     def __init__(self, shx, spline: list):
         super(FREE, self).__init__(shx, spline)
+        _, atoms = self._parse_line(spline)
+        try:
+            self.atom1 = atoms[0]
+            self.atom2 = atoms[1]
+        except IndexError:
+            raise ParseParamError
+
+
+class FMAP(Command):
+    """
+    FMAP code[2] axis[#] nl[53]
+    """
+    def __init__(self, shx, spline: list):
+        super(FMAP, self).__init__(shx, spline)
         params, _ = self._parse_line(spline)
-        self.code = params[0]
-        self.cell = params[1:7]
+        if len(params) > 0:
+            self.code = params[0]
+        if len(params) > 1:
+            self.axis = params[1]
+        if len(params) > 2:
+            self.axis = params[2]
+
+
+class MOVE(Command):
+    """
+    MOVE dx[0] dy[0] dz[0] sign[1]
+    """
+    def __init__(self, shx, spline: list):
+        super(MOVE, self).__init__(shx, spline)
+        params, _ = self._parse_line(spline)
+        if len(params) > 2:
+            self.dxdydz = params[:3]
+        if len(params) > 3:
+            self.sign = params[3]
 
 
 class MERG(Command):

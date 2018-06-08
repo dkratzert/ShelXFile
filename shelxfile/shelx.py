@@ -20,7 +20,7 @@ import sys
 from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
-    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG
+    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, MOVE
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -619,11 +619,13 @@ class ShelXFile():
                 continue
             elif line[:4] == 'FMAP':
                 # FMAP code[2] axis[#] nl[53]
-                self.fmap = spline[1:]
+                self.fmap = FMAP(self, spline)
+                self.assign_card(self.fmap, line_num)
                 continue
             elif line[:4] == 'MOVE':
                 # MOVE dx[0] dy[0] dz[0] sign[1]
-                self.move = spline[1:]
+                self.move = MOVE(self, spline)
+                self.assign_card(self.move, line_num)
                 continue
             elif line[:4] == 'MPLA':
                 # MPLA na atomnames
