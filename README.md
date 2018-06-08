@@ -52,6 +52,12 @@ a.resinum
 a.part
 2
 
+shx.sfac2elem(4)
+'F'
+
+shx.elem2sfac('F')
+4
+
 a.find_atoms_around(dist=2.0, only_part=1)
 [Atom ID: 254, Atom ID: 256, Atom ID: 260]
 
