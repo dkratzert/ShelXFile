@@ -240,6 +240,39 @@ class Command():
         return self.textline
 
 
+class FRAG(Command):
+    """
+    FRAG code[17] a[1] b[1] c[1] α[90] β[90] γ[90]
+    """
+    def __init__(self, shx, spline: list):
+        super(FRAG, self).__init__(shx, spline)
+        params, _ = self._parse_line(spline)
+        self.code = params[0]
+        self.cell = params[1:7]
+
+class FREE(Command):
+    """
+    FREE atom1 atom2
+    """
+    def __init__(self, shx, spline: list):
+        super(FREE, self).__init__(shx, spline)
+        params, _ = self._parse_line(spline)
+        self.code = params[0]
+        self.cell = params[1:7]
+
+
+class MERG(Command):
+    """
+    MERG n[2]
+    """
+    def __init__(self, shx, spline: list):
+        super(MERG, self).__init__(shx, spline)
+        self.n = None
+        _n, _ = self._parse_line(spline)
+        if len(_n) > 0:
+            self.n = _n[0]
+
+
 class HTAB(Command):
     """
     HTAB dh[2.0]

@@ -20,7 +20,7 @@ import sys
 from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
-    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB
+    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -137,7 +137,6 @@ class ShelXFile():
         self.sump = []
         self.end = False
         self.maxsof = 1.0
-        self.commands = []
         self.size = {}
         self.htab = []
         self.shel = []
@@ -479,11 +478,13 @@ class ShelXFile():
                 continue
             elif line[:4] == 'ACTA':
                 # ACTA 2θfull[#] -> optional parameter NOHKL
-                self.acta = self.append_card(self.commands, ACTA(self, spline), line_num)
+                self.acta = ACTA(self, spline)
+                self.assign_card(self.acta, line_num)
                 continue
             elif line[:4] == 'DAMP':
                 # DAMP damp[0.7] limse[15]
-                self.damp = self.append_card(self.commands, DAMP(self, spline), line_num)
+                self.damp = DAMP(self, spline)
+                self.assign_card(self.damp, line_num)
                 continue
             elif line[:4] == 'ABIN':
                 # ABIN n1 n2   ->   Reads h, k, l, A and B from the file name.fab
@@ -510,7 +511,8 @@ class ShelXFile():
                 continue
             elif line[:4] == 'BOND':
                 # BOND atomnames
-                self.bond = self.append_card(self.commands, BOND(self, spline), line_num)
+                self.bond =BOND(self, spline) 
+                self.assign_card(self.bond, line_num)
                 continue
             elif line[:4] == 'BUMP':
                 # BUMP s [0.02]
@@ -522,12 +524,14 @@ class ShelXFile():
                 continue
             elif line[:4] == 'CONF':
                 # CONF atomnames max_d[1.9] max_a[170]
-                self.conf = self.append_card(self.commands, CONF(self, spline), line_num)
+                self.conf = CONF(self, spline) 
+                self.assign_card(self.conf, line_num)
                 continue
             elif line[:4] == 'CONN':
                 # CONN bmax[12] r[#] atomnames or CONN bmax[12]
                 # bonded are d < (r1 + r2 + 0.5) Å
-                self.conn = self.append_card(self.commands, CONN(self, spline), line_num)
+                self.conn = CONN(self, spline) 
+                self.assign_card(self.conn, line_num)
                 continue
             elif line[:4] == 'DEFS':
                 # DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
@@ -557,7 +561,8 @@ class ShelXFile():
             elif line[:4] == 'FRAG':
                 # FRAG code[17] a[1] b[1] c[1] α[90] β[90] γ[90]
                 if len(spline) == 8:
-                    self.frag = spline[1:]
+                    self.frag = FRAG(self, spline)
+                    self.assign_card(self.frag, line_num)
                 continue
             elif line[:4] == 'FEND':
                 # FEND (must follow FRAG)
@@ -571,7 +576,8 @@ class ShelXFile():
                 continue
             elif line[:4] == 'FREE':
                 # FREE atom1 atom2
-                self.free = spline[1:]
+                free = FREE(self, spline)
+                self.free.append(free)
                 continue
             elif line[:4] == 'GRID':
                 # GRID sl[#] sa[#] sd[#] dl[#] da[#] dd[#]
@@ -604,7 +610,8 @@ class ShelXFile():
                 continue
             elif line[:4] == 'MERG':
                 # MERG n[2]
-                self.merg = spline[1:]
+                self.merg = MERG(self, spline)
+                self.assign_card(self.merg, line_num)
                 continue
             elif line[:4] == 'MORE':
                 # MORE m[1]
@@ -789,7 +796,6 @@ class ShelXFile():
         Place ACTA after UNIT
         """
         self.acta = ACTA(self, acta.split())
-        self.commands.append(self.acta)
         self._reslist.insert(self.unit.position + 1, self.acta)
 
     def orthogonal_matrix(self):
