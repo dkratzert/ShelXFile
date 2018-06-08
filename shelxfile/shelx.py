@@ -20,7 +20,8 @@ import sys
 from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
-    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, MOVE
+    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
+    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -137,7 +138,7 @@ class ShelXFile():
         self.sump = []
         self.end = False
         self.maxsof = 1.0
-        self.size = {}
+        self.size = None
         self.htab = []
         self.shel = []
         self.mpla = []
@@ -206,6 +207,8 @@ class ShelXFile():
 
         line is upper() after multiline_test()
         spline is as in .res file.
+
+        #TODO: First parse atoms.
         """
         lastcard = ''
         part = False
@@ -646,15 +649,17 @@ class ShelXFile():
                 continue
             elif line[:4] == 'PLAN':
                 # PLAN npeaks[20] d1[#] d2[#]
-                self.plan = spline[1:]
+                self.plan = PLAN(self, spline)
+                self.assign_card(self.plan, line_num)
                 continue
             elif line[:4] == 'PRIG':
                 # PRIG p[#]
-                self.prig = spline[1:]
+                self.prig = PRIG(self, spline)
+                self.assign_card(self.prig, line_num)
                 continue
             elif line[:4] == 'RTAB':
                 # RTAB codename atomnames  -->  codename: e.g. 'omeg' gets tabualted in the lst
-                self.rtab.append(spline[1:])
+                self.append_card(self.rtab, RTAB(self, spline), line_num)
                 continue
             elif line[:4] == 'SAME':
                 # SAME s1[0.02] s2[0.04] atomnames
@@ -662,14 +667,15 @@ class ShelXFile():
                 continue
             elif line[:4] == 'SHEL':
                 # SHEL lowres[infinite] highres[0]
-                self.shel = spline[1:]
+                self.shel = SHEL(self, spline)
+                self.assign_card(self.shel, line_num)
                 continue
             elif line[:4] == 'SIZE':
                 # SIZE dx dy dz
-                if len(spline) == 4:
-                    self.size['x'] = spline[1]
-                    self.size['y'] = spline[2]
-                    self.size['z'] = spline[3]
+                # TODO: Figure out why SIZE has no parameters
+                self.size = SIZE(self, spline)
+                print(self.size)
+                self.assign_card(self.size, line_num)
                 continue
             elif line[:4] == 'SPEC':
                 # SPEC del[0.2]

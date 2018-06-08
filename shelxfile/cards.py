@@ -211,7 +211,7 @@ class Command():
             self.name = spline[0].upper()
         numparams = []
         words = []
-        for x in spline[1:]:
+        for x in spline[1:]:  # all values after SHELX card
             if str.isdigit(x[0]) or x[0] in '+-':
                 if intnums:
                     numparams.append(int(x))
@@ -237,6 +237,68 @@ class Command():
 
     def __repr__(self):
         return self.textline
+
+
+class SIZE(Command):
+    """
+    SIZE dx dy dz
+    """
+    def __int__(self, shx, spline: list):
+        super(SIZE, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        print(p, _, '###')
+        self.dx = p[0]
+        self.dy = p[1]
+        self.dz = p[2]
+
+
+class SHEL(Command):
+    """
+    SHEL lowres[infinite] highres[0]
+    """
+    def __init__(self, shx, spline: list):
+        super(SHEL, self).__init__(shx, spline)
+        params, _ = self._parse_line(spline)
+        if len(params) > 0:
+            self.lowres = params[0]
+        if len(params) > 1:
+            self.highres = params[1]
+
+
+class RTAB(Command):
+    """
+    RTAB codename atomnames
+    """
+    def __init__(self, shx, spline: list):
+        super(RTAB, self).__init__(shx, spline)
+        self.code = spline.pop(1)
+        _, self.atoms = self._parse_line(spline)
+
+
+class PRIG(Command):
+    """
+    PRIG p[#]
+    """
+    def __init__(self, shx, spline: list):
+        super(PRIG, self).__init__(shx, spline)
+        params, _ = self._parse_line(spline)
+        if len(params) > 0:
+            self.p = params[0]
+
+
+class PLAN(Command):
+    """
+    PLAN npeaks[20] d1[#] d2[#]
+    """
+    def __init__(self, shx, spline: list):
+        super(PLAN, self).__init__(shx, spline)
+        params, _ = self._parse_line(spline)
+        if len(params) > 0:
+            self.npeaks = params[0]
+        if len(params) > 1:
+            self.d1 = params[1]
+        if len(params) > 2:
+            self.d2 = params[2]
 
 
 class FRAG(Command):
