@@ -60,7 +60,7 @@ class Atoms():
         """
         The number of atoms in the current SHELX file.
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.number
         148
         """
@@ -79,7 +79,7 @@ class Atoms():
         Returns true if shelx file has atom.
 
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.has_atom('Al1')
         True
         >>> shx.atoms.has_atom('Al1_0')
@@ -99,7 +99,7 @@ class Atoms():
         Returns an Atom object using an atom name with residue number like C1, C1_0, F2_4, etc.
         C1 means atom C1 in residue 0.
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.get_atom_by_name('Al1')
         Atom ID: 88
         """
@@ -116,7 +116,7 @@ class Atoms():
         """
         Returns a dictionary {'C1': ['1.123', '0.7456', '3.245'], 'C2_2': ...}
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.get_all_atomcoordinates() # doctest: +ELLIPSIS
         {'O1_4': [0.074835, 0.238436, 0.402457], 'C1_4': [0.028576, 0.234542, 0.337234], ...}
         """
@@ -145,7 +145,7 @@ class Atoms():
         """
         Returns a list of the residue numbers in the shelx file.
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.residues
         [0, 1, 2, 3, 4]
         """
@@ -156,7 +156,7 @@ class Atoms():
         r"""
         Returns a list of q-peaks in the file.
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.q_peaks[:5] # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
         [Atom ID: 346, Atom ID: 347, Atom ID: 348, Atom ID: 349, Atom ID: 350]
         """
@@ -166,7 +166,7 @@ class Atoms():
         """
         Calculates the (shortest) distance of two atoms given as text names e.g. C1_3.
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> round(shx.atoms.distance('F1_2', 'F2_2'), 6)
         2.154399
         >>> round(shx.atoms.distance('C2_2', 'F1_2'), 6)
@@ -183,7 +183,7 @@ class Atoms():
         """
         Returns a list of atoms in residue class 'name'
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.atoms_in_class('CCF3')
         ['O1', 'C1', 'C2', 'F1', 'F2', 'F3', 'C3', 'F4', 'F5', 'F6', 'C4', 'F7', 'F8', 'F9']
         """
@@ -410,7 +410,7 @@ class Atom():
     def delete(self):
         """
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms[:3]
         [Atom ID: 53, Atom ID: 55, Atom ID: 57]
         >>> shx._reslist[55:58]
@@ -446,7 +446,7 @@ class Atom():
         """
         Finds atoms around the current atom.
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> at = shx.atoms.get_atom_by_name('Al1')
         >>> found = at.find_atoms_around(2)
         >>> [n.atomid for n in found]
