@@ -243,13 +243,27 @@ class SIZE(Command):
     """
     SIZE dx dy dz
     """
-    def __int__(self, shx, spline: list):
+    def __init__(self, shx, spline: list):
         super(SIZE, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
-        print(p, _, '###')
-        self.dx = p[0]
-        self.dy = p[1]
-        self.dz = p[2]
+        if len(p) > 0:
+            self.dx = p[0]
+        if len(p) > 1:
+            self.dy = p[1]
+        if len(p) > 2:
+            self.dz = p[2]
+
+    def _as_text(self):
+        if all([self.dx, self.dy, self.dz]):
+            return "SIZE {:,g} {:,g} {:,g}".format(self.dx, self.dy, self.dz)
+        else:
+            return ""
+
+    def __repr__(self):
+        return self._as_text()
+
+    def __str__(self):
+        return self._as_text()
 
 
 class SHEL(Command):

@@ -673,9 +673,7 @@ class ShelXFile():
                 continue
             elif word == 'SIZE':
                 # SIZE dx dy dz
-                # TODO: Figure out why SIZE has no parameters
                 self.size = SIZE(self, spline)
-                print(self.size)
                 self.assign_card(self.size, line_num)
                 continue
             elif word == 'SPEC':
