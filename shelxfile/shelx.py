@@ -21,7 +21,7 @@ from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
-    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE
+    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -97,6 +97,7 @@ class ShelXFile():
 
         :param resfile: file path
         """
+        self.temp_in_Kelvin = 0.0
         self.shelx_max_line_length = 79  # maximum character lenth per line in SHELXL
         self.nohkl = False
         self._a, self._b, self._c, self._alpha, self._beta, self._gamma, self.V = \
@@ -678,14 +679,14 @@ class ShelXFile():
                 continue
             elif word == 'SPEC':
                 # SPEC del[0.2]
-                # This implementation is not enough, but more is maybe only needed for a
-                # refinement program:
                 if len(spline) > 1:
-                    self.spec = spline[1]
+                    self.spec = SPEC(self, spline)
+                    self.assign_card(self.spec, line_num)
                 continue
             elif word == 'STIR':
                 # STIR sres step[0.01]   -> stepwise improvement in the resolution sres
-                self.stir = spline[1:]
+                self.stir = STIR(self, spline)
+                self.assign_card(self.stir, line_num)
                 continue
             elif word == 'SUMP':
                 # SUMP c sigma c1 m1 c2 m2 ...
@@ -697,7 +698,8 @@ class ShelXFile():
                 continue
             elif word == 'TEMP':
                 # TEMP T[20]  -> in Celsius
-                self.temp = spline[1]
+                self.temp = float(spline[1])
+                self.temp_in_Kelvin = self.temp + 273.15
                 continue
             elif word == 'TWIN':
                 # TWIN 3x3 matrix [-1 0 0 0 -1 0 0 0 -1] N[2]
@@ -707,18 +709,18 @@ class ShelXFile():
             elif word == 'TWST':
                 # TWST N[0] (N[1] after SHELXL-2018/3)
                 if len(spline) > 1:
-                    self.twst = spline[1]
+                    self.twst = TWST(self, spline)
+                    self.assign_card(self.twst, line_num)
                 continue
             elif word == 'WIGL':
                 # WIGL del[0.2] dU[0.2]
-                if len(spline) == 1:
-                    self.wigl = True
-                if len(spline) > 1:
-                    self.wigl = spline[1:]
+                self.wigl = WIGL(self, spline)
+                self.assign_card(self.wigl, line_num)
                 continue
             elif word == 'WPDB':
                 # WPDB n[1]
-                self.wpdb = spline[1:]
+                self.wpdb = WPDB(self, spline)
+                self.assign_card(self.wpdb, line_num)
                 continue
             elif word == 'XNPD':
                 # XNPD Umin[-0.001]

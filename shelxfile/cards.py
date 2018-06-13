@@ -279,6 +279,77 @@ class SHEL(Command):
             self.highres = params[1]
 
 
+class WIGL(Command):
+    """
+    WIGL del[0.2] dU[0.2]
+    """
+    def __init__(self, shx, spline: list):
+        super(WIGL, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        self.d = 0.2
+        self.dU = 0.2
+        if len(p) > 0:
+            self.d = p[0]
+        if len(p) > 1:
+            self.dU = p[1]
+
+
+class WPDB(Command):
+    """
+    WPDB n[1]
+    """
+    def __init__(self, shx, spline: list):
+        super(WPDB, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        self.n = 1
+        if len(p) > 0:
+            self.n = p[0]
+
+
+class SPEC(Command):
+    """
+    SPEC d[0.2]
+    """
+    def __init__(self, shx, spline: list):
+        super(SPEC, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        if len(p) > 0:
+            self.d = p[0]
+
+
+class STIR(Command):
+    """
+    STIR sres step[0.01]
+    """
+    def __init__(self, shx, spline: list):
+        super(STIR, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        self.step = 0.01
+        if len(p) > 0:
+            self.sres = p[0]
+        if len(p) > 1:
+            self.step = p[1]
+
+    def __repr__(self):
+        return "STIR {} {}".format(self.sres if self.sres else '', self.step)
+
+    def __str__(self):
+        return "STIR {} {}".format(self.sres if self.sres else '', self.step)
+
+
+class TWST(Command):
+    """
+    TWST N[0] (N[1] after SHELXL-2018/3)
+    Twin component number to be used for the completeness and Friedel completeness statistics.
+    """
+    def __init__(self, shx, spline: list):
+        super(TWST, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        self.N = 1
+        if len(p) > 0:
+            self.N = p[0]
+
+
 class RTAB(Command):
     """
     RTAB codename atomnames
