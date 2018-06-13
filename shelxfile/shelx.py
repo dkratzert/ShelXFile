@@ -247,6 +247,7 @@ class ShelXFile():
             spline = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
             # The current line as string:
             line = line.upper().split('!')[0]  # Ignore comments with "!", see how this performes
+            word = line[:4]
             # RESI class[ ] number[0] alias
             if resinull.match(line) and resi:  # RESI 0
                 resi = False
@@ -318,42 +319,42 @@ class ShelXFile():
             elif self.end:
                 # Prevents e.g. parsing of second WGHT after END:
                 continue
-            elif line[:4] == 'SADI':
+            elif word == 'SADI':
                 # SADI s[0.02] pairs of atoms
                 # or SADI
                 if len(spline) == 1:
                     self.global_sadi = line_num
                 self.append_card(self.restraints, SADI(self, spline), line_num)
                 continue
-            elif line[:4] == 'DFIX':
+            elif word == 'DFIX':
                 # DFIX d s[0.02] atom pairs
                 self.append_card(self.restraints, DFIX(self, spline), line_num)
                 continue
-            elif line[:4] == 'SIMU':
+            elif word == 'SIMU':
                 # SIMU s[0.04] st[0.08] dmax[2.0] atomnames
                 self.append_card(self.restraints, SIMU(self, spline), line_num)
                 continue
-            elif line[:4] == 'DELU':
+            elif word == 'DELU':
                 # DELU s1[0.01] s2[0.01] atomnames
                 self.append_card(self.restraints, DELU(self, spline), line_num)
                 continue
-            elif line[:4] == 'RIGU':
+            elif word == 'RIGU':
                 # RIGU s1[0.004] s2[0.004] atomnames
                 self.append_card(self.restraints, RIGU(self, spline), line_num)
                 continue
-            elif line[:4] == 'BASF':
+            elif word == 'BASF':
                 # BASF scale factors
                 self.append_card(self.restraints, BASF(spline, list_of_lines), line_num)
                 continue
-            elif line[:4] == 'HFIX':
+            elif word == 'HFIX':
                 # HFIX mn U[#] d[#] atomnames
                 self.append_card(self.hfixes, HFIX(spline, list_of_lines), line_num)
                 continue
-            elif line[:4] == 'DANG':
+            elif word == 'DANG':
                 # DANG d s[0.04] atom pairs
                 self.append_card(self.restraints, DANG(self, spline), line_num)
                 continue
-            elif line[:4] == 'EADP':
+            elif word == 'EADP':
                 self.append_card(self.restraints, EADP(self, spline), line_num)
                 continue
             elif line[:3] == 'REM':
@@ -362,9 +363,9 @@ class ShelXFile():
                     self.dsrline_nums.extend(list_of_lines)
                 self.append_card(self.rem, REM(self, spline), line_num)
                 continue
-            elif line[:4] == 'AFIX':
+            elif word == 'AFIX':
                 pass
-            elif line[:4] == 'CELL':
+            elif word == 'CELL':
                 # CELL λ a b c α β γ
                 if not lastcard == 'TITL':
                     if DEBUG:
@@ -378,7 +379,7 @@ class ShelXFile():
                 self.wavelen = float(spline[1])
                 lastcard = 'CELL'
                 continue
-            elif line[:4] == "ZERR":
+            elif word == "ZERR":
                 # ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
                 if not lastcard == 'CELL':
                     if DEBUG:
@@ -391,7 +392,7 @@ class ShelXFile():
                     self.zerr = [float(x) for x in spline[2:8]]
                 lastcard = 'ZERR'
                 continue
-            elif line[:4] == "SYMM":
+            elif word == "SYMM":
                 # SYMM symmetry operation
                 #  Being more greedy, because many files do this wrong:
                 # if not lastcard == 'ZERR':
@@ -406,7 +407,7 @@ class ShelXFile():
                     self._reslist[line_num] = ' '
                 lastcard = 'SYMM'
                 continue
-            elif line[:4] == 'SFAC':
+            elif word == 'SFAC':
                 # SFAC elements or
                 # SFAC E a1 b1 a2 b2 a3 b3 a4 b4 c f' f" mu r wt
                 # Being less strict to be able to parse files without cell errors:
@@ -424,7 +425,7 @@ class ShelXFile():
                     self._reslist[line_num] = ' '
                 lastcard = 'SFAC'
                 continue
-            elif line[:4] == 'UNIT':
+            elif word == 'UNIT':
                 # UNIT n1 n2 ...
                 # Number of atoms of each type in the unit-cell, in SFAC order.
                 if not lastcard == 'SFAC':
@@ -442,7 +443,7 @@ class ShelXFile():
                     raise ParseNumError
                 lastcard = 'UNIT'
                 continue
-            elif line[:4] == "LATT":
+            elif word == "LATT":
                 # LATT N[1]
                 # 1=P, 2=I, 3=rhombohedral obverse on hexagonal axes, 4=F, 5=A, 6=B, 7=C.
                 # negative is non-centrosymmetric
@@ -452,16 +453,16 @@ class ShelXFile():
                         print('*** ZERR instruction is missing! ***')
                     # raise ParseOrderError
                 continue
-            elif line[:4] in ['L.S.', 'CGLS']:
+            elif word in ['L.S.', 'CGLS']:
                 # CGLS nls[0] nrf[0] nextra[0]
                 # L.S. nls[0] nrf[0] nextra[0]
                 self.cycles = self.assign_card(LSCycles(self, spline, line_num), line_num)
                 continue
-            elif line[:4] == "LIST":
+            elif word == "LIST":
                 # LIST m[#] mult[1] (mult is for list 4 only)
                 self.list = int(spline[1])
                 continue
-            elif line[:4] == "FVAR":
+            elif word == "FVAR":
                 # FVAR osf[1] free variables
                 for fvvalue in spline[1:]:
                     fvarnum += 1
@@ -470,124 +471,124 @@ class ShelXFile():
                         self._reslist[line_num] = self.fvars
                     else:
                         self.delete_on_write.update([line_num])
-            elif line[:4] == 'ANIS':
+            elif word == 'ANIS':
                 # ANIS n or ANIS names
                 # Must be before Atom(), to know which atom is anis.
                 self.anis = spline
                 continue
-            elif line[:4] == 'WGHT':
+            elif word == 'WGHT':
                 # WGHT a[0.1] b[0] c[0] d[0] e[0] f[.33333]
                 self.wght = self.assign_card(WGHT(self, spline), line_num)
                 continue
-            elif line[:4] == 'ACTA':
+            elif word == 'ACTA':
                 # ACTA 2θfull[#] -> optional parameter NOHKL
                 self.acta = ACTA(self, spline)
                 self.assign_card(self.acta, line_num)
                 continue
-            elif line[:4] == 'DAMP':
+            elif word == 'DAMP':
                 # DAMP damp[0.7] limse[15]
                 self.damp = DAMP(self, spline)
                 self.assign_card(self.damp, line_num)
                 continue
-            elif line[:4] == 'ABIN':
+            elif word == 'ABIN':
                 # ABIN n1 n2   ->   Reads h, k, l, A and B from the file name.fab
                 self.abin = [float(x) for x in spline[1:]]
                 continue
-            elif line[:4] == 'ANSC':
+            elif word == 'ANSC':
                 # ANSC six coefficients
                 if len(spline) == 7:
                     self.ansc = [float(x) for x in spline[:1]]
                 continue
-            elif line[:4] == 'ANSR':
+            elif word == 'ANSR':
                 # ANSR anres[0.001]
                 if len(spline) == 2:
                     self.ansr = float(spline[1])
                 continue
-            elif line[:4] == 'BIND':
+            elif word == 'BIND':
                 # BIND atom1 atom2
                 if len(spline) == 3:
                     self.append_card(self.bind , BIND(self, spline), line_num)
                 continue
-            elif line[:4] == 'BLOC':
+            elif word == 'BLOC':
                 # BLOC n1 n2 atomnames
                 self.append_card(self.bloc, BLOC(self, spline), line_num)
                 continue
-            elif line[:4] == 'BOND':
+            elif word == 'BOND':
                 # BOND atomnames
                 self.bond =BOND(self, spline) 
                 self.assign_card(self.bond, line_num)
                 continue
-            elif line[:4] == 'BUMP':
+            elif word == 'BUMP':
                 # BUMP s [0.02]
                 self.append_card(self.restraints, BUMP(self, spline), line_num)
                 continue
-            elif line[:4] == 'CHIV':
+            elif word == 'CHIV':
                 # CHIV V[0] s[0.1] atomnames
                 self.append_card(self.restraints, CHIV(self, spline), line_num)
                 continue
-            elif line[:4] == 'CONF':
+            elif word == 'CONF':
                 # CONF atomnames max_d[1.9] max_a[170]
                 self.conf = CONF(self, spline) 
                 self.assign_card(self.conf, line_num)
                 continue
-            elif line[:4] == 'CONN':
+            elif word == 'CONN':
                 # CONN bmax[12] r[#] atomnames or CONN bmax[12]
                 # bonded are d < (r1 + r2 + 0.5) Å
                 self.conn = CONN(self, spline) 
                 self.assign_card(self.conn, line_num)
                 continue
-            elif line[:4] == 'DEFS':
+            elif word == 'DEFS':
                 # DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
                 self.defs = DEFS(self, spline)
                 self.assign_card(self.defs, line_num)
                 continue
-            elif line[:4] == 'DISP':
+            elif word == 'DISP':
                 # DISP E f' f"[#] mu[#]
                 if not lastcard == 'SFAC':
                     raise ParseOrderError
                 self.append_card(self.disp, DISP(self, spline), line_num)
                 continue
-            elif line[:4] == 'EQIV':
+            elif word == 'EQIV':
                 # EQIV $n symmetry operation
                 if len(spline) > 1:
                     if spline[1].startswith('$'):
                         self.eqiv.append(spline[1:])
                 continue
-            elif line[:4] == 'EXTI':
+            elif word == 'EXTI':
                 # EXTI x[0]
                 self.exti = float(spline[1])
                 continue
-            elif line[:4] == 'EXYZ':
+            elif word == 'EXYZ':
                 # EXYZ atomnames
                 self.append_card(self.restraints, EXYZ(self, spline), line_num)
                 continue
-            elif line[:4] == 'FRAG':
+            elif word == 'FRAG':
                 # FRAG code[17] a[1] b[1] c[1] α[90] β[90] γ[90]
                 if len(spline) == 8:
                     self.frag = FRAG(self, spline)
                     self.assign_card(self.frag, line_num)
                 continue
-            elif line[:4] == 'FEND':
+            elif word == 'FEND':
                 # FEND (must follow FRAG)
                 if not self.frag:
                     raise ParseOrderError
                 self.frag = None  # Turns frag mode off.
                 continue
-            elif line[:4] == 'FLAT':
+            elif word == 'FLAT':
                 # FLAT s[0.1] four or more atoms
                 self.append_card(self.restraints, FLAT(self, spline), line_num)
                 continue
-            elif line[:4] == 'FREE':
+            elif word == 'FREE':
                 # FREE atom1 atom2
                 free = FREE(self, spline)
                 self.free.append(free)
                 continue
-            elif line[:4] == 'GRID':
+            elif word == 'GRID':
                 # GRID sl[#] sa[#] sd[#] dl[#] da[#] dd[#]
                 self.grid = GRID(self, spline)
                 self.assign_card(self.grid, line_num)
                 continue
-            elif line[:4] == 'HKLF':
+            elif word == 'HKLF':
                 # HKLF N[0] S[1] r11...r33[1 0 0 0 1 0 0 0 1] sm[1] m[0]
                 self.hklf = HKLF(self, spline)
                 self.assign_card(self.hklf, line_num)
@@ -598,137 +599,137 @@ class ShelXFile():
                 # anisotropy fit togeter
                 self.end = True
                 continue
-            elif line[:4] == 'HTAB':
+            elif word == 'HTAB':
                 # HTAB dh[2.0]  or  HTAB donor-atom acceptor-atom
                 self.htab = HTAB(self, spline)
                 self.assign_card(self.htab, line_num)
                 continue
-            elif line[:4] == 'ISOR':
+            elif word == 'ISOR':
                 # ISOR s[0.1] st[0.2] atomnames
                 self.append_card(self.restraints, ISOR(self, spline), line_num)
                 continue
-            elif line[:4] == 'LAUE':
+            elif word == 'LAUE':
                 # LAUE E
                 # I completely do not understand the LAUE instruction description in the manual!
                 continue
-            elif line[:4] == 'MERG':
+            elif word == 'MERG':
                 # MERG n[2]
                 self.merg = MERG(self, spline)
                 self.assign_card(self.merg, line_num)
                 continue
-            elif line[:4] == 'MORE':
+            elif word == 'MORE':
                 # MORE m[1]
                 self.more = spline[1]
                 continue
-            elif line[:4] == 'FMAP':
+            elif word == 'FMAP':
                 # FMAP code[2] axis[#] nl[53]
                 self.fmap = FMAP(self, spline)
                 self.assign_card(self.fmap, line_num)
                 continue
-            elif line[:4] == 'MOVE':
+            elif word == 'MOVE':
                 # MOVE dx[0] dy[0] dz[0] sign[1]
                 self.move = MOVE(self, spline)
                 self.assign_card(self.move, line_num)
                 continue
-            elif line[:4] == 'MPLA':
+            elif word == 'MPLA':
                 # MPLA na atomnames
                 self.mpla.append(spline[1:])
                 continue
-            elif line[:4] == 'NCSY':
+            elif word == 'NCSY':
                 # NCSY DN sd[0.1] su[0.05] atoms
                 self.append_card(self.restraints, NCSY(self, spline), line_num)
                 continue
-            elif line[:4] == 'NEUT':
+            elif word == 'NEUT':
                 # NEUT
                 if not lastcard == 'SYMM':
                     raise ParseOrderError
                 continue
-            elif line[:4] == 'OMIT':
+            elif word == 'OMIT':
                 # OMIT atomnames  or  OMIT s[-2] 2θ(lim)[180]  or  OMIT h k l
                 self.omit.append(spline[1:])
                 continue
-            elif line[:4] == 'PLAN':
+            elif word == 'PLAN':
                 # PLAN npeaks[20] d1[#] d2[#]
                 self.plan = PLAN(self, spline)
                 self.assign_card(self.plan, line_num)
                 continue
-            elif line[:4] == 'PRIG':
+            elif word == 'PRIG':
                 # PRIG p[#]
                 self.prig = PRIG(self, spline)
                 self.assign_card(self.prig, line_num)
                 continue
-            elif line[:4] == 'RTAB':
+            elif word == 'RTAB':
                 # RTAB codename atomnames  -->  codename: e.g. 'omeg' gets tabualted in the lst
                 self.append_card(self.rtab, RTAB(self, spline), line_num)
                 continue
-            elif line[:4] == 'SAME':
+            elif word == 'SAME':
                 # SAME s1[0.02] s2[0.04] atomnames
                 self.append_card(self.restraints, SAME(self, spline), line_num)
                 continue
-            elif line[:4] == 'SHEL':
+            elif word == 'SHEL':
                 # SHEL lowres[infinite] highres[0]
                 self.shel = SHEL(self, spline)
                 self.assign_card(self.shel, line_num)
                 continue
-            elif line[:4] == 'SIZE':
+            elif word == 'SIZE':
                 # SIZE dx dy dz
                 # TODO: Figure out why SIZE has no parameters
                 self.size = SIZE(self, spline)
                 print(self.size)
                 self.assign_card(self.size, line_num)
                 continue
-            elif line[:4] == 'SPEC':
+            elif word == 'SPEC':
                 # SPEC del[0.2]
                 # This implementation is not enough, but more is maybe only needed for a
                 # refinement program:
                 if len(spline) > 1:
                     self.spec = spline[1]
                 continue
-            elif line[:4] == 'STIR':
+            elif word == 'STIR':
                 # STIR sres step[0.01]   -> stepwise improvement in the resolution sres
                 self.stir = spline[1:]
                 continue
-            elif line[:4] == 'SUMP':
+            elif word == 'SUMP':
                 # SUMP c sigma c1 m1 c2 m2 ...
                 self.append_card(self.sump, SUMP(self, spline), line_num)
                 continue
-            elif line[:4] == 'SWAT':
+            elif word == 'SWAT':
                 # SWAT g[0] U[2]
                 self.swat = spline[1:]
                 continue
-            elif line[:4] == 'TEMP':
+            elif word == 'TEMP':
                 # TEMP T[20]  -> in Celsius
                 self.temp = spline[1]
                 continue
-            elif line[:4] == 'TWIN':
+            elif word == 'TWIN':
                 # TWIN 3x3 matrix [-1 0 0 0 -1 0 0 0 -1] N[2]
                 self.twin = TWIN(self, spline)
                 self.assign_card(self.twin, line_num)
                 continue
-            elif line[:4] == 'TWST':
+            elif word == 'TWST':
                 # TWST N[0] (N[1] after SHELXL-2018/3)
                 if len(spline) > 1:
                     self.twst = spline[1]
                 continue
-            elif line[:4] == 'WIGL':
+            elif word == 'WIGL':
                 # WIGL del[0.2] dU[0.2]
                 if len(spline) == 1:
                     self.wigl = True
                 if len(spline) > 1:
                     self.wigl = spline[1:]
                 continue
-            elif line[:4] == 'WPDB':
+            elif word == 'WPDB':
                 # WPDB n[1]
                 self.wpdb = spline[1:]
                 continue
-            elif line[:4] == 'XNPD':
+            elif word == 'XNPD':
                 # XNPD Umin[-0.001]
                 self.xnpd = spline[1:]
                 continue
-            elif line[:4] == 'BEDE':
+            elif word == 'BEDE':
                 # Later...
                 continue
-            elif line[:4] == 'LONE':
+            elif word == 'LONE':
                 # Later...
                 continue
             elif ShelXFile.r1_regex.match(line):
@@ -759,10 +760,10 @@ class ShelXFile():
                 except IndexError:
                     pass
                 continue
-            elif line[:4] == 'MOLE':
+            elif word == 'MOLE':
                 # print('*** MOLE is deprecated! Do not use it! ***')
                 pass
-            elif line[:4] == 'HOPE':
+            elif word == 'HOPE':
                 # print('*** HOPE is deprecated! Do not use it! ***')
                 pass
             elif line[:1] == '+':
