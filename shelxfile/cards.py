@@ -239,6 +239,43 @@ class Command():
         return self.textline
 
 
+class AFIX(Command):
+    """
+    AFIX mn d[#] sof[11] U[10.08]
+    """
+    def __init__(self, shx, spline: list):
+        super(AFIX, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        self.U = 10.08
+        self.sof = 11
+        if len(p) > 0:
+            self.mn = int(p[0])
+        if len(p) > 1:
+            self.d = p[1]
+        if len(p) > 2:
+            self.sof = p[2]
+        if len(p) > 3:
+            self.U = p[3]
+
+    def __bool__(self):
+        if self.mn > 0:
+            return True
+        else:
+            return False
+
+
+class XNPD(Command):
+    """
+    XNPD Umin[-0.001]
+    """
+    def __init__(self, shx, spline: list):
+        super(XNPD, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        self.Umin = -0.001
+        if len(p) > 0:
+            self.Umin = p[0]
+
+
 class SIZE(Command):
     """
     SIZE dx dy dz

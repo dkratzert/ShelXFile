@@ -80,9 +80,9 @@ class ShelXFile():
     delete_on_write = None
     atoms = None
     sump = []
-    r1_regex = re.compile(r'^REM\s+R1\s+=', re.IGNORECASE)
-    wr2_regex = re.compile(r'^REM\s+wR2\s+=', re.IGNORECASE)
-    parameters_regex = re.compile(r'REM\s+\d+\s+parameters\s+refined', re.IGNORECASE)
+    _r1_regex = re.compile(r'^REM\s+R1\s+=', re.IGNORECASE)
+    _wr2_regex = re.compile(r'^REM\s+wR2\s+=', re.IGNORECASE)
+    _parameters_regex = re.compile(r'REM\s+\d+\s+parameters\s+refined', re.IGNORECASE)
     fvars = None
     sfac_table = None
     _reslist = None
@@ -136,27 +136,27 @@ class ShelXFile():
         self.parameters = None
         self.dat_to_param = None
         self.num_restraints = None
-        self.sump = []
+        self.sump = None
         self.end = False
         self.maxsof = 1.0
         self.size = None
-        self.htab = []
-        self.shel = []
-        self.mpla = []
-        self.rtab = []
-        self.omit = []
+        self.htab = None
+        self.shel = None
+        self.mpla = None
+        self.rtab = None
+        self.omit = None
         self.hklf = None
-        self.grid = []
-        self.free = []
+        self.grid = None
+        self.free = None
         self.titl = ""
         self.exti = 0
-        self.eqiv = []
-        self.disp = []
-        self.conn = []
-        self.conv = []
-        self.bind = []
+        self.eqiv = None
+        self.disp = None
+        self.conn = None
+        self.conv = None
+        self.bind = None
         self.ansr = 0.001
-        self.bloc = []
+        self.bloc = None
         self.dsrlines = []
         self.dsrline_nums = []
         self.symmcards = SymmCards(self)
@@ -732,23 +732,28 @@ class ShelXFile():
             elif word == 'LONE':
                 # Later...
                 continue
-            elif ShelXFile.r1_regex.match(line):
+            elif ShelXFile._r1_regex.match(line):
+                self.R1 = float(spline[3])
                 try:
                     self.R1 = float(spline[3])
                 except IndexError:
+                    if DEBUG:
+                        raise 
                     pass
                 try:
                     self.data = float(spline[-2])
                 except IndexError:
+                    if DEBUG:
+                        raise 
                     pass
                 continue
-            elif ShelXFile.wr2_regex.match(line):
+            elif ShelXFile._wr2_regex.match(line):
                 try:
                     self.wR2 = float(spline[3])
                 except IndexError:
                     pass
                 continue
-            elif ShelXFile.parameters_regex.match(line):
+            elif ShelXFile._parameters_regex.match(line):
                 try:
                     self.parameters = float(spline[1])
                     if self.data and self.parameters:
