@@ -21,7 +21,7 @@ from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
-    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD
+    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -373,12 +373,11 @@ class ShelXFile():
                     if DEBUG:
                         print('TITL is missing.')
                     # raise ParseOrderError
-                if len(spline) >= 8:
-                    self.cell = [float(x) for x in spline[2:8]]
-                    self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell
-                    self.V = self.vol_unitcell(self._a, self._b, self._c, self._alpha, self._beta, self._gamma)
-                    # self.A = self.orthogonal_matrix()
-                self.wavelen = float(spline[1])
+                self.cell = CELL(self, spline)
+                self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell.cell_list
+                self.V = self.vol_unitcell(self._a, self._b, self._c, self._alpha, self._beta, self._gamma)
+                # self.A = self.orthogonal_matrix()
+                self.wavelen = self.cell.wavelen
                 lastcard = 'CELL'
                 continue
             elif word == "ZERR":
@@ -390,8 +389,9 @@ class ShelXFile():
                 if not self.cell:
                     raise ParseOrderError('*** Cell parameters missing! ***')
                 if len(spline) >= 8:
-                    self.Z = spline[1]
-                    self.zerr = [float(x) for x in spline[2:8]]
+                    self.zerr = ZERR(self, spline)
+                    self.Z = self.zerr.Z
+                    self.assign_card(self.zerr, line_num)
                 lastcard = 'ZERR'
                 continue
             elif word == "SYMM":
@@ -1176,7 +1176,6 @@ class ShelXFile():
                 if DEBUG:
                     raise
                 pass
-
         if ShelXFile._wr2_regex.match(line):
             try:
                 self.wR2 = float(spline[3].split(",")[0])
@@ -1184,7 +1183,6 @@ class ShelXFile():
                 if DEBUG:
                     raise
                 pass
-
         if ShelXFile._parameters_regex.match(line):
             try:
                 self.parameters = int(spline[1])

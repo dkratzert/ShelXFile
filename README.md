@@ -13,11 +13,17 @@ Not every part of ShelXFile is complete, for example it will not recognize if yo
 Examples:
 ```python
 
-from shelxfile.shelx import ShelXlFile
+from shelxfile.shelx import ShelXFile
 shx = ShelXFile('./tests/p21c.res')
 
 shx.cell
+CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
+
+shx.cell.cell_list
 [10.5086, 20.9035, 20.5072, 90.0, 94.13, 90.0]
+
+shx.cell.a
+10.5086
 
 shx.atoms
 O1    3    0.074835    0.238436    0.402457   -31.00000    0.01579    0.03095    0.01852   -0.00468   -0.00210    0.01153

@@ -239,6 +239,47 @@ class Command():
         return self.textline
 
 
+class CELL(Command):
+    """
+    CELL λ a b c α β γ
+    """
+
+    def __init__(self, shx, spline: list):
+        super(CELL, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        if len(p) > 0:
+            self.wavelen = p[0]
+        if len(p) > 6:
+            self.cell_list = p[1:]
+            self.a = p[1]
+            self.b = p[2]
+            self.c = p[3]
+            self.al = p[4]
+            self.be = p[5]
+            self.ga = p[6]
+
+
+class ZERR(Command):
+    """
+    ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
+    """
+
+    def __init__(self, shx, spline: list):
+        super(ZERR, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        self.Z = 1
+        if len(p) > 0:
+            self.Z = p[0]
+        if len(p) > 6:
+            self.esd_list = p[1:]
+            self.esd_a = p[0]
+            self.esd_b = p[1]
+            self.esd_c = p[2]
+            self.esd_al = p[3]
+            self.esd_be = p[4]
+            self.esd_ga = p[5]
+
+
 class AFIX(Command):
     """
     AFIX mn d[#] sof[11] U[10.08]

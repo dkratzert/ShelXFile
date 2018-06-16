@@ -342,7 +342,7 @@ class Atom():
             self.qpeak = True
         self.sfac_num = int(line[1])
         self.element = self.shx.sfac2elem(self.sfac_num).upper()
-        self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell)
+        self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell.cell_list)
 
     def __iter__(self):
         for x in self.__repr__().split():
