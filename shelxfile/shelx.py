@@ -21,7 +21,7 @@ from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
-    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB
+    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -363,6 +363,7 @@ class ShelXFile():
                     self.dsrlines.append(" ".join(spline))
                     self.dsrline_nums.extend(list_of_lines)
                 self.append_card(self.rem, REM(self, spline), line_num)
+                self._get_residuals(spline, line)
                 continue
             elif word == 'AFIX':
                 pass
@@ -724,46 +725,14 @@ class ShelXFile():
                 continue
             elif word == 'XNPD':
                 # XNPD Umin[-0.001]
-                self.xnpd = spline[1:]
+                self.xnpd = XNPD(self, spline)
+                self.assign_card(self.xnpd, line_num)
                 continue
             elif word == 'BEDE':
                 # Later...
                 continue
             elif word == 'LONE':
                 # Later...
-                continue
-            elif ShelXFile._r1_regex.match(line):
-                self.R1 = float(spline[3])
-                try:
-                    self.R1 = float(spline[3])
-                except IndexError:
-                    if DEBUG:
-                        raise 
-                    pass
-                try:
-                    self.data = float(spline[-2])
-                except IndexError:
-                    if DEBUG:
-                        raise 
-                    pass
-                continue
-            elif ShelXFile._wr2_regex.match(line):
-                try:
-                    self.wR2 = float(spline[3])
-                except IndexError:
-                    pass
-                continue
-            elif ShelXFile._parameters_regex.match(line):
-                try:
-                    self.parameters = float(spline[1])
-                    if self.data and self.parameters:
-                        self.dat_to_param = self.data / self.parameters
-                except IndexError:
-                    pass
-                try:
-                    self.num_restraints = float(spline[-2])
-                except IndexError:
-                    pass
                 continue
             elif word == 'MOLE':
                 # print('*** MOLE is deprecated! Do not use it! ***')
@@ -1191,6 +1160,46 @@ class ShelXFile():
         dblines = dblines + '\nFEND\n'
         # insert the db entry right after FVAR
         self.add_line(self.fvars.position, dblines)
+
+    def _get_residuals(self, spline, line):
+        if ShelXFile._r1_regex.match(line):
+            self.R1 = float(spline[3])
+            try:
+                self.R1 = float(spline[3])
+            except IndexError:
+                if DEBUG:
+                    raise
+                pass
+            try:
+                self.data = int(spline[-2])
+            except IndexError:
+                if DEBUG:
+                    raise
+                pass
+
+        if ShelXFile._wr2_regex.match(line):
+            try:
+                self.wR2 = float(spline[3].split(",")[0])
+            except IndexError:
+                if DEBUG:
+                    raise
+                pass
+
+        if ShelXFile._parameters_regex.match(line):
+            try:
+                self.parameters = int(spline[1])
+                if self.data and self.parameters:
+                    self.dat_to_param = self.data / self.parameters
+            except IndexError:
+                if DEBUG:
+                    raise
+                pass
+            try:
+                self.num_restraints = int(spline[-2])
+            except IndexError:
+                if DEBUG:
+                    raise
+                pass
 
 
 
