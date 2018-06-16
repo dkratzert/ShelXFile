@@ -239,6 +239,37 @@ class Command():
         return self.textline
 
 
+class MPLA(Command):
+    """
+    MPLA na atomnames
+    """
+    def __init__(self, shx, spline: list):
+        super(MPLA, self).__init__(shx, spline)
+        p, self.atoms = self._parse_line(spline, intnums=True)
+        self.na = p[0]
+
+
+class MORE(Command):
+    """
+    MORE m[1]
+    """
+    def __init__(self, shx, spline: list):
+        super(MORE, self).__init__(shx, spline)
+        self.m = 1
+        p, _ = self._parse_line(spline, intnums=True)
+        self.m = p[0]
+
+
+class LATT(Command):
+    """
+    LATT N[1]
+    """
+    def __init__(self, shx, spline: list):
+        super(LATT, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        self.N = p[0]
+
+
 class CELL(Command):
     """
     CELL λ a b c α β γ

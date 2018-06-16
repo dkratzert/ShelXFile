@@ -21,7 +21,7 @@ from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
-    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL
+    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -102,7 +102,7 @@ class ShelXFile():
         self.nohkl = False
         self._a, self._b, self._c, self._alpha, self._beta, self._gamma, self.V = \
             None, None, None, None, None, None, None
-        self.cell = []
+        self.cell = None
         self.ansc = None
         self.abin = None
         self.acta = None
@@ -374,6 +374,7 @@ class ShelXFile():
                         print('TITL is missing.')
                     # raise ParseOrderError
                 self.cell = CELL(self, spline)
+                self.assign_card(self.cell, line_num)
                 self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell.cell_list
                 self.V = self.vol_unitcell(self._a, self._b, self._c, self._alpha, self._beta, self._gamma)
                 # self.A = self.orthogonal_matrix()
@@ -449,7 +450,8 @@ class ShelXFile():
                 # LATT N[1]
                 # 1=P, 2=I, 3=rhombohedral obverse on hexagonal axes, 4=F, 5=A, 6=B, 7=C.
                 # negative is non-centrosymmetric
-                self.latt = spline[1]
+                self.latt = LATT(self, spline)
+                self.assign_card(self.latt, line_num)
                 if not lastcard == 'ZERR':
                     if DEBUG:
                         print('*** ZERR instruction is missing! ***')
@@ -621,7 +623,8 @@ class ShelXFile():
                 continue
             elif word == 'MORE':
                 # MORE m[1]
-                self.more = spline[1]
+                self.more = MORE(self, spline)
+                self.assign_card(self.more, line_num)
                 continue
             elif word == 'FMAP':
                 # FMAP code[2] axis[#] nl[53]
@@ -635,7 +638,8 @@ class ShelXFile():
                 continue
             elif word == 'MPLA':
                 # MPLA na atomnames
-                self.mpla.append(spline[1:])
+                self.mpla = MPLA(self, spline)
+                self.assign_card(self.mpla, line_num)
                 continue
             elif word == 'NCSY':
                 # NCSY DN sd[0.1] su[0.05] atoms
