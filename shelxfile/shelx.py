@@ -21,7 +21,7 @@ from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
-    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX
+    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -206,8 +206,6 @@ class ShelXFile():
         #TODO: First parse atoms.
         """
         lastcard = ''
-        part = False
-        partnum = 0
         resi = False
         residict = {'class': '', 'number': 0, 'ID': ''}
         sof = 0
@@ -260,26 +258,17 @@ class ShelXFile():
                 resi = True
                 residict = self.get_resi_definition_dict(spline[1:])
                 continue
-            # Now collect the part:
-            # PART n sof
-            if partnull.match(line) and part:  # PART 0
-                part = False
-                partnum = 0
-                sof = 0
-                continue
-            if partnull.match(line) and not part:
-                # A second PART 0
-                continue
-            if line.startswith(('END', 'HKLF', 'PART')) and part:
-                self._reslist.insert(line_num, "PART 0")
+            # Now collect the PART:
+            if line.startswith(('END', 'HKLF')) and self.part:
+                self.part.n = 0
                 if DEBUG:
                     print('PART in line {} was not closed'.format(line_num + 1))
-                part = False
                 continue
-            if line.startswith('PART') and not partnull.match(line):
-                part = True
-                partnum, sof = self.get_partnumber(line)
+            if line.startswith('PART'):
+                self.part = PART(self, spline)
+                self.assign_card(self.part, line_num)
                 continue
+            # collect AFIX:
             if line.startswith(('END', 'HKLF')) and self.afix:
                 self.afix.mn = 0
                 if DEBUG:
@@ -293,7 +282,7 @@ class ShelXFile():
                 # A SHELXL atom:
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
                 #            0.03649  -0.00522  -0.01212   0.00157 )
-                a = Atom(self, spline, list_of_lines, line_num, part=partnum, afix=self.afix, residict=residict, sof=sof)
+                a = Atom(self, spline, list_of_lines, line_num, part=self.part, afix=self.afix, residict=residict, sof=sof)
                 self.append_card(self.atoms, a, line_num)
                 continue
             elif self.end:
@@ -986,29 +975,6 @@ class ShelXFile():
                 # everything else can only be a number
                 resi_dict['number'] = int(x)
         return resi_dict
-
-    @staticmethod
-    def get_partnumber(partstring: str) -> (int, float):
-        """
-        get the part number from a string like PART 1 oder PART 2 -21
-
-        PART n sof
-        partstring: string like 'PART 2 -21'
-
-        >>> ShelXFile.get_partnumber(partstring='PART 2 -21')
-        (2, -21.0)
-        """
-        part = partstring.upper().split()
-        sof = 0
-        try:
-            partnum = int(part[1])
-        except(ValueError, IndexError):
-            if DEBUG:
-                print('*** Wrong PART definition found! Check your PART instructions ***')
-            partnum = 0
-        if len(part) > 2:
-            sof = float(part[2])
-        return partnum, sof
 
     @staticmethod
     def is_atom(atomline: str) -> bool:

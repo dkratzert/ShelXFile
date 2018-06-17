@@ -2,7 +2,7 @@ from typing import List, Any
 
 from dsrmath import atomic_distance, frac_to_cart
 from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam
-from shelxfile.cards import AFIX
+from shelxfile.cards import AFIX, PART
 
 
 class Atoms():
@@ -211,7 +211,7 @@ class Atom():
     _qpeakstr = '{:<5.5s} {:<3}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
     _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
-    def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: int = 0,
+    def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: PART = None,
                  afix: AFIX = None, residict: dict = None, sof: float = 0) -> None:
         # super(Atom, self).__init__(shelx)
         self._line_number = line_number

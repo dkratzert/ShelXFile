@@ -2,7 +2,7 @@ from typing import List
 
 from dsrmath import my_isnumeric
 from misc import chunks, ParseParamError, ParseNumError, \
-    ParseOrderError
+    ParseOrderError, DEBUG
 
 """
 SHELXL cards:
@@ -312,10 +312,11 @@ class ZERR(Command):
 
 
 class AFIX(Command):
-    """
-    AFIX mn d[#] sof[11] U[10.08]
-    """
+
     def __init__(self, shx, spline: list):
+        """
+        AFIX mn d[#] sof[11] U[10.08]
+        """
         super(AFIX, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
         self.U = 10.08
@@ -331,6 +332,33 @@ class AFIX(Command):
 
     def __bool__(self):
         if self.mn > 0:
+            return True
+        else:
+            return False
+
+
+class PART(Command):
+
+    def __init__(self, shx, spline: list):
+        """
+        PART n sof
+        """
+        super(PART, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        self.sof = 0
+        self.n = 0
+        try:
+            self.n = int(p[0])
+        except(ValueError, IndexError):
+            if DEBUG:
+                print('*** Wrong PART definition found! Check your PART instructions ***')
+                raise 
+            self.n = 0
+        if len(p) > 1:
+            self.sof = float(p[1])
+
+    def __bool__(self):
+        if self.n > 0:
             return True
         else:
             return False
