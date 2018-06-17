@@ -2,6 +2,7 @@ from typing import List, Any
 
 from dsrmath import atomic_distance, frac_to_cart
 from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam
+from shelxfile.cards import AFIX
 
 
 class Atoms():
@@ -211,7 +212,7 @@ class Atom():
     _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
     def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: int = 0,
-                 afix: int = 0, residict: dict = None, sof: float = 0) -> None:
+                 afix: AFIX = None, residict: dict = None, sof: float = 0) -> None:
         # super(Atom, self).__init__(shelx)
         self._line_number = line_number
         self._lines = line_nums
@@ -261,8 +262,6 @@ class Atom():
         self.peak_height = 0.0
         self.cell = shelx.cell
         self.parse_line(spline)
-        if self.shx.frag:
-            self.afix = int(self.shx.frag[0])  # The FRAG AFIX fit code like 176 (must be greater 16)
         if self.shx.anis:
             self.parse_anis()
         for n, u in enumerate(self.uvals):
@@ -365,7 +364,7 @@ class Atom():
                 try:
                     return Atom._anisatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof,
                                                     *self.uvals)
-                except(IndexError):
+                except IndexError:
                     return 'REM Error in U values.'
             else:
                 # isotropic atom:
@@ -375,7 +374,7 @@ class Atom():
                 try:
                     return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof,
                                                    *self.uvals)
-                except(IndexError):
+                except IndexError:
                     return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
 
     def resolve_restraints(self):

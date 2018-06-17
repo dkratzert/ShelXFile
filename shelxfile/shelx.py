@@ -21,7 +21,7 @@ from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
-    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA
+    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -83,13 +83,6 @@ class ShelXFile():
     _r1_regex = re.compile(r'^REM\s+R1\s+=', re.IGNORECASE)
     _wr2_regex = re.compile(r'^REM\s+wR2\s+=', re.IGNORECASE)
     _parameters_regex = re.compile(r'REM\s+\d+\s+parameters\s+refined', re.IGNORECASE)
-    fvars = None
-    sfac_table = None
-    _reslist = None
-    restraints = None
-    dsrlines = None
-    symmcards = None
-    resfile = None
 
     def __init__(self: 'ShelXFile', resfile: str):
         """
@@ -157,6 +150,7 @@ class ShelXFile():
         self.bind = None
         self.ansr = 0.001
         self.bloc = None
+        self.afix = None
         self.dsrlines = []
         self.dsrline_nums = []
         self.symmcards = SymmCards(self)
@@ -217,12 +211,9 @@ class ShelXFile():
         resi = False
         residict = {'class': '', 'number': 0, 'ID': ''}
         sof = 0
-        afix = False
-        afixnum = 0
         fvarnum = 1
         resinull = re.compile(r'^RESI\s+0')
         partnull = re.compile(r'^PART\s+0')
-        afixnull = re.compile(r'^AFIX\s+0')
         for line_num, line in enumerate(self._reslist):
             self.error_line_num = line_num  # For exception during parsing.
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
@@ -289,32 +280,20 @@ class ShelXFile():
                 part = True
                 partnum, sof = self.get_partnumber(line)
                 continue
-            # Now collect the AFIXes:
-            # AFIX mn d[#] sof[11] U[10.08]
-            if afixnull.match(line) and afix:  # AFIX 0
-                afix = False
-                afixnum = 0
-                continue
-            if afixnull.match(line) and not afix:
-                # A second AFIX 0
-                continue
-            if line.startswith(('END', 'HKLF', 'AFIX')) and afix:
-                self._reslist.insert(line_num, "AFIX 0")
+            if line.startswith(('END', 'HKLF')) and self.afix:
+                self.afix.mn = 0
                 if DEBUG:
                     print('AFIX in line {} was not closed'.format(line_num + 1))
-                afix = False
                 continue
-            elif line.startswith('AFIX') and not afixnull.match(line):
-                # TODO: if afixnum > 17x: compare atoms count in frag and afix
-                afix = True
-                # TODO: only afixnum and sof are used at the moment. Use also u and d for AFIX():
-                afixnum, d, sof, u = self.get_afix_numbers(spline, line_num)
+            elif line.startswith('AFIX'):
+                self.afix = AFIX(self, spline)
+                self.assign_card(self.afix, line_num)
                 continue
             elif self.is_atom(line):
                 # A SHELXL atom:
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
                 #            0.03649  -0.00522  -0.01212   0.00157 )
-                a = Atom(self, spline, list_of_lines, line_num, part=partnum, afix=afixnum, residict=residict, sof=sof)
+                a = Atom(self, spline, list_of_lines, line_num, part=partnum, afix=self.afix, residict=residict, sof=sof)
                 self.append_card(self.atoms, a, line_num)
                 continue
             elif self.end:
@@ -1030,40 +1009,6 @@ class ShelXFile():
         if len(part) > 2:
             sof = float(part[2])
         return partnum, sof
-
-    @staticmethod
-    def get_afix_numbers(spline: list, line_num: int) -> ((int, float, float, float), [int, float, float, float]):
-        """
-        Returns a tuple with the AFIX instructions. afixnum, d, sof, u
-
-        AFIX mn d[#] sof[11] U[10.08]
-
-        >>> ShelXFile.get_afix_numbers(['AFIX', 137], 1)
-        (137, 0.0, 11, 10.08)
-        >>> ShelXFile.get_afix_numbers(['AFIX', '137b'], 1)
-        *** Wrong AFIX definition in line 1. Check your AFIX instructions ***
-        (0, 0.0, 11, 10.08)
-        >>> ShelXFile.get_afix_numbers(['AFIX', 13, 1.234], 1)
-        (13, 1.234, 11, 10.08)
-        >>> ShelXFile.get_afix_numbers(['AFIX', 13, 1.234, -21, 10.05], 1)
-        (13, 1.234, -21.0, 10.05)
-        """
-        d = 0.0
-        sof = 11
-        u = 10.08
-        try:
-            afixnum = int(spline[1])
-        except(ValueError, IndexError):
-            #if DEBUG:
-            print('*** Wrong AFIX definition in line {}. Check your AFIX instructions ***'.format(line_num))
-            afixnum = 0
-        if len(spline) > 2:
-            d = float(spline[2])
-        if len(spline) > 3:
-            sof = float(spline[3])
-        if len(spline) > 4:
-            u = float(spline[4])
-        return afixnum, d, sof, u
 
     @staticmethod
     def is_atom(atomline: str) -> bool:
