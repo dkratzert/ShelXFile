@@ -1,8 +1,9 @@
+import re
 from typing import List
 
 from dsrmath import my_isnumeric
 from misc import chunks, ParseParamError, ParseNumError, \
-    ParseOrderError, DEBUG
+    ParseOrderError, DEBUG, ParseSyntaxError
 
 """
 SHELXL cards:
@@ -337,6 +338,80 @@ class AFIX(Command):
             return False
 
 
+class RESI(Command):
+
+    def __init__(self, shx, spline: list):
+        """
+        RESI class[ ] number[0] alias
+        self.name is class
+        """
+        super(RESI, self).__init__(shx, spline)
+        self.residue_class = ''
+        self.residue_number = 0
+        self.alias = None
+        self.ID = None
+        if len(spline) < 2:
+            if DEBUG:
+                print('*** Wrong RESI definition found! Check your RESI instructions ***')
+                raise ParseParamError
+        self.get_resi_definition(spline)
+        if self.residue_number < -999 or self.residue_number > 9999:
+            print('*** Invalid residue number given. ****')
+            raise ParseSyntaxError
+
+    def get_resi_definition(self, resi: list) -> tuple:
+        """
+        RESI class[ ] number[0] alias
+
+        Returns the residue number and class of a string like 'RESI TOL 1'
+        or 'RESI 1 TOL'
+
+        Residue names may now begin with a digit.
+        They must however contain at least one letter
+
+        Allowed residue numbers is now from -999 to 9999 (2017/1)
+        >>> r = RESI(None, 'RESI 1 TOL'.split())
+        >>> r.residue_class, r.residue_number, r.ID, r.alias
+        ('TOL', 1, None, None)
+        >>> r = RESI(None, 'RESI TOL 1'.split())
+        >>> r.residue_class, r.residue_number, r.ID, r.alias
+        ('TOL', 1, None, None)
+        >>> r = RESI(None, 'RESI A:100 TOL'.split())
+        >>> r.residue_class, r.residue_number, r.ID, r.alias
+        ('TOL', 100, 'A', None)
+        >>> r = RESI(None, 'RESI -10 TOL'.split())
+        >>> r.residue_class, r.residue_number, r.ID, r.alias
+        ('TOL', -10, None, None)
+        >>> r = RESI(None, 'RESI b:-10 TOL'.split())
+        >>> r.residue_class, r.residue_number, r.ID, r.alias
+        ('TOL', -10, 'b', None)
+        """
+        for x in resi:
+            if re.search('[a-zA-Z]', x):
+                if ':' in x:
+                    # contains ":" thus must be a chain-id+number
+                    self.ID, self.residue_number = x.split(':')[0], int(x.split(':')[1])
+                else:
+                    # contains letters, must be a name (class)
+                    self.residue_class = x
+            else:
+                # everything else can only be a number
+                if self.residue_number > 0:
+                    self.alias = int(x)
+                else:
+                    try:
+                        self.residue_number = int(x)
+                    except ValueError:
+                        self.residue_number = 0
+        return (self.residue_class, self.residue_number, self.ID, self.alias)
+
+    def __bool__(self):
+        if self.residue_number > 0:
+            return True
+        else:
+            return False
+
+
 class PART(Command):
 
     def __init__(self, shx, spline: list):
@@ -630,7 +705,7 @@ class ACTA(Command):
     ACTA 2θfull[#]
     
     >>> from shelxfile.shelx import ShelXFile
-    >>> shx = ShelXlFile('./tests/p21c.res')
+    >>> shx = ShelXFile('./tests/p21c.res')
     >>> shx.acta
     ACTA 45
     >>> shx._reslist.index(shx.acta)
@@ -1319,7 +1394,7 @@ class LSCycles():
         """
         Sets the number of refinement cycles for the current res file.
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.cycles.set_refine_cycles(44)
         >>> shx._reslist[shx.cycles.line_number]
         L.S. 44
@@ -1397,7 +1472,7 @@ class SFACTable():
         """
         Adds a new SFAC card to the list of cards.
         >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXlFile('./tests/p21c.res')
+        >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.sfac_table
         SFAC C  H  O  F  Al  Ga
         >>> shx.unit

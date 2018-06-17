@@ -21,7 +21,8 @@ from refine.shx_refine import ShelxlRefine
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
-    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART
+    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
+    RESI
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -150,7 +151,9 @@ class ShelXFile():
         self.bind = None
         self.ansr = 0.001
         self.bloc = None
-        self.afix = None
+        self.afix = None  # AFIX(self, [''])
+        self.part = PART(self, ['PART',  '0'])
+        self.resi = RESI(self, ['RESI',  '0'])
         self.dsrlines = []
         self.dsrline_nums = []
         self.symmcards = SymmCards(self)
@@ -202,16 +205,10 @@ class ShelXFile():
 
         line is upper() after multiline_test()
         spline is as in .res file.
-
-        #TODO: First parse atoms.
         """
         lastcard = ''
-        resi = False
-        residict = {'class': '', 'number': 0, 'ID': ''}
         sof = 0
         fvarnum = 1
-        resinull = re.compile(r'^RESI\s+0')
-        partnull = re.compile(r'^PART\s+0')
         for line_num, line in enumerate(self._reslist):
             self.error_line_num = line_num  # For exception during parsing.
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
@@ -238,25 +235,15 @@ class ShelXFile():
             # The current line as string:
             line = line.upper().split('!')[0]  # Ignore comments with "!", see how this performes
             word = line[:4]
-            # RESI class[ ] number[0] alias
-            if resinull.match(line) and resi:  # RESI 0
-                resi = False
-                residict['number'] = 0
-                residict['class'] = ''
-                residict['ID'] = ''
-                continue
-            if resinull.match(line) and not resi:
-                # A second RESI 0
-                continue
-            if line.startswith(('END', 'HKLF', 'RESI')) and resi:
-                self._reslist.insert(line_num, "RESI 0")
+            # get RESI:
+            if line.startswith(('END', 'HKLF')) and self.resi:
+                self.resi.num = 0
                 if DEBUG:
                     print('RESI in line {} was not closed'.format(line_num + 1))
-                resi = False
                 continue
-            if line.startswith('RESI') and not resinull.match(line):
-                resi = True
-                residict = self.get_resi_definition_dict(spline[1:])
+            if line.startswith('RESI'):
+                self.resi = RESI(self, spline)
+                self.assign_card(self.resi, line_num)
                 continue
             # Now collect the PART:
             if line.startswith(('END', 'HKLF')) and self.part:
@@ -282,7 +269,7 @@ class ShelXFile():
                 # A SHELXL atom:
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
                 #            0.03649  -0.00522  -0.01212   0.00157 )
-                a = Atom(self, spline, list_of_lines, line_num, part=self.part, afix=self.afix, residict=residict, sof=sof)
+                a = Atom(self, spline, list_of_lines, line_num, part=self.part, afix=self.afix, resi=self.resi, sof=sof)
                 self.append_card(self.atoms, a, line_num)
                 continue
             elif self.end:
@@ -934,47 +921,6 @@ class ShelXFile():
     def assign_card(self, card, line_num):
         self._reslist[line_num] = card
         return card
-
-    @staticmethod
-    def get_resi_definition_dict(resi: list) -> dict:
-        """
-        Returns the residue number and class of a string like 'RESI TOL 1'
-        or 'RESI 1 TOL'
-
-        Residue names may now begin with a digit.
-        They must however contain at least one letter
-
-        Allowed residue numbers is now from -999 to 9999 (2017/1)
-        TODO: support alias
-        :param resi: ['number', 'class']
-        :type resi: list or string
-
-        >>> sorted(list(ShelXFile.get_resi_definition_dict('RESI 1 TOL'.split()[1:])))
-        ['ID', 'class', 'number']
-        >>> sorted(ShelXFile.get_resi_definition_dict('RESI 1 TOL'.split()[1:]).items())
-        [('ID', None), ('class', 'TOL'), ('number', 1)]
-        >>> ShelXFile.get_resi_definition_dict('RESI 1 TOL'.split()[1:])
-        {'class': 'TOL', 'number': 1, 'ID': None}
-        >>> ShelXFile.get_resi_definition_dict('RESI A:100 TOL'.split()[1:])
-        {'class': 'TOL', 'number': 100, 'ID': 'A'}
-        >>> ShelXFile.get_resi_definition_dict('RESI -10 TOL'.split()[1:])
-        {'class': 'TOL', 'number': -10, 'ID': None}
-        >>> ShelXFile.get_resi_definition_dict('RESI b:-10 TOL'.split()[1:])
-        {'class': 'TOL', 'number': -10, 'ID': 'b'}
-        """
-        resi_dict = {'class': None, 'number': None, 'ID': None}
-        for x in resi:
-            if re.search('[a-zA-Z]', x):
-                if ':' in x:
-                    # contains :, must be a chain-id+number
-                    resi_dict['ID'], resi_dict['number'] = x.split(':')[0], int(x.split(':')[1])
-                else:
-                    # contains letters, must be a name
-                    resi_dict['class'] = x
-            else:
-                # everything else can only be a number
-                resi_dict['number'] = int(x)
-        return resi_dict
 
     @staticmethod
     def is_atom(atomline: str) -> bool:

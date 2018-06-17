@@ -2,7 +2,7 @@ from typing import List, Any
 
 from dsrmath import atomic_distance, frac_to_cart
 from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam
-from shelxfile.cards import AFIX, PART
+from shelxfile.cards import AFIX, PART, RESI
 
 
 class Atoms():
@@ -212,7 +212,7 @@ class Atom():
     _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
     def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: PART = None,
-                 afix: AFIX = None, residict: dict = None, sof: float = 0) -> None:
+                 afix: AFIX = None, resi: RESI = None, sof: float = 0) -> None:
         # super(Atom, self).__init__(shelx)
         self._line_number = line_number
         self._lines = line_nums
@@ -250,12 +250,12 @@ class Atom():
         fvar, self.occupancy = split_fvar_and_parameter(self.sof)
         self.shx.fvars.set_fvar_usage(fvar)
         self.uvals = [0.04]  # [u11 u12 u13 u21 u22 u23]
-        self.resiclass = residict['class']
-        if not residict['number']:
+        self.resiclass = resi.residue_class
+        if not resi.residue_number:
             self.resinum = 0  # all other atoms are residue 0
         else:
-            self.resinum = residict['number']
-        self.chain_id = residict['ID']
+            self.resinum = resi.residue_number
+        self.chain_id = resi.ID
         self.part = part
         self.afix = afix
         self.qpeak = False

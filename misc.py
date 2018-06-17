@@ -54,6 +54,11 @@ class ParseUnknownParam(Exception):
             print("*** UNKNOWN PARAMETER ***")
 
 
+class ParseSyntaxError(Exception):
+    def __init__(self):
+        print("*** Syntax Error ***")
+
+
 try:
     width, height = get_terminal_size()  # @UnusedVariable
 except():
