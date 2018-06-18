@@ -48,7 +48,6 @@ class ShelxlRefine():
     """
     A class to do a shelxl refinement. It is only for shelxl 2017 and above!
     The resfilename should be without ending.
-    #TODO: If cycles != 0, show cycle results from output. 
     """
 
     def __init__(self, shx, resfile_name: str, shelxpath: str = None):

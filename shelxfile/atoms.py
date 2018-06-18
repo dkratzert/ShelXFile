@@ -35,8 +35,8 @@ class Atoms():
         for x in self.atoms:
             yield x
 
-    def __getitem__(self, item: int) -> None:
-        return self.atoms[item]
+    def __getitem__(self, item: int) -> 'Atom':
+        return self.get_atom_by_id(item)
 
     def __len__(self) -> int:
         return len(self.atoms)
@@ -102,7 +102,7 @@ class Atoms():
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.get_atom_by_name('Al1')
-        Atom ID: 88
+        Atom ID: 73
         """
         if '_' not in atom_name:
             atom_name += '_0'
@@ -159,7 +159,7 @@ class Atoms():
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.q_peaks[:5] # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
-        [Atom ID: 346, Atom ID: 347, Atom ID: 348, Atom ID: 349, Atom ID: 350]
+        [Atom ID: 328, Atom ID: 329, Atom ID: 330, Atom ID: 331, Atom ID: 332]
         """
         return [x for x in self.atoms if x.qpeak]
 
@@ -410,15 +410,12 @@ class Atom():
         """
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
-        >>> shx.atoms[:3]
-        [Atom ID: 53, Atom ID: 55, Atom ID: 57]
         >>> shx._reslist[55:58]
-        [Atom ID: 55, '', Atom ID: 57]
-        >>> del shx.atoms[55]
-        >>> shx.atoms[:3]
-        [Atom ID: 53, Atom ID: 57, Atom ID: 59]
+        ['', Atom ID: 56, '']
+        >>> at = shx.atoms.get_atom_by_id(56)
+        >>> at.delete()
         >>> shx._reslist[55:58]
-        ['', '', Atom ID: 59]
+        ['', '', '']
         """
         del self.shx.atoms[self.atomid]
 
@@ -446,19 +443,18 @@ class Atom():
         Finds atoms around the current atom.
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
-        >>> at = shx.atoms.get_atom_by_name('Al1')
-        >>> found = at.find_atoms_around(2)
-        >>> [n.atomid for n in found]
-        [90, 92]
-        >>> del shx.atoms[17]
-
+        >>> at = shx.atoms.get_atom_by_name('C1_4')
+        >>> at.find_atoms_around(dist=2, only_part=2)
+        [Atom ID: 38, Atom ID: 42, Atom ID: 50, Atom ID: 58]
+        >>> shx.atoms.get_atom_by_id(42).cart_coords
+        [0.8366626279178722, 4.0648946100000005, 6.101228338240846]
         """
         found = []
         for at in self.shx.atoms:
-            if atomic_distance([self.x, self.y, self.z], [at.x, at.y, at.z], self.cell) < dist:
+            if atomic_distance([self.x, self.y, self.z], [at.x, at.y, at.z], self.cell.cell_list) < dist:
                 # Not the atom itselv:
                 if not self == at:
                     # only in special part and no q-peaks:
-                    if at.part == only_part and not at.qpeak:
+                    if at.part.n == only_part and not at.qpeak:
                         found.append(at)
         return found

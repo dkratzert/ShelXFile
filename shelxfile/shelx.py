@@ -39,7 +39,7 @@ TODO:
 - check if atoms in restraints are also in structure
 - restraints involved with an atom should also be part of the atoms properties
 ------------------------------------------------------------
-- deleting atoms should also remove them from restraints  
+- deleting atoms should also remove them from restraints
 - add remove_hydrogen_atoms(atom) method.
 - shx.remove_all_H([list of atoms], or all)
 - bond list
@@ -554,8 +554,6 @@ class ShelXFile():
                 continue
             elif line.startswith('END'):
                 # END (after HKLF or ends an include file)
-                # TODO: run sanity checks after END like checking if EXYZ and
-                # anisotropy fit togeter
                 self.end = True
                 continue
             elif word == 'HTAB':
@@ -708,6 +706,10 @@ class ShelXFile():
 
     @time_this_method
     def run_after_parse(self):
+        """
+        Runs all what is left after parsing all lines. E.G. sanity checks.
+        # TODO: check if EXYZ and anisotropy fit togeter
+        """
         if self.sump:
             for x in self.sump:
                 for y in x:

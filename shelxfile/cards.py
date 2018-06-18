@@ -709,17 +709,17 @@ class ACTA(Command):
     >>> shx.acta
     ACTA 45
     >>> shx._reslist.index(shx.acta)
-    13
+    12
     >>> ac = shx.acta.remove_acta_card()
-    >>> shx._reslist[13]
-    'SIZE 0.12 0.23 0.33'
+    >>> shx._reslist[12]
+    SIZE 0.12 0.23 0.33
     >>> ac
     'ACTA 45'
     >>> shx.restore_acta_card(ac)
     >>> shx.index_of(shx.acta)
-    9
+    8
     >>> shx._reslist[8:10]
-    [UNIT 1  2  3  4  5  6, ACTA 45]
+    [ACTA 45, 'LIST 4 ! automatically inserted. Change 6 to 4 for CHECKCIF!!']
     """
 
     def __init__(self, shx, spline: list):
@@ -729,7 +729,6 @@ class ACTA(Command):
 
     def remove_acta_card(self):
         del self.shx._reslist[self.shx.index_of(self)]
-        del self.shx.commands[self.shx.commands.index(self)]
         del self.shx.acta
         return self.textline.strip('\r\n')
 
@@ -1418,7 +1417,6 @@ class LSCycles():
 
     def __repr__(self):
         return self._as_str()
-        
 
 
 class SFACTable():
