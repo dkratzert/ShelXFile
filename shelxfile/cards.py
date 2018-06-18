@@ -291,17 +291,6 @@ class MORE(Command):
         self.m = p[0]
 
 
-class LATT(Command):
-
-    def __init__(self, shx, spline: list):
-        """
-        LATT N[1]
-        """
-        super(LATT, self).__init__(shx, spline)
-        p, _ = self._parse_line(spline)
-        self.N = p[0]
-
-
 class CELL(Command):
 
     def __init__(self, shx, spline: list):
@@ -1354,11 +1343,37 @@ class SUMP(Command):
         return self.fvars[item]
 
 
+class LATT(Command):
+    latt = {1: [],                # Primitive
+            2: [0.5, 0.5, 0.5],   # I-centered
+            3: [[1/3, 2/3, 2/3],  # Rhombohedral
+               [2/3, 1/3, 1/3]],
+            4: [[0.0, 0.5, 0.5],  # F-centered
+                [0.5, 0.0, 0.5],
+                [0.5, 0.5, 0.0]],
+            5: [0.0, 0.5, 0.5],   # A-centered
+            6: [0.5, 0.0, 0.5],   # B-centered
+            7: [0.5, 0.5, 0.0],   # C-centered
+            }
+
+    def __init__(self, shx, spline: list):
+        """
+        LATT N[1]
+        """
+        super(LATT, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        self.centric = False
+        self.N = p[0]
+        if self.N > 0:  # centrosymmetric space group:
+            self.centric = True
+
+
 class SYMM(Command):
 
     def __init__(self, shx, spline: list):
         """
         SYMM symmetry operation
+        TODO: If centric, add symmetry related positions.
         """
         super(SYMM, self).__init__(shx, spline)
         self.symmcard = self._parse_line(spline)
