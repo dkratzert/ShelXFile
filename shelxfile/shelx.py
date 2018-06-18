@@ -22,7 +22,7 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
-    RESI
+    RESI, ABIN, ANIS
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -433,7 +433,8 @@ class ShelXFile():
             elif word == 'ANIS':
                 # ANIS n or ANIS names
                 # Must be before Atom(), to know which atom is anis.
-                self.anis = spline
+                self.anis = ANIS(self, spline)
+                self.assign_card(self.anis, line_num)
                 continue
             elif word == 'WGHT':
                 # WGHT a[0.1] b[0] c[0] d[0] e[0] f[.33333]
@@ -450,8 +451,9 @@ class ShelXFile():
                 self.assign_card(self.damp, line_num)
                 continue
             elif word == 'ABIN':
-                # ABIN n1 n2   ->   Reads h, k, l, A and B from the file name.fab
-                self.abin = [float(x) for x in spline[1:]]
+                # ABIN n1 n2
+                self.abin = ABIN(self, spline)
+                self.assign_card(self.abin, line_num)
                 continue
             elif word == 'ANSC':
                 # ANSC six coefficients

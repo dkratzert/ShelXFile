@@ -8,10 +8,10 @@ from misc import chunks, ParseParamError, ParseNumError, \
 """
 SHELXL cards:
 
-ABIN n1 n2 
+ABIN n1 n2
 ACTA 2θfull[#]
 AFIX mn d[#] sof[11] U[10.08]
-ANIS n 
+ANIS n
 ANIS names
 ANSC six coefficients
 ANSR anres[0.001]
@@ -234,6 +234,38 @@ class Command():
 
     def __repr__(self):
         return self.textline
+
+
+class ABIN(Command):
+
+    def __init__(self, shx, spline):
+        """
+        ABIN n1 n2
+        """
+        super(ABIN, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        if len(p) > 0:
+            self.n1 = p[0]
+        if len(p) > 1:
+            self.n1 = p[1]
+
+
+class ANIS(Command):
+
+    def __init__(self, shx, spline):
+        """
+        ANIS n
+        ANIS names
+        """
+        super(ANIS, self).__init__(shx, spline)
+        p, atoms = self._parse_line(spline)
+        if len(p) > 0:
+            self.n = p[0]
+        if len(atoms) > 0:
+            self.atoms = atoms
+
+    def __bool__(self):
+        return True
 
 
 class MPLA(Command):
