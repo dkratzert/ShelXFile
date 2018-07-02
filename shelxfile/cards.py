@@ -1402,7 +1402,7 @@ class SymmCards():
 
     def __init__(self, shx):
         self.shx = shx
-        self._symmcards = []
+        self._symmcards = [SymmetryElement(['X', 'Y', 'Z'])]
         self.lattOps = []
 
     def _as_str(self) -> str:
