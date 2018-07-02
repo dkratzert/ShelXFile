@@ -129,7 +129,7 @@ shx.refine(2)
  wR2 =  0.1025 before cycle   2 for   10786 data and    945 /    945 parameters
  wR2 =  0.1006 before cycle   3 for   10786 data and      0 /    945 parameters
  SHELXL Version 2018/3
-```
+
 ```python
 shx.symmcards
     |-1  0  0|   | 0.0|
