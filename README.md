@@ -123,13 +123,27 @@ The default for refine() are zero least-squares cycles:
 ```python
 shx.refine(2)
 ```
-```
 -------------------------------------------------------------------------------
  Running SHELXL with "/usr/local/bin/shelxl -b3000 /Users/daniel/GitHub/ShelXFile/tests/p21c" and "L.S. 2"
  wR2 =  0.1143 before cycle   1 for   10786 data and    945 /    945 parameters
  wR2 =  0.1025 before cycle   2 for   10786 data and    945 /    945 parameters
  wR2 =  0.1006 before cycle   3 for   10786 data and      0 /    945 parameters
  SHELXL Version 2018/3
+ 
+```python
+shx.symmcards
+    |-1  0  0|   | 0.0|
+    | 0 -1  0| + | 0.0|
+    | 0  0 -1|   | 0.0|
+    
+    |-1  0  0|   | 0.0|
+    | 0  1  0| + | 0.5|
+    | 0  0 -1|   | 0.5|
+    
+    | 1  0  0|   | 0.0|
+    | 0 -1  0| + |-0.5|
+    | 0  0  1|   |-0.5|
+
 ```
 ## References
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.

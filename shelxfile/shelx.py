@@ -357,9 +357,12 @@ class ShelXFile():
                 #    raise ParseOrderError
                 # if not self.zerr:
                 #    raise ParseOrderError
-                self.symmcards.append(SYMM(self, spline))
-                if self.symmcards not in self._reslist:
-                    self._reslist[line_num] = self.symmcards
+                s = SYMM(self, spline)
+                if self.latt.centric:
+                    self.symmcards.set_centric(True)
+                self.symmcards.append(s.symmcard)
+                if s not in self._reslist:
+                    self._reslist[line_num] = s
                 else:
                     self.delete_on_write.update([line_num])
                     self._reslist[line_num] = ' '

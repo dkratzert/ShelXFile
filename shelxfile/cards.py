@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from dsrmath import my_isnumeric
+from dsrmath import my_isnumeric, SymmetryElement
 from misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, DEBUG, ParseSyntaxError
 
@@ -1344,17 +1344,16 @@ class SUMP(Command):
 
 
 class LATT(Command):
-    latt = {1: [],                # Primitive
-            2: [0.5, 0.5, 0.5],   # I-centered
-            3: [[1/3, 2/3, 2/3],  # Rhombohedral
-               [2/3, 1/3, 1/3]],
-            4: [[0.0, 0.5, 0.5],  # F-centered
-                [0.5, 0.0, 0.5],
-                [0.5, 0.5, 0.0]],
-            5: [0.0, 0.5, 0.5],   # A-centered
-            6: [0.5, 0.0, 0.5],   # B-centered
-            7: [0.5, 0.5, 0.0],   # C-centered
-            }
+    lattdict = {1: [],                # Primitive
+                2: [SymmetryElement([0.5, 0.5, 0.5])],   # I-centered
+                3: [SymmetryElement([1/3, 2/3, 2/3]),  # Rhombohedral
+                    SymmetryElement([2/3, 1/3, 1/3])],
+                4: [SymmetryElement([0.0, 0.5, 0.5]),  # F-centered
+                    SymmetryElement([0.5, 0.0, 0.5]),
+                    SymmetryElement([0.5, 0.5, 0.0])],
+                5: SymmetryElement([0.0, 0.5, 0.5]),   # A-centered
+                6: SymmetryElement([0.5, 0.0, 0.5]),   # B-centered
+                7: SymmetryElement([0.5, 0.5, 0.0])}   # C-centered
 
     def __init__(self, shx, spline: list):
         """
@@ -1366,6 +1365,7 @@ class LATT(Command):
         self.N = p[0]
         if self.N > 0:  # centrosymmetric space group:
             self.centric = True
+        self.lattOps = LATT.lattdict[abs(self.N)]
 
 
 class SYMM(Command):
@@ -1373,7 +1373,6 @@ class SYMM(Command):
     def __init__(self, shx, spline: list):
         """
         SYMM symmetry operation
-        TODO: If centric, add symmetry related positions.
         """
         super(SYMM, self).__init__(shx, spline)
         self.symmcard = self._parse_line(spline)
@@ -1400,6 +1399,7 @@ class SymmCards():
     def __init__(self, shx):
         self.shx = shx
         self._symmcards = []
+        self.lattOps = []
 
     def _as_str(self) -> str:
         return "\n".join([str(x) for x in self._symmcards])
@@ -1417,8 +1417,40 @@ class SymmCards():
         for x in self._symmcards:
             yield x
 
-    def append(self, obj):
-        self._symmcards.append(obj)
+    def append(self, symmData: list) -> None:
+        """
+        Add the content of a Shelxl SYMM command to generate the appropriate SymmetryElement instance.
+        :param symmData: list of strings. eg.['1/2+X', '1/2+Y', '1/2+Z']
+        :return: None
+        """
+        newSymm = SymmetryElement(symmData)
+        self._symmcards.append(newSymm)
+        for symm in self.shx.latt.lattOps:
+            lattSymm = newSymm.applyLattSymm(symm)
+            self._symmcards.append(lattSymm)
+        if self.shx.latt.centric:
+            self._symmcards.append(SymmetryElement(symmData, centric=True))
+            for symm in self.shx.latt.lattOps:
+                lattSymm = newSymm.applyLattSymm(symm)
+                lattSymm.centric = True
+                self._symmcards.append(lattSymm)
+
+    def set_centric(self, value: bool):
+        """
+        Defines the instance as representing a centrosymmetric structure. Generates the appropriate SymmetryElement
+        instances automatically if called before adding further SYMM commands via self.addSymm().
+        """
+        self.shx.latt.centric = value
+        self._symmcards.append(SymmetryElement(['-X', '-Y', '-Z']))
+        self._symmcards[-1].centric = True
+
+    def set_latt_ops(self, lattOps: list) -> None:
+        """
+        Adds lattice operations. If called before adding SYMM commands, the appropriate lattice operations are used
+        automatically to generate further SymmetryElements.
+        :param lattOps: list of SymmetryElement instances.
+        """
+        self.lattOps = lattOps
 
 
 class LSCycles():

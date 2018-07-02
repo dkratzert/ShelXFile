@@ -85,14 +85,14 @@ class Array(object):
         return 'Array({})'.format(str(self.values))
 
     def __getitem__(self, val):
-        try:
-            start, stop, step = val.start, val.stop, val.step
-        except AttributeError:
-            pass
-        else:
-            return self.values[val]
-        finally:
-            return self.values[val]
+        #try:
+        #    start, stop, step = val.start, val.stop, val.step
+        #except AttributeError:
+        #    pass
+        #else:
+        #    return self.values[val]
+        #finally:
+        return self.values[val]
 
     def dot(self, other):
         return sum([i * j for i, j in zip(self, other)])
@@ -190,6 +190,143 @@ class Matrix(object):
         #>>> Matrix.det(a)
         """
         pass
+
+
+class SymmetryElement(object):
+    """
+    Class representing a symmetry operation.
+    """
+    symm_ID = 1
+
+    def __init__(self, symms, centric=False):
+        """
+        Constructor.
+        """
+        self.centric = centric
+        self.symms = symms
+        self.ID = SymmetryElement.symm_ID
+        SymmetryElement.symm_ID += 1
+        lines = []
+        trans = []
+        for symm in self.symms:
+            line, t = self._parse_line(symm)
+            lines.append(line)
+            trans.append(t)
+        self.matrix = Matrix(lines).transpose()
+        self.trans = Array(trans)
+        if centric:
+            self.matrix *= -1
+            self.trans *= -1
+
+    def __str__(self):
+        string = r'''
+        |{aa:2} {ab:2} {ac:2}|   |{v:>4.2}|
+        |{ba:2} {bb:2} {bc:2}| + |{vv:>4.2}|
+        |{ca:2} {cb:2} {cc:2}|   |{vvv:>4.2}|'''.format(aa=self.matrix[0, 0],
+                                                        ab=self.matrix[0, 1],
+                                                        ac=self.matrix[0, 2],
+                                                        ba=self.matrix[1, 0],
+                                                        bb=self.matrix[1, 1],
+                                                        bc=self.matrix[1, 2],
+                                                        ca=self.matrix[2, 0],
+                                                        cb=self.matrix[2, 1],
+                                                        cc=self.matrix[2, 2],
+                                                        v=float(self.trans[0]),
+                                                        vv=float(self.trans[1]),
+                                                        vvv=float(self.trans[2]))
+        return string
+
+    def __eq__(self, other):
+        """
+        Check two SymmetryElement instances for equivalence.
+        Note that differences in lattice translation are ignored.
+        :param other: SymmetryElement instance
+        :return: True/False
+        """
+        m = (self.matrix == other.matrix).all()
+        t1 = Array([v % 1 for v in self.trans])
+        t2 = Array([v % 1 for v in other.trans])
+        t = (t1 == t2).all()
+        return m and t
+
+    def __sub__(self, other):
+        """
+        Computes and returns the translational difference between two SymmetryElements. Returns 999.0 if the elements
+        cannot be superimposed via an integer shift of the translational parts.
+        :param other: SymmetryElement instance
+        :return: float
+        """
+        if not self == other:
+            return 999.
+        return self.trans - other.trans
+
+    def applyLattSymm(self, lattSymm):
+        """
+        Copies SymmetryElement instance and returns the copy after applying the translational part of 'lattSymm'.
+        :param lattSymm: SymmetryElement.
+        :return: SymmetryElement.
+        """
+        # newSymm = deepcopy(self)
+        newSymm = SymmetryElement(self.toShelxl().split(','))
+        newSymm.trans = Array([(self.trans[0] + lattSymm.trans[0]) / 1,
+                               (self.trans[1] + lattSymm.trans[1]) / 1,
+                               (self.trans[2] + lattSymm.trans[2]) / 1])
+        newSymm.centric = self.centric
+        return newSymm
+
+    def toShelxl(self):
+        """
+        Generate and return string representation of Symmetry Operation in Shelxl syntax.
+        :return: string.
+        """
+        axes = ['X', 'Y', 'Z']
+        lines = []
+        for i in range(3):
+            text = str(self.trans[i]) if self.trans[i] else ''
+            for j in range(3):
+                s = '' if not self.matrix[i, j] else axes[j]
+                if self.matrix[i, j] < 0:
+                    s = '-' + s
+                elif s:
+                    s = '+' + s
+                text += s
+            lines.append(text)
+        return ', '.join(lines)
+
+    def _parse_line(self, symm):
+        symm = symm.upper().replace(' ', '')
+        chars = ['X', 'Y', 'Z']
+        line = []
+        for char in chars:
+            element, symm = self._partition(symm, char)
+            line.append(element)
+        if symm:
+            trans = self._float(symm)
+        else:
+            trans = 0
+        return line, trans
+
+    def _float(self, string):
+        try:
+            return float(string)
+        except ValueError:
+            if '/' in string:
+                string = string.replace('/', './') + '.'
+                return eval('{}'.format(string))
+
+    def _partition(self, symm, char):
+        parts = symm.partition(char)
+        if parts[1]:
+            if parts[0]:
+                sign = parts[0][-1]
+            else:
+                sign = '+'
+            if sign is '-':
+                return -1, ''.join((parts[0][:-1], parts[2]))
+            else:
+                return 1, ''.join((parts[0], parts[2])).replace('+', '')
+        else:
+            return 0, symm
 
 
 ##### End of work by Jens Lübben #############
@@ -290,8 +427,8 @@ def nalimov_test(data):
     [3]
     """
     # q-values for degrees of freedom:
-    f = {1 : 1.409, 2: 1.645, 3: 1.757, 4: 1.814, 5: 1.848, 6: 1.870, 7: 1.885, 8: 1.895,
-         9 : 1.903, 10: 1.910, 11: 1.916, 12: 1.920, 13: 1.923, 14: 1.926, 15: 1.928,
+    f = {1: 1.409, 2: 1.645, 3: 1.757, 4: 1.814, 5: 1.848, 6: 1.870, 7: 1.885, 8: 1.895,
+         9: 1.903, 10: 1.910, 11: 1.916, 12: 1.920, 13: 1.923, 14: 1.926, 15: 1.928,
          16: 1.931, 17: 1.933, 18: 1.935, 19: 1.936, 20: 1.937, 30: 1.945}
     fact = sqrt(float(len(data)) / (len(data) - 1))
     fval = len(data) - 2
@@ -357,7 +494,7 @@ def atomic_distance(p1: list, p2: list, cell=None, shortest_dist=False):
         dz = (z1 - z2)
     if cell:
         return sqrt((a * dx) ** 2 + (b * dy) ** 2 + (c * dz) ** 2 + 2 * b * c * cos(al) * dy * dz + \
-          2 * dx * dz * a * c * cos(be) + 2 * dx * dy * a * b * cos(ga))
+                    2 * dx * dz * a * c * cos(be) + 2 * dx * dy * a * b * cos(ga))
     else:
         return sqrt(dx ** 2 + dy ** 2 + dz ** 2)
 
@@ -645,7 +782,7 @@ class A(object):
         return Am
 
 
-def calc_ellipsoid_axes(coords: list, uvals: list , cell: list, probability: float = 0.5, longest: bool = True):
+def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: float = 0.5, longest: bool = True):
     """
     This method calculates the principal axes of an ellipsoid as list of two
     fractional coordinate triples.
