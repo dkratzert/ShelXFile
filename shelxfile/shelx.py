@@ -332,6 +332,7 @@ class ShelXFile():
                 self.assign_card(self.cell, line_num)
                 self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell.cell_list
                 self.V = self.vol_unitcell(self._a, self._b, self._c, self._alpha, self._beta, self._gamma)
+                self.cell.volume = self.V
                 # self.A = self.orthogonal_matrix()
                 self.wavelen = self.cell.wavelen
                 lastcard = 'CELL'

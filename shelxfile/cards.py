@@ -1345,15 +1345,15 @@ class SUMP(Command):
 
 class LATT(Command):
     lattdict = {1: [],                # Primitive
-                2: [SymmetryElement([0.5, 0.5, 0.5])],   # I-centered
-                3: [SymmetryElement([1/3, 2/3, 2/3]),  # Rhombohedral
-                    SymmetryElement([2/3, 1/3, 1/3])],
-                4: [SymmetryElement([0.0, 0.5, 0.5]),  # F-centered
-                    SymmetryElement([0.5, 0.0, 0.5]),
-                    SymmetryElement([0.5, 0.5, 0.0])],
-                5: SymmetryElement([0.0, 0.5, 0.5]),   # A-centered
-                6: SymmetryElement([0.5, 0.0, 0.5]),   # B-centered
-                7: SymmetryElement([0.5, 0.5, 0.0])}   # C-centered
+                2: [SymmetryElement(['0.5', '0.5', '0.5'])],   # I-centered
+                3: [SymmetryElement(['1/3', '2/3', '2/3']),  # Rhombohedral
+                    SymmetryElement(['2/3', '1/3', '1/3'])],
+                4: [SymmetryElement(['0.0', '0.5', '0.5']),  # F-centered
+                    SymmetryElement(['0.5', '0.0', '0.5']),
+                    SymmetryElement(['0.5', '0.5', '0.0'])],
+                5: SymmetryElement(['0.0', '0.5', '0.5']),   # A-centered
+                6: SymmetryElement(['0.5', '0.0', '0.5']),   # B-centered
+                7: SymmetryElement(['0.5', '0.5', '0.0'])}   # C-centered
 
     def __init__(self, shx, spline: list):
         """
