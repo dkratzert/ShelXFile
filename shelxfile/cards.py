@@ -302,6 +302,7 @@ class CELL(Command):
         """
         super(CELL, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
+        self.cell_list = []
         if len(p) > 0:
             self.wavelen = p[0]
         if len(p) > 6:
