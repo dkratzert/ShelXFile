@@ -49,8 +49,10 @@ class ParseParamError(Exception):
 
 
 class ParseUnknownParam(Exception):
-    def __init__(self):
+    def __init__(self, arg=None):
         if DEBUG:
+            if arg:
+                print(arg)
             print("*** UNKNOWN PARAMETER ***")
 
 
@@ -449,3 +451,37 @@ def range_resolver(atoms_range: list, atom_names: list) -> list:
                 atoms_range[i:i + 1] = names
     return atoms_range
 
+
+def walkdir(rootdir, include="", exclude=""):
+    """
+    Returns a list of files in all subdirectories with full path.
+    :param rootdir: base path from which walk should start
+    :param filter: list of file endings to include only e.g. ['.py', '.res']
+    :return: list of files
+
+    >>> walkdir("../docs") #doctest: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
+    ['../docs/test.txt']
+    >>> walkdir("../setup/modpath.iss")
+    ['../setup/modpath.iss']
+    >>> walkdir("../setup/modpath.iss", exclude=['.iss'])
+    []
+    >>> walkdir("../docs", exclude=['.txt']) #doctest: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
+    []
+    """
+    results = []
+    if not os.path.isdir(rootdir):
+        if os.path.splitext(rootdir)[1] in exclude:
+            return []
+        return [rootdir]
+    for root, subFolders, files in os.walk(rootdir):
+        for file in files:
+            fullfilepath = os.path.join(root, file)
+            if exclude:
+                if os.path.splitext(fullfilepath)[1] in exclude:
+                    continue
+            if include:
+                if os.path.splitext(fullfilepath)[1] in include:
+                    results.append(os.path.normpath(fullfilepath).replace('\\', '/'))
+            else:
+                results.append(os.path.normpath(fullfilepath).replace('\\', '/'))
+    return results

@@ -80,10 +80,10 @@ class ShelXFile():
     """
     delete_on_write = None
     atoms = None
-    sump = []
     _r1_regex = re.compile(r'^REM\s+R1\s+=', re.IGNORECASE)
     _wr2_regex = re.compile(r'^REM\s+wR2\s+=', re.IGNORECASE)
-    _parameters_regex = re.compile(r'REM\s+\d+\s+parameters\s+refined', re.IGNORECASE)
+    _parameters_regex = re.compile(r'^REM\s+\d+\s+parameters\s+refined', re.IGNORECASE)
+    _diff_peak_regex = re.compile(r'^REM\sHighest\sdifference', re.IGNORECASE)
 
     def __init__(self: 'ShelXFile', resfile: str):
         """
@@ -130,27 +130,29 @@ class ShelXFile():
         self.parameters = None
         self.dat_to_param = None
         self.num_restraints = None
-        self.sump = None
+        self.hpeak = None
+        self.dhole = None
+        self.sump = []
         self.end = False
         self.maxsof = 1.0
         self.size = None
         self.htab = None
         self.shel = None
         self.mpla = None
-        self.rtab = None
-        self.omit = None
+        self.rtab = []
+        self.omit = []
         self.hklf = None
         self.grid = None
-        self.free = None
+        self.free = []
         self.titl = ""
         self.exti = 0
-        self.eqiv = None
-        self.disp = None
+        self.eqiv = []
+        self.disp = []
         self.conn = None
         self.conv = None
-        self.bind = None
+        self.bind = []
         self.ansr = 0.001
-        self.bloc = None
+        self.bloc = []
         self.afix = None  # AFIX(self, [''])
         self.part = PART(self, ['PART',  '0'])
         self.resi = RESI(self, ['RESI',  '0'])
@@ -188,6 +190,10 @@ class ShelXFile():
             pass
         except Exception as e:
             if DEBUG:
+                try:
+                    print(self.resfile[self.error_line_num])
+                except IndexError:
+                    pass
                 print(e)
                 print("*** Syntax error found in file {}, line {} ***".format(self.resfile, self.error_line_num + 1))
             if DEBUG:
@@ -196,7 +202,12 @@ class ShelXFile():
                 print('*** Parser Error ***')
                 return
         else:
-            self.run_after_parse()
+            try:
+                self.run_after_parse()
+            except Exception as e:
+                if DEBUG:
+                    print(e)
+                    raise
 
     @time_this_method
     def parse_shx_file(self):
@@ -272,9 +283,6 @@ class ShelXFile():
                 a = Atom(self, spline, list_of_lines, line_num, part=self.part, afix=self.afix, resi=self.resi, sof=sof)
                 self.append_card(self.atoms, a, line_num)
                 continue
-            elif self.end:
-                # Prevents e.g. parsing of second WGHT after END:
-                continue
             elif word == 'SADI':
                 # SADI s[0.02] pairs of atoms
                 # or SADI
@@ -300,11 +308,11 @@ class ShelXFile():
                 continue
             elif word == 'BASF':
                 # BASF scale factors
-                self.append_card(self.restraints, BASF(spline, list_of_lines), line_num)
+                self.append_card(self.restraints, BASF(self, spline), line_num)
                 continue
             elif word == 'HFIX':
                 # HFIX mn U[#] d[#] atomnames
-                self.append_card(self.hfixes, HFIX(spline, list_of_lines), line_num)
+                self.append_card(self.hfixes, HFIX(self, spline), line_num)
                 continue
             elif word == 'DANG':
                 # DANG d s[0.04] atom pairs
@@ -442,6 +450,8 @@ class ShelXFile():
                 continue
             elif word == 'WGHT':
                 # WGHT a[0.1] b[0] c[0] d[0] e[0] f[.33333]
+                if self.end:
+                    continue
                 self.wght = self.assign_card(WGHT(self, spline), line_num)
                 continue
             elif word == 'ACTA':
@@ -472,7 +482,7 @@ class ShelXFile():
             elif word == 'BIND':
                 # BIND atom1 atom2
                 if len(spline) == 3:
-                    self.append_card(self.bind , BIND(self, spline), line_num)
+                    self.append_card(self.bind, BIND(self, spline), line_num)
                 continue
             elif word == 'BLOC':
                 # BLOC n1 n2 atomnames
@@ -493,7 +503,7 @@ class ShelXFile():
                 continue
             elif word == 'CONF':
                 # CONF atomnames max_d[1.9] max_a[170]
-                self.conf = CONF(self, spline) 
+                self.conf = CONF(self, spline)
                 self.assign_card(self.conf, line_num)
                 continue
             elif word == 'CONN':
@@ -718,19 +728,15 @@ class ShelXFile():
         """
         if self.sump:
             for x in self.sump:
-                for y in x:
-                    self.fvars.set_fvar_usage(int(y[1]))
+                for y in x.fvars:
+                    self.fvars.set_fvar_usage(y[1])
         for r in self.restraints:
             if r.name == "DFIX" or r.name == "DANG":
                 if abs(r.d) > 4:
                     fvar, value = split_fvar_and_parameter(r.d)
                     self.fvars.set_fvar_usage(fvar)
         if self.abin:
-            if len(self.abin) > 1:
-                self.fvars.set_fvar_usage(self.abin[0])
-                self.fvars.set_fvar_usage(self.abin[1])
-            else:
-                self.fvars.set_fvar_usage(self.abin[0])
+            pass
         # Check if basf parameters are consistent:
         if self.basf:
             if self.twin:
@@ -1032,25 +1038,27 @@ class ShelXFile():
 
     def _get_residuals(self, spline, line):
         if ShelXFile._r1_regex.match(line):
-            self.R1 = float(spline[3])
             try:
                 self.R1 = float(spline[3])
-            except IndexError:
+            except(IndexError, ValueError):
                 if DEBUG:
-                    raise
+                    pass
+                    #raise
                 pass
             try:
                 self.data = int(spline[-2])
             except IndexError:
                 if DEBUG:
-                    raise
+                    pass
+                    #raise
                 pass
         if ShelXFile._wr2_regex.match(line):
             try:
                 self.wR2 = float(spline[3].split(",")[0])
-            except IndexError:
+            except(IndexError, ValueError):
                 if DEBUG:
-                    raise
+                    pass
+                    #raise
                 pass
         if ShelXFile._parameters_regex.match(line):
             try:
@@ -1059,13 +1067,22 @@ class ShelXFile():
                     self.dat_to_param = self.data / self.parameters
             except IndexError:
                 if DEBUG:
-                    raise
+                    pass
+                    #raise
                 pass
             try:
                 self.num_restraints = int(spline[-2])
-            except IndexError:
+            except(IndexError, ValueError):
                 if DEBUG:
-                    raise
+                    pass
+                    #raise
+                pass
+        if ShelXFile._diff_peak_regex.match(line):
+            # REM Highest difference peak  0.407,  deepest hole -0.691,  1-sigma level  0.073
+            try:
+                self.hpeak = float(spline[4].split(",")[0])
+                self.dhole = float(spline[7].split(",")[0])
+            except(IndexError, ValueError):
                 pass
 
 
@@ -1095,7 +1112,7 @@ if __name__ == "__main__":
     #get_commands()
     #sys.exit()
 
-    file = r'tests/p21c.res'
+    file = r'd:\frames\guest\PK_JS_CW_2035_2\work\p-1_a.res'
     try:
         shx = ShelXFile(file)
     except Exception:
@@ -1129,10 +1146,12 @@ if __name__ == "__main__":
     # print(float(shx.temp)+273.15)
     # print(shx.atoms.atoms_in_class('CCF3'))
     #sys.exit()
-    files = walkdir(r'/Users/daniel', 'res')
+    from misc import walkdir
+    files = walkdir(r'd:\frames\guest', '.res')
     print('finished')
     for f in files:
-        if "dsrsaves" in str(f) or ".olex" in str(f) or 'ED' in str(f) or 'shelXlesaves' in str(f):
+        if "dsrsaves" in str(f) or ".olex" in str(f) or 'ED' in str(f) or \
+                'shelXlesaves' in str(f) or "SAVEHIST" in str(f):
             continue
         #path = f.parent
         #file = f.name
@@ -1141,5 +1160,5 @@ if __name__ == "__main__":
         #copy(str(f), Path(r"d:/Github/testresfiles/").joinpath(id+file))
         #print('copied', str(f.name))
         print(f)
-        shx = ShelXlFile(f, debug=False)
+        shx = ShelXFile(f)
         # print(len(shx.atoms), f)
