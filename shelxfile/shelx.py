@@ -1108,8 +1108,7 @@ if __name__ == "__main__":
     """
     #get_commands()
     #sys.exit()
-
-    file = r'd:\frames\guest\PK_JS_CW_2035_2\work\p-1_a.res'
+    file = r'tests/p21c.res'
     try:
         shx = ShelXFile(file)
     except Exception:
