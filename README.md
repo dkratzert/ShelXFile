@@ -52,6 +52,9 @@ str(shx._reslist[273])  # In regular code, do not access shx._reslist directly!
 a.name
 'F1'
 
+a.element
+'F'
+
 a.resinum
 2
 
