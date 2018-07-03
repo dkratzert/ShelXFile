@@ -1,4 +1,3 @@
-from typing import List, Any
 
 from dsrmath import atomic_distance, frac_to_cart
 from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam
