@@ -33,7 +33,7 @@ from dsrmath import Matrix
 
 """
 TODO:
-
+- get sum formula from Z, SFAC and UNIT
 - shx.update_weight
 - shx.weight_difference
 - shx.atoms.angle(at1, at2, at3)
@@ -201,7 +201,7 @@ class ShelXFile():
             if DEBUG:
                 raise
             else:
-                print('*** Parser Error ***')
+                # print('*** Parser Error ***')
                 return
         else:
             try:

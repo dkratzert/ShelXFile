@@ -334,7 +334,7 @@ class Atom():
         if self.shx.end:  # After 'END' can only be Q-peaks!
             self.qpeak = True
         self.sfac_num = int(line[1])
-        self.element = self.shx.sfac2elem(self.sfac_num).upper()
+        self.element = self.shx.sfac2elem(self.sfac_num).capitalize()
         self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell.cell_list)
 
     def __iter__(self):
