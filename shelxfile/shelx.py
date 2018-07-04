@@ -1017,6 +1017,34 @@ class ShelXFile():
     def index_of(self, obj):
         return self._reslist.index(obj)
 
+    @property
+    def sum_formula(self) -> str:
+        """
+        The sum formula of the structure with regards of the UNIT instruction.
+        """
+        formstring = ''
+        if len(self.sfac_table.elements_list) == len(self.unit.values):
+            for el, num in zip(self.sfac_table.elements_list, self.unit.values):
+                formstring += "{}{:,g} ".format(el, num/self.Z)
+        return formstring.strip()
+
+    @property
+    def sum_formula_exact(self) -> str:
+        """
+        The sum formula of the structure with all atom occupancies summed together.
+        """
+        formstring = ''
+        sumdict = {}
+        for el in self.sfac_table.elements_list:
+            for atom in self.atoms:
+                if atom.element.upper() == el.upper() and not atom.qpeak:
+                    if el in sumdict:
+                        sumdict[el] += atom.occupancy
+                    else:
+                        sumdict[el] = atom.occupancy
+            formstring += "{}{:,g} ".format(el, sumdict[el])
+        return formstring.strip()
+
     def insert_frag_fend_entry(self, dbatoms: list, cell: list):
         """
         Inserts the FRAG ... FEND entry in the res file.
@@ -1108,7 +1136,7 @@ if __name__ == "__main__":
     """
     #get_commands()
     #sys.exit()
-    file = r'tests/p21c.res'
+    file = r'tests/014EP-4_a_shelxl.res'
     try:
         shx = ShelXFile(file)
     except Exception:
@@ -1128,7 +1156,7 @@ if __name__ == "__main__":
     print('\n\n')
     print(shx.hklf)
     print('######################')
-    sys.exit()
+    #sys.exit()
     # for x in shx.atoms:
     #    print(x)
     # shx.reload()
@@ -1141,10 +1169,11 @@ if __name__ == "__main__":
     #    print(x)
     # print(float(shx.temp)+273.15)
     # print(shx.atoms.atoms_in_class('CCF3'))
-    #sys.exit()
+    sys.exit()
     from misc import walkdir
-    files = walkdir(r'd:\frames\guest', '.res')
+    files = walkdir(r'D:\GitHub\testresfiles', '.res')
     print('finished')
+    num = 0
     for f in files:
         if "dsrsaves" in str(f) or ".olex" in str(f) or 'ED' in str(f) or \
                 'shelXlesaves' in str(f) or "SAVEHIST" in str(f):
@@ -1157,4 +1186,6 @@ if __name__ == "__main__":
         #print('copied', str(f.name))
         print(f)
         shx = ShelXFile(f)
+        num += 1
         # print(len(shx.atoms), f)
+    print(num, 'Files')

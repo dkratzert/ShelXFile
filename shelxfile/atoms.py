@@ -199,8 +199,6 @@ class Atom():
     """
     An Opbect holding all Properties of a shelxl atom plus some extra information like
     kartesian coordinates and element type.
-
-    :type restraints: List[Restraint]
     """
     #                name    sfac     x         y        z       occ      u11      u12 ...
     _anisatomstr = '{:<4.4s}{:>3}{:>12.6f}{:>12.6f}{:>12.6f}{:>12.5f}{:>11.5f}{:>11.5f}' \
@@ -248,8 +246,20 @@ class Atom():
         else:
             self.sof = 11.0
         # Only the occupancy of the atom *without* the free variable like 0.5
-        fvar, self.occupancy = split_fvar_and_parameter(self.sof)
-        self.shx.fvars.set_fvar_usage(fvar)
+        self.fvar = 1
+        self.occupancy = 1
+        # Be aware: fvar can be negative!
+        self.fvar, occ = split_fvar_and_parameter(self.sof)
+        # Fractional occupancy:
+        # Normalized to FVAR number one:
+        if abs(self.fvar) == 1:
+            self.occupancy = occ
+        else:
+            if occ > 0:
+                self.occupancy = self.shx.fvars[self.fvar] * occ
+            else:
+                self.occupancy = 1 + (self.shx.fvars[self.fvar] * occ)
+        self.shx.fvars.set_fvar_usage(self.fvar)
         self.uvals = [0.04]  # [u11 u12 u13 u21 u22 u23]
         self.resiclass = resi.residue_class
         if not resi.residue_number:
@@ -267,9 +277,9 @@ class Atom():
         #    self.parse_anis()
         for n, u in enumerate(self.uvals):
             if abs(u) > 4.0:
-                fvar, uval = split_fvar_and_parameter(u)
+                self.fvar, uval = split_fvar_and_parameter(u)
                 self.uvals[n] = uval
-                self.shx.fvars.set_fvar_usage(fvar)
+                self.shx.fvars.set_fvar_usage(self.fvar)
 
     def parse_anis(self):
         """

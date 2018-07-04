@@ -152,17 +152,18 @@ def split_fvar_and_parameter(parameter: float) -> tuple:
     >>> split_fvar_and_parameter(31.0)
     (3, 1.0)
     >>> split_fvar_and_parameter(-30.5)
-    (-3, 0.5)
+    (-3, -0.5)
     >>> split_fvar_and_parameter(11.0)
     (1, 1.0)
     >>> split_fvar_and_parameter(-11.0)
-    (-1, 1.0)
+    (-1, -1.0)
     >>> split_fvar_and_parameter(-10.33333333)
-    (-1, 0.33333333)
+    (-1, -0.33333333)
     """
     fvar = abs(int(str(parameter).split('.')[0])) // 10  # The free variable number e.g. 2
     value = abs(float(parameter)) % 10  # The value with which the free variable was multiplied e.g. 0.5
     if parameter < 0:
+        value *= -1
         fvar *= -1
     return fvar, round(value, 8)
 
@@ -391,6 +392,13 @@ class ResList():
 
 
 def wrap_line(line: str) -> str:
+    """
+    Wraps long lines according to SHELXL syntax with = at end and space characters before the next line.
+    The wrapping will only be at whitespace, not inside words.
+
+    >>> wrap_line("This is a really long line with over 79 characters. Shelxl wants it to be wrapped.")
+    'This is a really long line with over 79 characters. Shelxl wants it to be  =\\n   wrapped.'
+    """
     line = textwrap.wrap(line, 79, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
     if len(line) > 1:
         newline = []
@@ -459,14 +467,14 @@ def walkdir(rootdir, include="", exclude=""):
     :param filter: list of file endings to include only e.g. ['.py', '.res']
     :return: list of files
 
-    >>> walkdir("../docs") #doctest: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
-    ['../docs/test.txt']
-    >>> walkdir("../setup/modpath.iss")
-    ['../setup/modpath.iss']
-    >>> walkdir("../setup/modpath.iss", exclude=['.iss'])
-    []
-    >>> walkdir("../docs", exclude=['.txt']) #doctest: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
-    []
+    #>>> walkdir("../docs") #doctest: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
+    #['../docs/test.txt']
+    #>>> walkdir("../setup/modpath.iss")
+    #['../setup/modpath.iss']
+    #>>> walkdir("../setup/modpath.iss", exclude=['.iss'])
+    #[]
+    #>>> walkdir("../docs", exclude=['.txt']) #doctest: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
+    #[]
     """
     results = []
     if not os.path.isdir(rootdir):

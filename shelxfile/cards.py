@@ -303,6 +303,8 @@ class CELL(Command):
         super(CELL, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
         self.cell_list = []
+        # TODO: calculate volume here after parse
+        self.volume = None
         if len(p) > 0:
             self.wavelen = p[0]
         if len(p) > 6:
@@ -838,9 +840,7 @@ class FVARs():
 
     def __getitem__(self, item: int) -> str:
         # SHELXL counts fvars from 1 to x:
-        item = item - 1
-        if item < 0:
-            raise IndexError("*** Illegal free variable number ***")
+        item = abs(item) - 1
         return self.fvars[item].fvar_value
 
     def __setitem__(self, key, fvar_value):
