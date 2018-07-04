@@ -241,7 +241,8 @@ class ShelXFile():
                 wrapindex += 1
                 line = line.rpartition('=')[0] + self._reslist[line_num + wrapindex]
                 self.delete_on_write.update([line_num + wrapindex])
-                self._reslist[line_num + wrapindex] = ''
+                # Do not activate this, otherwise, the unwrapping stops after two lines.
+                # self._reslist[line_num + wrapindex] = ''
                 list_of_lines.append(line_num + wrapindex)  # list containing the lines of a multiline command
             # The current line splitted:
             spline = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
@@ -1113,27 +1114,6 @@ class ShelXFile():
 
 
 if __name__ == "__main__":
-    def runall():
-        """
-        >>> file = r'p21c.res'
-        >>> try:
-        >>>     shx = ShelXFile(file)
-        >>> except Exception:
-        >>>    raise
-        """
-        pass
-
-    """
-    def get_commands():
-        url = "http://shelx.uni-goettingen.de/shelxl_html.php"
-        response = urlopen('{}/version.txt'.format(url))
-        html = response.read().decode('UTF-8')
-        #res = BeautifulSoup(html, "html5lib")
-        tags = res.findAll("p", {"class": 'instr'})
-        for l in tags:
-            if l:
-                print(str(l).split(">")[1].split("<")[0])
-    """
     #get_commands()
     #sys.exit()
     file = r'tests/014EP-4_a_shelxl.res'
@@ -1141,34 +1121,8 @@ if __name__ == "__main__":
         shx = ShelXFile(file)
     except Exception:
         raise
+    print(shx)
 
-    print(shx.atoms.distance('Ga1', 'Al1'))
-    print(shx.hklf)
-    print(shx.sfac_table.is_exp(shx.sfac_table[1]))
-    print(shx.sfac_table)
-    shx.sfac_table.add_element('Zn')
-    print(shx.unit)
-    #print(shx.sfac_table.remove_element('In'))
-    print(shx.sfac_table)
-    print(shx.unit)
-    shx.cycles.set_refine_cycles(33)
-    shx.write_shelx_file(r'./test.ins')
-    print('\n\n')
-    print(shx.hklf)
-    print('######################')
-    #sys.exit()
-    # for x in shx.atoms:
-    #    print(x)
-    # shx.reload()
-    # for x in shx.restraints:
-    #    print(x)
-    # for x in shx.rem:
-    #    print(x)
-    # print(shx.size)
-    # for x in shx.sump:
-    #    print(x)
-    # print(float(shx.temp)+273.15)
-    # print(shx.atoms.atoms_in_class('CCF3'))
     sys.exit()
     from misc import walkdir
     files = walkdir(r'D:\GitHub\testresfiles', '.res')
@@ -1189,3 +1143,16 @@ if __name__ == "__main__":
         num += 1
         # print(len(shx.atoms), f)
     print(num, 'Files')
+
+
+    """
+    def get_commands():
+        url = "http://shelx.uni-goettingen.de/shelxl_html.php"
+        response = urlopen('{}/version.txt'.format(url))
+        html = response.read().decode('UTF-8')
+        #res = BeautifulSoup(html, "html5lib")
+        tags = res.findAll("p", {"class": 'instr'})
+        for l in tags:
+            if l:
+                print(str(l).split(">")[1].split("<")[0])
+    """
