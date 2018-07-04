@@ -311,7 +311,7 @@ class ShelXFile():
                 continue
             elif word == 'BASF':
                 # BASF scale factors
-                self.append_card(self.restraints, BASF(self, spline), line_num)
+                self.assign_card(BASF(self, spline), line_num)
                 continue
             elif word == 'HFIX':
                 # HFIX mn U[#] d[#] atomnames
@@ -733,6 +733,10 @@ class ShelXFile():
                 for y in x.fvars:
                     self.fvars.set_fvar_usage(y[1])
         for r in self.restraints:
+            if r.atoms:
+                pass
+                #print(r)
+                #Restraints._resolve_atoms(self, r.atoms)
             if r.name == "DFIX" or r.name == "DANG":
                 if abs(r.d) > 4:
                     fvar, value = split_fvar_and_parameter(r.d)
@@ -1121,7 +1125,7 @@ if __name__ == "__main__":
         shx = ShelXFile(file)
     except Exception:
         raise
-    print(shx)
+    #print(shx)
 
     sys.exit()
     from misc import walkdir

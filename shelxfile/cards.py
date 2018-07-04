@@ -1001,6 +1001,15 @@ class Restraints():
         else:
             return 'No Restraints in file.'
 
+    @staticmethod
+    def _resolve_atoms(shx, atoms):
+        for atnum, ap in enumerate(atoms):
+            for num, atname in enumerate(ap):
+                try:
+                    atoms[atnum][num] = shx.atoms.get_atom_by_name(atname)
+                except TypeError:
+                    continue
+
 
 class DEFS(Restraint):
     # keeps track if DEFS was previously activated:
