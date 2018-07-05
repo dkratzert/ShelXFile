@@ -68,6 +68,9 @@ class Array(object):
         else:
             raise TypeError('Cannot add type Array to type {}.'.format(str(type(other))))
 
+    def __sub__(self, other):
+        pass
+
     def __imul__(self, other):
         if isinstance(other, int):
             self.values = [v * other for v in self.values]
@@ -156,13 +159,22 @@ class Matrix(object):
             self.values = [[v * other for v in row] for row in self.values]
             return self
         else:
-            raise TypeError('Unsupported operation.')
+            return [[sum(a * b for a, b in zip(X_row, Y_col)) for Y_col in zip(*other)] for X_row in self]
 
     def __mul__(self, other):
         return self.dot(other)
 
     def __len__(self):
         return self.shape[1]
+
+    def __sub__(self, other):
+        output = []
+        for idx in range(len(self)):
+            tmp = []
+            for valA, valB in zip(self[idx], other[idx]):
+                tmp.append(valA - valB)
+            output.append(tmp[:])
+        return output[:]
 
     @property
     def t(self):

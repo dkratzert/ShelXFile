@@ -1,5 +1,6 @@
+from math import acos
 
-from dsrmath import atomic_distance, frac_to_cart
+from dsrmath import atomic_distance, frac_to_cart, Matrix, Array
 from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
 from shelxfile.cards import AFIX, PART, RESI
 
@@ -193,6 +194,22 @@ class Atoms():
                 if x.name not in atoms:
                     atoms.append(x.name)
         return atoms
+
+    def angle(self, at1: 'Atom', at2: 'Atom', at3: 'Atom'):
+        """
+        Calculates the angle between three points (atoms).
+                  ( b^2 + c^2 - a^2)
+        al = accos(-----------------
+                  (   2 * b * c    )
+        """
+        at1 = Array(at1.cart_coords)
+        at2 = Array(at2.cart_coords)
+        at3 = Array(at3.cart_coords)
+        u = (at1 - at2)
+        v = (at2 * at3)
+        numerator = u * v
+        denominator = abs(u).dot(abs(v))
+        return acos(numerator/denominator)
 
 
 class Atom():
