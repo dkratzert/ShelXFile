@@ -11,7 +11,7 @@ class Atoms():
 
     def __init__(self, shx):
         self.shx = shx
-        self.atoms = []
+        self.all_atoms = []
         self.atomsdict = {}
         self.nameslist = []
 
@@ -19,37 +19,37 @@ class Atoms():
         """
         Adds a new atom to the list of atoms. Using append is essential.
         """
-        self.atoms.append(atom)
+        self.all_atoms.append(atom)
         name = atom.name + '_{}'.format(atom.resinum)
         self.atomsdict[name] = atom
         self.nameslist.append(name.upper())
 
     def __repr__(self):
-        if self.atoms:
-            return '\n'.join([str(x) for x in self.atoms])
+        if self.all_atoms:
+            return '\n'.join([str(x) for x in self.all_atoms])
         else:
             return 'No Atoms in file.'
 
     def __iter__(self):
-        for x in self.atoms:
+        for x in self.all_atoms:
             yield x
 
     def __getitem__(self, item: int) -> 'Atom':
         return self.get_atom_by_id(item)
 
     def __len__(self) -> int:
-        return len(self.atoms)
+        return len(self.all_atoms)
 
     def __delitem__(self, key):
         """
         Delete an atom by its atomid:
         del atoms[4]
         """
-        for n, at in enumerate(self.atoms):
+        for n, at in enumerate(self.all_atoms):
             if key == at.atomid:
                 if DEBUG:
                     print("deleting atom", at.name)
-                del self.atoms[n]
+                del self.all_atoms[n]
                 del self.atomsdict[at.name + '_{}'.format(at.resinum)]
                 del self.nameslist[self.nameslist.index(at.fullname.upper())]
                 for x in at._line_numbers:
@@ -64,13 +64,13 @@ class Atoms():
         >>> shx.atoms.number
         148
         """
-        return len(self.atoms)
+        return len(self.all_atoms)
 
     def get_atom_by_id(self, aid: int) -> 'Atom':
         """
         Returns the atom objext with atomId id.
         """
-        for a in self.atoms:
+        for a in self.all_atoms:
             if aid == a.atomid:
                 return a
 
@@ -121,7 +121,7 @@ class Atoms():
         {'O1_4': [0.074835, 0.238436, 0.402457], 'C1_4': [0.028576, 0.234542, 0.337234], ...}
         """
         atdict = {}
-        for at in self.atoms:
+        for at in self.all_atoms:
             # if at.qpeak:
             #    atdict[at.name] = at.frac_coords
             # else:
@@ -135,7 +135,7 @@ class Atoms():
         [-1.7511017452002604, 5.461541059000001, 10.01187984858907]]
         """
         atoms = []
-        for at in self.atoms:
+        for at in self.all_atoms:
             if at.frag_atom:
                 atoms.append([at.xc, at.yc, at.zc])
         return atoms
@@ -149,7 +149,7 @@ class Atoms():
         >>> shx.atoms.residues
         [0, 1, 2, 3, 4]
         """
-        return list({x.resinum for x in self.atoms})
+        return list({x.resinum for x in self.all_atoms})
 
     @property
     def q_peaks(self) -> list:
@@ -160,7 +160,7 @@ class Atoms():
         >>> shx.atoms.q_peaks[:5] # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
         [Atom ID: 328, Atom ID: 329, Atom ID: 330, Atom ID: 331, Atom ID: 332]
         """
-        return [x for x in self.atoms if x.qpeak]
+        return [x for x in self.all_atoms if x.qpeak]
 
     def distance(self, atom1: str, atom2: str) -> float:
         """
@@ -188,7 +188,7 @@ class Atoms():
         ['O1', 'C1', 'C2', 'F1', 'F2', 'F3', 'C3', 'F4', 'F5', 'F6', 'C4', 'F7', 'F8', 'F9']
         """
         atoms = []
-        for x in self.atoms:
+        for x in self.all_atoms:
             if x.resiclass == name:
                 if x.name not in atoms:
                     atoms.append(x.name)
@@ -383,7 +383,7 @@ class Atom():
     def resolve_restraints(self):
         for num, r in enumerate(self.shx.restraints):
             for at in r.atoms:
-                print(r.residue_number, self.resinum, r.residue_class, self.resiclass, self.name, at)
+                #print(r.residue_number, self.resinum, r.residue_class, self.resiclass, self.name, at)
                 if r.residue_number == self.resinum and r.residue_class == self.resiclass and self.name == at:
                     self.restraints.append(r)
 

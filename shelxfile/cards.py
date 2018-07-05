@@ -198,14 +198,14 @@ class Command():
         :return: numerical parameters and words
         """
         if '_' in spline[0]:
-            self.name, suffix = spline[0].upper().split('_')
+            self.card_name, suffix = spline[0].upper().split('_')
             if any([x.isalpha() for x in suffix]):
                 self.residue_class = suffix
             else:
                 # TODO: implement _+, _- and _*
                 self.residue_number = int(suffix)
         else:
-            self.name = spline[0].upper()
+            self.card_name = spline[0].upper()
         numparams = []
         words = []
         for x in spline[1:]:  # all values after SHELX card
@@ -362,6 +362,31 @@ class AFIX(Command):
             return True
         else:
             return False
+
+
+class Residues():
+
+    def __init__(self):
+        self.all_residues = []
+        self.classes = {}
+        self.numbers = {}
+
+    def append(self, resi: 'RESI') -> None:
+        """
+        Adds a new residues to the list of residues.
+        """
+        self.all_residues.append(resi)
+        # Collect dict with class: numbers
+        if resi.residue_class in self.classes:
+            self.classes[resi.residue_class].append(resi.residue_number)
+        else:
+            self.classes[resi.residue_class] = [resi.residue_number]
+        # Collect dict with number: classes
+        if resi.residue_number in self.numbers:
+            if DEBUG:
+                print('*** Duplicate residue number {} found! ***'.format(resi.residue_number))
+        else:
+            self.numbers[resi.residue_number] = resi.residue_class
 
 
 class RESI(Command):

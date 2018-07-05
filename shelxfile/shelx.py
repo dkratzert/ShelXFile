@@ -22,7 +22,7 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
-    RESI, ABIN, ANIS
+    RESI, ABIN, ANIS, Residues
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
@@ -158,6 +158,7 @@ class ShelXFile():
         self.afix = None  # AFIX(self, [''])
         self.part = PART(self, ['PART',  '0'])
         self.resi = RESI(self, ['RESI',  '0'])
+        self.residues = Residues()
         self.dsrlines = []
         self.dsrline_nums = []
         self.symmcards = SymmCards(self)
@@ -258,6 +259,8 @@ class ShelXFile():
             if line.startswith('RESI'):
                 self.resi = RESI(self, spline)
                 self.assign_card(self.resi, line_num)
+                if self.resi.residue_number > 0:
+                    self.residues.append(self.resi)
                 continue
             # Now collect the PART:
             if line.startswith(('END', 'HKLF')) and self.part:
