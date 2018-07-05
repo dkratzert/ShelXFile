@@ -71,6 +71,12 @@ class Array(object):
     def __sub__(self, other):
         pass
 
+    def norm(self):
+        return self.values[0] * self.values[0] + self.values[1] * self.values[1] + self.values[2] * self.values[2]
+
+    def normalized(self):
+        pass
+
     def __imul__(self, other):
         if isinstance(other, int):
             self.values = [v * other for v in self.values]
