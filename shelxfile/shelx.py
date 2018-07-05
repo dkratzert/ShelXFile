@@ -191,7 +191,7 @@ class ShelXFile():
             if len(self._reslist) < 20:
                 if DEBUG:
                     print('*** Not a SHELXL file: {} ***'.format(self.resfile))
-                sys.exit()
+                    sys.exit()
         except UnicodeDecodeError:
             if DEBUG:
                 print('*** Unable to read file', self.resfile, '***')
@@ -1045,6 +1045,11 @@ class ShelXFile():
         The sum formula of the structure with regards of the UNIT instruction.
         """
         formstring = ''
+        try:
+            self.unit.values
+            self.sfac_table.elements_list
+        except AttributeError:
+            return ''
         if len(self.sfac_table.elements_list) == len(self.unit.values):
             for el, num in zip(self.sfac_table.elements_list, self.unit.values):
                 formstring += "{}{:,g} ".format(el, num/self.Z)
