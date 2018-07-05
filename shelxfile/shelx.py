@@ -188,6 +188,10 @@ class ShelXFile():
             print('Resfile is:', self.resfile)
         try:
             self._reslist = self.read_file_to_list(self.resfile)
+            if len(self._reslist) < 20:
+                if DEBUG:
+                    print('*** Not a SHELXL file: {} ***'.format(self.resfile))
+                sys.exit()
         except UnicodeDecodeError:
             if DEBUG:
                 print('*** Unable to read file', self.resfile, '***')
@@ -1060,6 +1064,8 @@ class ShelXFile():
                         sumdict[el] += atom.occupancy
                     else:
                         sumdict[el] = atom.occupancy
+            if el not in sumdict:
+                sumdict[el] = 0.0
             formstring += "{}{:,g} ".format(el, sumdict[el])
         return formstring.strip()
 
@@ -1138,7 +1144,7 @@ if __name__ == "__main__":
         shx = ShelXFile(file)
     except Exception:
         raise
-    #print(shx)
+    print(shx.sum_formula_exact)
 
     #sys.exit()
     from misc import walkdir
@@ -1166,7 +1172,8 @@ if __name__ == "__main__":
         #print(f)
         shx = ShelXFile(f)
         num += 1
-        # print(len(shx.atoms), f)
+        #print(f)
+        #print(shx.sum_formula_exact)
     print(num, 'Files')
 
 
