@@ -372,6 +372,10 @@ class ShelXFile():
                 if len(spline) >= 8:
                     self.zerr = ZERR(self, spline)
                     self.Z = self.zerr.Z
+                    if self.Z < 1:
+                        self.Z = 1
+                        if DEBUG:
+                            print('Z value is zero.')
                     self.assign_card(self.zerr, line_num)
                 lastcard = 'ZERR'
                 continue
@@ -1046,11 +1050,11 @@ class ShelXFile():
         """
         formstring = ''
         try:
-            self.unit.values
-            self.sfac_table.elements_list
+            val = self.unit.values
+            eli = self.sfac_table.elements_list
         except AttributeError:
             return ''
-        if len(self.sfac_table.elements_list) == len(self.unit.values):
+        if len(val) == len(eli):
             for el, num in zip(self.sfac_table.elements_list, self.unit.values):
                 formstring += "{}{:,g} ".format(el, num/self.Z)
         return formstring.strip()
@@ -1159,7 +1163,7 @@ if __name__ == "__main__":
     ex = ['dsrsaves', '.olex', 'ED', 'shelXlesaves', 'SAVEHIST']
     ex2 = ['01S8sad', '12UFibca_c', '88Q9ibca_e', 'A506p', 'CW7Spna21_a', 'DWMDp21c', 'p21c_cmdline', 'VH75ibca_d',
            'YVXZp', 'ZIXCpbcn_a']
-    #ex += ex2
+    ex += ex2
     for f in files:
         cont = False
         for e in ex:
