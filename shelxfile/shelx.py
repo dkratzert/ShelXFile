@@ -12,6 +12,10 @@
 """
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
+
+The parser is quiet about the most errors unless you enable DEBUG in misc.py. The parser will try to read the 
+SHELX file even if it has syntax errors, but if for example, the SFAC and UNIT instruction is not consistent 
+it will fail.
 """
 import os
 import re
@@ -25,7 +29,7 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
     RESI, ABIN, ANIS, Residues
 from shelxfile.atoms import Atoms, Atom
 from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
-    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line
+    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 
 from math import radians, cos, sin, sqrt
 
@@ -192,6 +196,7 @@ class ShelXFile():
             self.parse_shx_file()
             pass
         except Exception as e:
+            #print('File not parsed:', self.resfile)
             if DEBUG:
                 try:
                     print(self.resfile[self.error_line_num])
@@ -208,6 +213,7 @@ class ShelXFile():
             try:
                 self.run_after_parse()
             except Exception as e:
+                #print('File not parsed!:', self.resfile)
                 if DEBUG:
                     print(e)
                     raise
@@ -373,6 +379,9 @@ class ShelXFile():
                 # if not self.zerr:
                 #    raise ParseOrderError
                 s = SYMM(self, spline)
+                if not self.latt:
+                    print("*** LATT instruction is missing! ***")
+                    raise ParseSyntaxError
                 if self.latt.centric:
                     self.symmcards.set_centric(True)
                 self.symmcards.append(s.symmcard)
@@ -416,6 +425,7 @@ class ShelXFile():
                 else:
                     raise ParseOrderError
                 if len(self.unit.values) != len(self.sfac_table.elements_list):
+                    print('*** Number of UNIT and SFAC values differ! ***')
                     raise ParseNumError
                 lastcard = 'UNIT'
                 continue
@@ -677,7 +687,7 @@ class ShelXFile():
                 continue
             elif word == 'TEMP':
                 # TEMP T[20]  -> in Celsius
-                self.temp = float(spline[1])
+                self.temp = float(spline[1].split('(')[0])
                 self.temp_in_Kelvin = self.temp + 273.15
                 continue
             elif word == 'TWIN':
@@ -1080,7 +1090,7 @@ class ShelXFile():
                 pass
             try:
                 self.data = int(spline[-2])
-            except IndexError:
+            except(IndexError, ValueError):
                 if DEBUG:
                     pass
                     # raise
@@ -1130,14 +1140,21 @@ if __name__ == "__main__":
         raise
     #print(shx)
 
-    sys.exit()
+    #sys.exit()
     from misc import walkdir
     files = walkdir(r'D:\GitHub\testresfiles', '.res')
-    print('finished')
+    print('Indexing...')
     num = 0
+    ex = ['dsrsaves', '.olex', 'ED', 'shelXlesaves', 'SAVEHIST']
+    ex2 = ['01S8sad', '12UFibca_c', '88Q9ibca_e', 'A506p', 'CW7Spna21_a', 'DWMDp21c', 'p21c_cmdline', 'VH75ibca_d',
+           'YVXZp', 'ZIXCpbcn_a']
+    #ex += ex2
     for f in files:
-        if "dsrsaves" in str(f) or ".olex" in str(f) or 'ED' in str(f) or \
-                'shelXlesaves' in str(f) or "SAVEHIST" in str(f):
+        cont = False
+        for e in ex:
+            if e in str(f):
+                cont = True
+        if cont:
             continue
         #path = f.parent
         #file = f.name
@@ -1145,7 +1162,8 @@ if __name__ == "__main__":
         #id = id_generator(size=4)
         #copy(str(f), Path(r"d:/Github/testresfiles/").joinpath(id+file))
         #print('copied', str(f.name))
-        print(f)
+        
+        #print(f)
         shx = ShelXFile(f)
         num += 1
         # print(len(shx.atoms), f)

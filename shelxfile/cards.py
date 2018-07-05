@@ -279,7 +279,8 @@ class MPLA(Command):
         """
         super(MPLA, self).__init__(shx, spline)
         p, self.atoms = self._parse_line(spline, intnums=True)
-        self.na = p[0]
+        if len(p) > 0:
+            self.na = p[0]
 
 
 class MORE(Command):
@@ -476,8 +477,9 @@ class PART(Command):
             self.n = int(p[0])
         except(ValueError, IndexError):
             if DEBUG:
-                print('*** Wrong PART definition found! Check your PART instructions ***')
-                raise 
+                print('*** Wrong PART definition in line {} found! '
+                      'Check your PART instructions ***'.format(shx.error_line_num))
+                raise
             self.n = 0
         if len(p) > 1:
             self.sof = float(p[1])

@@ -1,6 +1,6 @@
 
 from dsrmath import atomic_distance, frac_to_cart
-from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam
+from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
 from shelxfile.cards import AFIX, PART, RESI
 
 
@@ -256,7 +256,10 @@ class Atom():
             self.occupancy = occ
         else:
             if occ > 0:
-                self.occupancy = self.shx.fvars[self.fvar] * occ
+                try:
+                    self.occupancy = self.shx.fvars[self.fvar] * occ
+                except IndexError:
+                    raise ParseSyntaxError
             else:
                 self.occupancy = 1 + (self.shx.fvars[self.fvar] * occ)
         self.shx.fvars.set_fvar_usage(self.fvar)
