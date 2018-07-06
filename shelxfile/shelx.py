@@ -1055,7 +1055,10 @@ class ShelXFile():
             return ''
         if len(val) == len(eli):
             for el, num in zip(self.sfac_table.elements_list, self.unit.values):
-                formstring += "{}{:,g} ".format(el, num/self.Z)
+                try:
+                    formstring += "{}{:,g} ".format(el, num/self.Z)
+                except ZeroDivisionError:
+                    return ''
         return formstring.strip()
 
     @property
@@ -1074,7 +1077,7 @@ class ShelXFile():
                         sumdict[el] = atom.occupancy
             if el not in sumdict:
                 sumdict[el] = 0.0
-            formstring += "{}{:,g} ".format(el, sumdict[el])
+            formstring += "{}{:,g} ".format(el, round(sumdict[el], 2))
         return formstring.strip()
 
     def insert_frag_fend_entry(self, dbatoms: list, cell: list):
