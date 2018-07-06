@@ -254,6 +254,9 @@ class SymmetryElement(object):
                                                 vvv=float(self.trans[2]))
         return string
 
+    def __repr__(self):
+        return self.toShelxl()
+
     def __eq__(self, other):
         """
         Check two SymmetryElement instances for equivalence.
