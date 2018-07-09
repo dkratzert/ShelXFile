@@ -102,7 +102,7 @@ class Atoms():
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.get_atom_by_name('Al1')
-        Atom ID: 73
+        Atom ID: 903
         """
         if '_' not in atom_name:
             atom_name += '_0'
@@ -180,6 +180,25 @@ class Atoms():
         except AttributeError:
             return 0.0
 
+    def angle(self, at1: 'Atom', at2: 'Atom', at3: 'Atom') -> float:
+        """
+        Calculates the angle between three atoms.
+
+        >>> from shelxfile.shelx import ShelXFile
+        >>> shx = ShelXFile('./tests/p21c.res')
+        >>> at1 = shx.atoms.get_atom_by_name('O1_4')
+        >>> at2 = shx.atoms.get_atom_by_name('C1_4')
+        >>> at3 = shx.atoms.get_atom_by_name('C2_4')
+        >>> round(shx.atoms.angle(at1, at2, at3), 6)
+        109.688123
+        """
+        ac1 = Array(at1.cart_coords)
+        ac2 = Array(at2.cart_coords)
+        ac3 = Array(at3.cart_coords)
+        vec1 = ac2 - ac1 
+        vec2 = ac2 - ac3
+        return vec1.angle(vec2)
+
     def atoms_in_class(self, name: str) -> list:
         """
         Returns a list of atoms in residue class 'name'
@@ -194,22 +213,6 @@ class Atoms():
                 if x.name not in atoms:
                     atoms.append(x.name)
         return atoms
-
-    def angle(self, at1: 'Atom', at2: 'Atom', at3: 'Atom'):
-        """
-        Calculates the angle between three points (atoms).
-                  ( b^2 + c^2 - a^2)
-        al = accos(-----------------
-                  (   2 * b * c    )
-        """
-        at1 = Array(at1.cart_coords)
-        at2 = Array(at2.cart_coords)
-        at3 = Array(at3.cart_coords)
-        u = (at1 - at2)
-        v = (at2 * at3)
-        numerator = u * v
-        denominator = abs(u).dot(abs(v))
-        return acos(numerator/denominator)
 
 
 class Atom():
@@ -433,12 +436,9 @@ class Atom():
         """
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
-        >>> shx._reslist[55:58]
-        ['', Atom ID: 56, '']
         >>> at = shx.atoms.get_atom_by_id(56)
         >>> at.delete()
-        >>> shx._reslist[55:58]
-        ['', '', '']
+
         """
         del self.shx.atoms[self.atomid]
 
@@ -468,9 +468,9 @@ class Atom():
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> at = shx.atoms.get_atom_by_name('C1_4')
         >>> at.find_atoms_around(dist=2, only_part=2)
-        [Atom ID: 38, Atom ID: 42, Atom ID: 50, Atom ID: 58]
-        >>> shx.atoms.get_atom_by_id(42).cart_coords
-        [0.8366626279178722, 4.0648946100000005, 6.101228338240846]
+        [Atom ID: 148, Atom ID: 150, Atom ID: 154, Atom ID: 158]
+        >>> shx.atoms.get_atom_by_id(150).cart_coords
+        [0.8366626279178719, 4.0648946100000005, 6.101228338240846]
         """
         found = []
         for at in self.shx.atoms:
