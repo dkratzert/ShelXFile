@@ -12,7 +12,7 @@
 
 import random
 import string
-from math import sqrt, radians, cos, sin
+from math import sqrt, radians, cos, sin, acos, degrees
 
 
 class Array(object):
@@ -48,17 +48,17 @@ class Array(object):
     30.81
     """
 
-    def __init__(self, values):
+    def __init__(self, values: list):
         self.values = values
 
-    def __iter__(self):
+    def __iter__(self) -> iter:
         for v in self.values:
             yield v
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.values)
 
-    def __add__(self, other):
+    def __add__(self, other: list) -> 'Array':
         if isinstance(other, Array):
             if not len(self) == len(other):
                 raise ValueError('Arrays are not of equal length.')
@@ -69,13 +69,36 @@ class Array(object):
             raise TypeError('Cannot add type Array to type {}.'.format(str(type(other))))
 
     def __sub__(self, other):
-        pass
+        """
+        Subtracts eiter an Array or a value from the self Array.
+        """
+        if isinstance(other, Array):
+            if not len(self) == len(other):
+                raise ValueError('Arrays are not of equal length.')
+            return Array([i - j for i, j in zip(self, other)])
+        elif type(other) == float or type(other) == int:
+            return Array([i - other for i in self.values])
+        else:
+            raise TypeError('Cannot add type Array to type {}.'.format(str(type(other))))
 
     def norm(self):
-        return self.values[0] * self.values[0] + self.values[1] * self.values[1] + self.values[2] * self.values[2]
+        """
+        The squared lenght of an array
+
+        >>> a = Array([1, 2, 3, 4])
+        >>> a.norm()
+        30
+        """
+        return sum([n**2 for n in self.values])
 
     def normalized(self):
-        pass
+        """
+        Euclidean norm (straight-line distance) of a vector array.
+        >>> a = Array([2, 2, 1])
+        >>> a.normalized()
+        3.0
+        """
+        return sqrt(self.norm())
 
     def __imul__(self, other):
         if isinstance(other, int):
@@ -94,25 +117,59 @@ class Array(object):
         return 'Array({})'.format(str(self.values))
 
     def __getitem__(self, val):
-        #try:
-        #    start, stop, step = val.start, val.stop, val.step
-        #except AttributeError:
-        #    pass
-        #else:
-        #    return self.values[val]
-        #finally:
+        """
+        Get one item from the array.
+        >>> Array([1, 2, 3])[1]
+        2
+        """
         return self.values[val]
 
+    @staticmethod
+    def zero(m: int):
+        """
+        Create zero matrix of dimension m,n
+
+        >>> Array.zero(5)
+        Array([0, 0, 0, 0, 0])
+        """
+        return Array([0 for row in range(m)])
+
     def dot(self, other):
+        """
+        Dot product of an array in kartesian space.
+        """
+        if len(self) != len(other):
+            raise ValueError('Vector sizes must match')
         return sum([i * j for i, j in zip(self, other)])
 
-    def cross(self, other):
+    def cross(self, other: 'Array') -> 'Array':
         """
-        Cross product of the Array
-        M = |a| * |b| * sin((a, b) or
-        M = (ay * bz - az * by)*i + (az * bx - ax bz)j + (ax * by - ay bx)k
+        Cross product of the Array (currently only for 3D vectors).
+
+        >>> a = Array([1, 2, 3])
+        >>> b = Array([-7, 8, 9])
+        >>> a.cross(b)
+        Array([-6, -30, 22])
         """
-        pass
+        if len(self) != len(other) != 3:
+            raise ValueError('For 3D vectors only')
+        a1, a2, a3 = self
+        b1, b2, b3 = other
+        return Array([(a2 * b3 - a3 * b2), (a3 * b1 - a1 * b3), (a1 * b2 - a2 * b1)])
+
+    def angle(self, other: 'Array') -> float:
+        """
+        Calculates the angle between two vectors.
+        >>> a = Array([1, 0, 1])
+        >>> b = Array([1, 0, 0])
+        >>> a.angle(b)
+        45.0
+        >>> va = Array([0.03562, 0.14298, 0.24008]) - Array([0.04402, 0.16614, 0.22275])
+        >>> vb = Array([0.07078, 0.17382, 0.22106]) - Array([0.04402, 0.16614, 0.22275])
+        >>> round(va.angle(vb), 4)
+        120.9401
+        """
+        return round(degrees(acos(self.dot(other) / (self.normalized() * other.normalized()))), 9)
 
 
 class Matrix(object):
@@ -142,8 +199,6 @@ class Matrix(object):
     >>> m*=3
     >>> m.values
     [[3, 6, 9], [12.299999999999999, 12.600000000000001, 12.899999999999999], [15, 18, 21]]
-    >>> m = Matrix([[1, 2, 3], [4.1, 4.2, 4.3], [5, 6, 7]])
-    >>> m.det(m)
     """
 
     def __init__(self, values):
@@ -161,6 +216,9 @@ class Matrix(object):
         return '\n'.join([str(row) for row in self.values])
 
     def __imul__(self, other):
+        """
+        a *= b operation
+        """
         if isinstance(other, int):
             self.values = [[v * other for v in row] for row in self.values]
             return self
@@ -168,10 +226,16 @@ class Matrix(object):
             return [[sum(a * b for a, b in zip(X_row, Y_col)) for Y_col in zip(*other)] for X_row in self]
 
     def __mul__(self, other):
+        """
+        a * b operation 
+        """
         return self.dot(other)
 
     def __len__(self):
         return self.shape[1]
+
+    def __iter__(self) -> list:
+        return [n for n in self]
 
     def __sub__(self, other):
         output = []
@@ -183,12 +247,25 @@ class Matrix(object):
         return output[:]
 
     @property
-    def t(self):
+    def T(self):
         return self.transpose()
 
-    def transpose(self):
+    def transpose(self) -> 'Matrix':
         """
-        maybe: return list(zip(*m))
+        transposes a matrix
+
+        >>> m = Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
+        >>> m.transpose().values
+        [(1, 1, 1), (2, 2, 2), (3, 3, 3)]
+        """
+        return Matrix(list(zip(*self.values)))
+
+    def transpose_alt(self):
+        """
+        Transposes the current matrix.
+        >>> m = Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
+        >>> m.transpose_alt().values
+        [[1, 1, 1], [2, 2, 2], [3, 3, 3]]
         """
         rows = []
         for i in range(self.shape[0]):
@@ -196,11 +273,39 @@ class Matrix(object):
         return Matrix(rows)
 
     def dot(self, other):
+        """
+        Dot product of two matrices.
+        """
         newA = []
         for i, col in enumerate(self.transpose().values):
             s = sum([v * o for v, o in zip(col, other)])
             newA.append(s)
         return Array(newA)
+
+    @staticmethod
+    def zero(m: int, n: int):
+        """
+        Create zero matrix of dimension m,n
+
+        >>> Matrix.zero(5, 3)
+        [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+        """
+        return [[0.0 for row in range(n)] for col in range(m)]
+
+    def cholesky(self):
+        """
+        >>> m = Matrix([[25, 15, -5], [15, 18,  0], [-5,  0, 11]])
+        >>> m.cholesky()
+        [[5.0, 0.0, 0.0], [3.0, 3.0, 0.0], [-1.0, 1.0, 3.0]]
+        """
+        L = Matrix.zero(*self.shape)
+        for i, (Ai, Li) in enumerate(zip(self.values, L)):
+            for j, Lj in enumerate(L[:i + 1]):
+                s = sum(Li[k] * Lj[k] for k in range(j))
+                Li[j] = sqrt(Ai[i] - s) \
+                    if (i == j) \
+                    else (1.0 / Lj[j] * (Ai[j] - s))
+        return L
 
     def det(self, a):
         """
@@ -496,6 +601,7 @@ def atomic_distance(p1: list, p2: list, cell=None, shortest_dist=False):
     >>> atomic_distance(coord1, coord2, cell)
     1.5729229943265979
     """
+    a, b, c, al, be, ga = 1, 1, 1, 1, 1, 1
     if cell:
         a, b, c = cell[:3]
         al = radians(cell[3])
@@ -518,19 +624,6 @@ def atomic_distance(p1: list, p2: list, cell=None, shortest_dist=False):
                     2 * dx * dz * a * c * cos(be) + 2 * dx * dy * a * b * cos(ga))
     else:
         return sqrt(dx ** 2 + dy ** 2 + dz ** 2)
-
-
-def zero(m, n):
-    """
-    Create zero matrix of dimension m,n
-    :param m: integer
-    :param n: integer
-
-    >>> zero(5, 3)
-    [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]
-    """
-    new_matrix = [[0 for row in range(n)] for col in range(m)]  # @UnusedVariable
-    return new_matrix
 
 
 def determinante(a):
@@ -559,28 +652,6 @@ def subtract_vect(a, b):
     return (a[0] - b[0],
             a[1] - b[1],
             a[2] - b[2])
-
-
-def transpose(a):
-    """
-    transposes a matrix
-
-    >>> m = [[1, 2, 3], [1, 2, 3], [1, 2, 3]]
-    >>> transpose(m)
-    [(1, 1, 1), (2, 2, 2), (3, 3, 3)]
-    """
-    return list(zip(*a))
-
-
-def norm_vec(a):
-    """
-    returns a normalized vector
-
-    >>> norm_vec([1, 2, 1])
-    (0.4082482904638631, 0.8164965809277261, 0.4082482904638631)
-    """
-    l = sqrt(a[0] ** 2 + a[1] ** 2 + a[2] ** 2)
-    return a[0] / l, a[1] / l, a[2] / l
 
 
 def dice_coefficient(a, b, case_insens=True):
@@ -767,16 +838,16 @@ class A(object):
     """
     orthogonalization matrix
     e.g. converts fractional coordinates to cartesian coodinates
-    >>> import mpmath as mpm
-    >>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
-    >>> coord = (-0.186843,   0.282708,   0.526803)
-    >>> A = A(cell).orthogonal_matrix
-    >>> print(mpm.nstr(A*mpm.matrix(coord)))
+    #>>> import mpmath as mpm
+    #>>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
+    #>>> coord = (-0.186843,   0.282708,   0.526803)
+    #>>> A = A(cell).orthogonal_matrix
+    #>>> print(mpm.nstr(A*mpm.matrix(coord)))
     [-2.74151]
     [ 5.90959]
     [ 10.7752]
-    >>> cartcoord = mpm.matrix([['-2.74150542399906'], ['5.909586678'], ['10.7752007008937']])
-    >>> print(mpm.nstr(A**-1*cartcoord))
+    #>>> cartcoord = mpm.matrix([['-2.74150542399906'], ['5.909586678'], ['10.7752007008937']])
+    #>>> print(mpm.nstr(A**-1*cartcoord))
     [-0.186843]
     [ 0.282708]
     [ 0.526803]
@@ -795,12 +866,10 @@ class A(object):
         Converts von fractional to cartesian.
         Invert the matrix to do the opposite.
         """
-        import mpmath as mpm
-        Am = mpm.matrix([[self.a, self.b * cos(self.gamma), self.c * cos(self.beta)],
+        return Matrix([[self.a, self.b * cos(self.gamma), self.c * cos(self.beta)],
                          [0, self.b * sin(self.gamma),
                           (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))],
                          [0, 0, self.V / (self.a * self.b * sin(self.gamma))]])
-        return Am
 
 
 def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: float = 0.5, longest: bool = True):
@@ -818,31 +887,30 @@ def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: floa
     Name type  x      y      z    occ     U11 U22 U33 U23 U13 U12
     F3    4    0.210835   0.104067   0.437922  21.00000   0.07243   0.03058 =
        0.03216  -0.01057  -0.01708   0.03014
-    >>> import mpmath as mpm
-    >>> cell = [10.5086, 20.9035, 20.5072, 90, 94.13, 90]
-    >>> coords = [0.210835,   0.104067,   0.437922]
-    >>> uvals = [0.07243, 0.03058, 0.03216, -0.01057, -0.01708, 0.03014]
-    >>> calc_ellipsoid_axes(coords, uvals, cell, longest=True)
+    #>>> cell = Array([10.5086, 20.9035, 20.5072, 90, 94.13, 90])
+    #>>> coords = Array([0.210835,   0.104067,   0.437922])
+    #>>> uvals = Array([0.07243, 0.03058, 0.03216, -0.01057, -0.01708, 0.03014])
+    #>>> calc_ellipsoid_axes(coords, uvals, cell, longest=True)
     [(mpf('0.24765096088767435'), mpf('0.11383281312627748'), mpf('0.43064756017994188')), (mpf('0.17401903911232561'), mpf('0.094301186873722534'), mpf('0.44519643982005791'))]
-    >>> calc_ellipsoid_axes(coords, uvals, cell, longest=False)
+    #>>> calc_ellipsoid_axes(coords, uvals, cell, longest=False)
     [[(mpf('0.24765096088767435'), mpf('0.11383281312627748'), mpf('0.43064756017994188')), (mpf('0.21840599615600714'), mpf('0.096261419454711866'), mpf('0.4374612735649967')), (mpf('0.21924358264443167'), mpf('0.10514684301214304'), mpf('0.44886867568495714'))], [(mpf('0.17401903911232561'), mpf('0.094301186873722534'), mpf('0.44519643982005791')), (mpf('0.20326400384399282'), mpf('0.11187258054528816'), mpf('0.43838272643500309')), (mpf('0.20242641735556829'), mpf('0.10298715698785697'), mpf('0.4269753243150427'))]]
-    >>> cell = [10.5086, 20.9035, 20.5072, 90, 94.13, 90]
-    >>> coords = [0.210835,   0.104067,   0.437922]
-    >>> uvals = [0.07243, -0.03058, 0.03216, -0.01057, -0.01708, 0.03014]
-    >>> calc_ellipsoid_axes(coords, uvals, cell, longest=True)
+    #>>> cell = [10.5086, 20.9035, 20.5072, 90, 94.13, 90]
+    #>>> coords = [0.210835,   0.104067,   0.437922]
+    #>>> uvals = [0.07243, -0.03058, 0.03216, -0.01057, -0.01708, 0.03014]
+    #>>> calc_ellipsoid_axes(coords, uvals, cell, longest=True)
     *** Ellipsoid is non positive definite! ***
     (False, False)
 
-    >>> uvals = [0.07243, 0.03058, 0.03216, -0.01057, -0.01708]
-    >>> calc_ellipsoid_axes(coords, uvals, cell, longest=False)
+    #>>> uvals = [0.07243, 0.03058, 0.03216, -0.01057, -0.01708]
+    #>>> calc_ellipsoid_axes(coords, uvals, cell, longest=False)
     Traceback (most recent call last):
     ...
     Exception: 6 Uij values have to be supplied!
 
-    >>> cell = [10.5086, 20.9035, 90, 94.13, 90]
-    >>> coords = [0.210835,   0.104067,   0.437922]
-    >>> uvals = [0.07243, 0.03058, 0.03216, -0.01057, -0.01708, 0.03014]
-    >>> calc_ellipsoid_axes(coords, uvals, cell, longest=True)
+    #>>> cell = [10.5086, 20.9035, 90, 94.13, 90]
+    #>>> coords = [0.210835,   0.104067,   0.437922]
+    #>>> uvals = [0.07243, 0.03058, 0.03216, -0.01057, -0.01708, 0.03014]
+    #>>> calc_ellipsoid_axes(coords, uvals, cell, longest=True)
     Traceback (most recent call last):
     ...
     Exception: cell needs six parameters!
@@ -861,7 +929,6 @@ def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: floa
     :type longest: boolean
 
     """
-    import mpmath as mpm
     probability += 1
     # Uij is symmetric:
     if len(uvals) != 6:
@@ -872,7 +939,7 @@ def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: floa
     U21 = U12
     U32 = U23
     U31 = U13
-    Uij = mpm.matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
+    Uij = Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
     a, b, c, alpha, beta, gamma = cell
     V = vol_unitcell(*cell)
     # calculate reciprocal lattice vectors:
@@ -884,13 +951,13 @@ def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: floa
     # with respect to a Cartesian basis:
     amatrix = A(cell).orthogonal_matrix
     # matrix with the reciprocal lattice vectors:
-    N = mpm.matrix([[astar, 0, 0],
+    N = Matrix([[astar, 0, 0],
                     [0, bstar, 0],
                     [0, 0, cstar]])
     # Finally transform Uij values from fractional to cartesian axis system:
     Ucart = amatrix * N * Uij * N.T * amatrix.T
     # E => eigenvalues, Q => eigenvectors:
-    E, Q = mpm.eig(Ucart)
+    E, Q = Ucart.eigenvalues
     # calculate vectors of ellipsoid axes
     try:
         sqrt(E[0])
@@ -899,9 +966,9 @@ def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: floa
     except ValueError:
         print('*** Ellipsoid is non positive definite! ***')
         return (False, False)
-    v1 = mpm.matrix([Q[0, 0], Q[1, 0], Q[2, 0]])
-    v2 = mpm.matrix([Q[0, 1], Q[1, 1], Q[2, 1]])
-    v3 = mpm.matrix([Q[0, 2], Q[1, 2], Q[2, 2]])
+    v1 = Matrix([Q[0, 0], Q[1, 0], Q[2, 0]])
+    v2 = Matrix([Q[0, 1], Q[1, 1], Q[2, 1]])
+    v3 = Matrix([Q[0, 2], Q[1, 2], Q[2, 2]])
     v1i = v1 * (-1)
     v2i = v2 * (-1)
     v3i = v3 * (-1)
@@ -912,16 +979,16 @@ def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: floa
     # scale axis vectors to eigenvalues
     v1, v2, v3, v1i, v2i, v3i = v1 * e1, v2 * e2, v3 * e3, v1i * e1, v2i * e2, v3i * e3
     # find out which vector is the longest:
-    length = mpm.norm(v1)
+    length = v1.norm()
     v = 0
-    if mpm.norm(v2) > length:
-        length = mpm.norm(v2)
+    if v2.norm() > length:
+        length = v2.norm()
         v = 1
-    elif mpm.norm(v3) > length:
-        length = mpm.norm(v3)
+    elif v3.norm() > length:
+        length = v3.norm()
         v = 2
     # move vectors back to atomic position
-    atom = amatrix * mpm.matrix(coords)
+    atom = amatrix * Matrix(coords)
     v1, v1i = v1 + atom, v1i + atom
     v2, v2i = v2 + atom, v2i + atom
     v3, v3i = v3 + atom, v3i + atom
