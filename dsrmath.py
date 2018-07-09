@@ -32,19 +32,19 @@ class Array(object):
     copies or substantial portions of the Software.
 
     >>> a = Array([1, 2, 3, 4.1])
-    >>> a+a
+    >>> a += a
     Array([2, 4, 6, 8.2])
-    >>> a+4
+    >>> a + 4
     Array([5, 6, 7, 8.1])
     >>> a[1]
     2
-    >>> a*=3
+    >>> a *= 3
     >>> a
     Array([3, 6, 9, 12.299999999999999])
     >>> a = Array([1, 2, 3, 4.1])
     >>> a.dot(a)
     30.81
-    >>> a*a
+    >>> a * a
     30.81
     """
 
@@ -312,7 +312,28 @@ class Matrix(object):
         #>>> a = Matrix([[1, 2], [3, 4]])
         #>>> Matrix.det(a)
         """
-        pass
+        return self.power_iteration()
+
+    def power_iteration(self, num_simulations=10):
+        """
+        Matrix normalization algorythm from https://en.wikipedia.org/wiki/Power_iteration
+        """
+        # Ideally choose a random vector
+        # To decrease the chance that our vector
+        # Is orthogonal to the eigenvector
+        b_k = np.random.rand(self.shape[1])
+
+        for _ in range(num_simulations):
+            # calculate the matrix-by-vector product Ab
+            b_k1 = np.dot(self, b_k)
+
+            # calculate the norm
+            b_k1_norm = np.linalg.norm(b_k1)
+
+            # re normalize the vector
+            b_k = b_k1 / b_k1_norm
+
+        return b_k
 
 
 class SymmetryElement(object):
