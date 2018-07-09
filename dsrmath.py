@@ -312,11 +312,11 @@ class Matrix(object):
         #>>> a = Matrix([[1, 2], [3, 4]])
         #>>> Matrix.det(a)
         """
-        return self.power_iteration()
+        pass
 
     def power_iteration(self, num_simulations=10):
         """
-        Matrix normalization algorythm from https://en.wikipedia.org/wiki/Power_iteration
+        Eigenvalue algorythm from https://en.wikipedia.org/wiki/Power_iteration
         """
         # Ideally choose a random vector
         # To decrease the chance that our vector
