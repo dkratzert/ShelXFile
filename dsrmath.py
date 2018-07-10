@@ -33,9 +33,13 @@ class Array(object):
 
     >>> a = Array([1, 2, 3, 4.1])
     >>> a += a
+    >>> a
     Array([2, 4, 6, 8.2])
+    >>> a = Array([1, 2, 3, 4.1])
     >>> a + 4
     Array([5, 6, 7, 8.1])
+    >>> a + a
+    Array([2, 4, 6, 8.2])
     >>> a[1]
     2
     >>> a *= 3
@@ -58,7 +62,7 @@ class Array(object):
     def __len__(self) -> int:
         return len(self.values)
 
-    def __add__(self, other: list) -> 'Array':
+    def __add__(self, other: (list, 'Array')) -> 'Array':
         if isinstance(other, Array):
             if not len(self) == len(other):
                 raise ValueError('Arrays are not of equal length.')
@@ -67,6 +71,9 @@ class Array(object):
             return Array([i + other for i in self.values])
         else:
             raise TypeError('Cannot add type Array to type {}.'.format(str(type(other))))
+
+    def __iadd__(self, other):
+        return self.__add__(other)
 
     def __sub__(self, other):
         """
@@ -89,7 +96,7 @@ class Array(object):
         >>> a.norm()
         30
         """
-        return sum([n**2 for n in self.values])
+        return sum([n ** 2 for n in self.values])
 
     def normalized(self):
         """
@@ -190,15 +197,18 @@ class Matrix(object):
 
     DK: Missing: inverse, eigenvalues
 
-    >>> m = Matrix([[1, 2, 3], [4.1, 4.2, 4.3], [5, 6, 7]])
+    >>> m = Matrix([[1, 2, 300], [4.1, 4.2, 4.3], [5, 6, 7]])
 
     #>>> m+m
     #Array([2, 4, 6, 8.2])
     #>>> m+4
     #Array([5, 6, 7, 8.1])
     >>> m*=3
-    >>> m.values
-    [[3, 6, 9], [12.299999999999999, 12.600000000000001, 12.899999999999999], [15, 18, 21]]
+    >>> m
+    |  3.000   6.000 900.000|
+    | 12.300  12.600  12.900|
+    | 15.000  18.000  21.000|
+    <BLANKLINE>
     """
 
     def __init__(self, values):
@@ -211,25 +221,68 @@ class Matrix(object):
                 return self.values[val[0]]
             return self.values[val[1]][val[0]]
 
-    def __str__(self):
-        print(self.values)
-        return '\n'.join([str(row) for row in self.values])
+    def __repr__(self):
+        rows = ''
+        for row in self.values:
+            rows += '|' + ' '.join(['{:>7.3f}'.format(float(x)) for x in row]) + '|' + '\n'
+        return rows
 
-    def __imul__(self, other):
+    def __add__(self, other: (list, 'Matrix')) -> 'Matrix':
         """
-        a *= b operation
+        Matrix addition
+
+        >>> m1 = Matrix([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+        >>> m2 = Matrix([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+        >>> m1 + m2
+        |  2.000   2.000   2.000|
+        |  2.000   2.000   2.000|
+        |  2.000   2.000   2.000|
+        <BLANKLINE>
+        >>> m1 + 0.5
+        |  1.500   1.500   1.500|
+        |  1.500   1.500   1.500|
+        |  1.500   1.500   1.500|
+        <BLANKLINE>
         """
-        if isinstance(other, int):
-            self.values = [[v * other for v in row] for row in self.values]
-            return self
+        if isinstance(other, Array):
+            if not len(self) == len(other):
+                raise ValueError('Matrix and Array are not of equal length.')
+            return Matrix(
+                [[sum(e1, e2) for e1, e2 in zip(row1, row2)] for row1, row2 in zip(self.values, other.values)])
+        elif isinstance(other, (float, int)):
+            return Matrix([[x + other for x in i] for i in self.values])
+        elif isinstance(other, Matrix):
+            return Matrix([[e1 + e2 for e1, e2 in zip(row1, row2)] for row1, row2 in zip(self.values, other.values)])
         else:
-            return [[sum(a * b for a, b in zip(X_row, Y_col)) for Y_col in zip(*other)] for X_row in self]
+            raise TypeError('Cannot add type {} Array to Matrix.'.format(str(type(other))))
 
-    def __mul__(self, other):
+    def __mul__(self, other: ('Matrix', 'Array', int, float)) -> ('Matrix', 'Array'):
         """
-        a * b operation 
+        a * b operation
+        >>> m = Matrix([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+        >>> m * 2
+        |  2.000   2.000   2.000|
+        |  2.000   2.000   2.000|
+        |  2.000   2.000   2.000|
+        <BLANKLINE>
+        >>> m2 = Matrix([[2, 2, 2], [0.5, 0.5, 0.5], [2, 2, 1]])
+        >>> m * m2
+        |  6.000   1.500   5.000|
+        |  6.000   1.500   5.000|
+        |  6.000   1.500   5.000|
+        <BLANKLINE>
+        >>> m * Array([2, 2, 2])
         """
-        return self.dot(other)
+        if isinstance(other, (int, float)):
+            return Matrix([[v * other for v in row] for row in self.values])
+        elif isinstance(other, Matrix):
+            return Matrix([[sum(ea * eb for ea, eb in zip(a, b)) for b in other.values] for a in self.values])
+        elif isinstance(other, Array):
+            pass
+            # TODO: Make Array mult work
+            #return Array([[sum(ea * eb for ea, eb in zip(a, b)) for b in other.values] for a in self.values])
+        else:
+            raise TypeError('Cannot add type {} to type Matrix.'.format(str(type(other))))
 
     def __len__(self):
         return self.shape[1]
@@ -280,7 +333,7 @@ class Matrix(object):
         for i, col in enumerate(self.transpose().values):
             s = sum([v * o for v, o in zip(col, other)])
             newA.append(s)
-        return Array(newA)
+        return Matrix(newA)
 
     @staticmethod
     def zero(m: int, n: int):
@@ -309,10 +362,15 @@ class Matrix(object):
 
     def det(self, a):
         """
-        #>>> a = Matrix([[1, 2], [3, 4]])
-        #>>> Matrix.det(a)
+        Return determinant of 3x3 matrix.
+
+        >>> m1 = [[2, 0, 0], [0, 2, 0], [0, 0, 2]]
+        >>> determinante(m1)
+        8
         """
-        pass
+        return (a[0][0] * (a[1][1] * a[2][2] - a[2][1] * a[1][2])
+                - a[1][0] * (a[0][1] * a[2][2] - a[2][1] * a[0][2])
+                + a[2][0] * (a[0][1] * a[1][2] - a[1][1] * a[0][2]))
 
     def power_iteration(self, num_simulations=10):
         """
@@ -888,9 +946,9 @@ class A(object):
         Invert the matrix to do the opposite.
         """
         return Matrix([[self.a, self.b * cos(self.gamma), self.c * cos(self.beta)],
-                         [0, self.b * sin(self.gamma),
-                          (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))],
-                         [0, 0, self.V / (self.a * self.b * sin(self.gamma))]])
+                       [0, self.b * sin(self.gamma),
+                        (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))],
+                       [0, 0, self.V / (self.a * self.b * sin(self.gamma))]])
 
 
 def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: float = 0.5, longest: bool = True):
@@ -973,8 +1031,8 @@ def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: floa
     amatrix = A(cell).orthogonal_matrix
     # matrix with the reciprocal lattice vectors:
     N = Matrix([[astar, 0, 0],
-                    [0, bstar, 0],
-                    [0, 0, cstar]])
+                [0, bstar, 0],
+                [0, 0, cstar]])
     # Finally transform Uij values from fractional to cartesian axis system:
     Ucart = amatrix * N * Uij * N.T * amatrix.T
     # E => eigenvalues, Q => eigenvectors:
