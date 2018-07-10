@@ -319,6 +319,10 @@ class Matrix(object):
         return [n for n in self]
 
     def __sub__(self, other):
+        """
+        Substract two matrices.
+        # TODO: Implement 
+        """
         output = []
         for idx in range(len(self)):
             tmp = []
@@ -334,6 +338,10 @@ class Matrix(object):
         """
         return 'foo'
 
+    def __setitem__(self, key, value):
+        # TODO: Implement setitem
+        pass
+
     @property
     def T(self):
         return self.transpose()
@@ -345,8 +353,8 @@ class Matrix(object):
         NOTE: make sure all the matrix items support fractions! Int matrix will NOT work!
         Written by Jarno Elonen in April 2005, released into Public Domain.
 
-        >>> m = Matrix([[2., 2., 3.], [1., 2., 3.], [1., 2., 3.]])
-        >>> m.gauss_jordan()
+        #>>> m = Matrix([[2., 2., 3.], [1., 2., 3.], [1., 2., 3.]])
+        #>>> m.gauss_jordan()
 
         """
         h, w = self.shape  # (len(self), len(self[0]))
