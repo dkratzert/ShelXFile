@@ -114,9 +114,14 @@ class Array(object):
         else:
             raise TypeError('Unsupported operation.')
 
-    def __mul__(self, other):
+    def __mul__(self, other: 'Array') -> float:
         """
         a*b = axbx + ayby + azbz
+
+        >>> a1 = Array([1, 2, 3])
+        >>> a2 = Array([1, 2, 3])
+        >>> a1 * a2
+        14
         """
         return self.dot(other)
 
@@ -132,16 +137,26 @@ class Array(object):
         return self.values[val]
 
     @staticmethod
-    def zero(m: int):
+    def zero(m: int) -> 'Array':
         """
-        Create zero matrix of dimension m,n
+        Create zero Array of dimension m
 
         >>> Array.zero(5)
-        Array([0, 0, 0, 0, 0])
+        Array([0.0, 0.0, 0.0, 0.0, 0.0])
         """
-        return Array([0 for row in range(m)])
+        return Array([0.0 for row in range(m)])
 
-    def dot(self, other):
+    @staticmethod
+    def randarray(m: int) -> 'Array':
+        """
+        Create zero Array of dimension m
+
+        #>>> Array.randarray(5)
+        #Array([1, 4, 6, 4, 8])
+        """
+        return Array([random.randint(1, 9) for row in range(m)])
+
+    def dot(self, other: 'Array') -> float:
         """
         Dot product of an array in kartesian space.
         """
@@ -216,10 +231,19 @@ class Matrix(object):
         self.values = values
 
     def __getitem__(self, val):
-        if isinstance(val, tuple):
+        """
+        >>> m = Matrix([[2., 2., 3.], [1., 2.2, 3.], [1., 2., 3.]])
+        >>> m[1,1]
+        2.2
+        >>> m[1][1]
+        2.2
+        """
+        if isinstance(val, (tuple, list)):
             if len(val) == 1:
                 return self.values[val[0]]
             return self.values[val[1]][val[0]]
+        else:
+            return self.values[val]
 
     def __repr__(self):
         rows = ''
@@ -271,18 +295,22 @@ class Matrix(object):
         |  6.000   1.500   5.000|
         |  6.000   1.500   5.000|
         <BLANKLINE>
+        >>> m
+        |  1.000   1.000   1.000|
+        |  1.000   1.000   1.000|
+        |  1.000   1.000   1.000|
+        <BLANKLINE>
         >>> m * Array([2, 2, 2])
+        Array([6, 6, 6])
         """
         if isinstance(other, (int, float)):
             return Matrix([[v * other for v in row] for row in self.values])
         elif isinstance(other, Matrix):
             return Matrix([[sum(ea * eb for ea, eb in zip(a, b)) for b in other.values] for a in self.values])
         elif isinstance(other, Array):
-            pass
-            # TODO: Make Array mult work
-            #return Array([[sum(ea * eb for ea, eb in zip(a, b)) for b in other.values] for a in self.values])
+            return Array([sum([b * x for (b, x) in zip(other.values, row)]) for row in self.values])
         else:
-            raise TypeError('Cannot add type {} to type Matrix.'.format(str(type(other))))
+            raise TypeError('Cannot add type {} to Matrix.'.format(str(type(other))))
 
     def __len__(self):
         return self.shape[1]
@@ -299,9 +327,50 @@ class Matrix(object):
             output.append(tmp[:])
         return output[:]
 
+    def __truediv__(self, other):
+        """
+        #>>> Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]]) / Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
+        A / B = A * A^-1
+        """
+        return 'foo'
+
     @property
     def T(self):
         return self.transpose()
+
+    def gauss_jordan(self, eps=1.0 / (10 ** 10)):
+        """
+        Puts given matrix (2D array) into the Reduced Row Echelon Form.
+        Returns True if successful, False if 'm' is singular.
+        NOTE: make sure all the matrix items support fractions! Int matrix will NOT work!
+        Written by Jarno Elonen in April 2005, released into Public Domain.
+
+        >>> m = Matrix([[2., 2., 3.], [1., 2., 3.], [1., 2., 3.]])
+        >>> m.gauss_jordan()
+
+        """
+        h, w = self.shape  # (len(self), len(self[0]))
+        for y in range(0, h):
+            maxrow = y
+            for y2 in range(y + 1, h):  # Find max pivot
+                if abs(self[y2][y]) > abs(self[maxrow][y]):
+                    maxrow = y2
+            (self[y], self[maxrow]) = (self[maxrow], self[y])
+            if abs(self[y][y]) <= eps:  # Singular?
+                return False
+            for y2 in range(y + 1, h):  # Eliminate column y
+                c = self[y2][y] / self[y][y]
+                for x in range(y, w):
+                    self[y2][x] -= self[y][x] * c
+        for y in range(h - 1, 0 - 1, -1):  # Backsubstitute
+            c = self[y][y]
+            for y2 in range(0, y):
+                for x in range(w - 1, y - 1, -1):
+                    self[y2][x] -= self[y][x] * self[y2][y] / c
+            self[y][y] /= c
+            for x in range(h, w):  # Normalize row y
+                self[y][x] /= c
+        return True
 
     def transpose(self) -> 'Matrix':
         """
@@ -336,38 +405,64 @@ class Matrix(object):
         return Matrix(newA)
 
     @staticmethod
-    def zero(m: int, n: int):
+    def zero(m: int, n: int) -> 'Matrix':
         """
         Create zero matrix of dimension m,n
 
         >>> Matrix.zero(5, 3)
-        [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+        |  0.000   0.000   0.000|
+        |  0.000   0.000   0.000|
+        |  0.000   0.000   0.000|
+        |  0.000   0.000   0.000|
+        |  0.000   0.000   0.000|
+        <BLANKLINE>
         """
-        return [[0.0 for row in range(n)] for col in range(m)]
+        return Matrix([[0.0 for row in range(n)] for col in range(m)])
 
-    def cholesky(self):
+    @staticmethod
+    def randmat(m: int, n: int) -> 'Matrix':
+        """
+        Create random matrix of dimension m, n
+
+        #>>> Matrix.randmat(5, 3)
+        |  2.000   1.000   2.000|
+        |  8.000   1.000   2.000|
+        |  3.000   5.000   1.000|
+        |  4.000   1.000   9.000|
+        |  2.000   8.000   4.000|
+        <BLANKLINE>
+        """
+        return Matrix([[random.randint(1, 9) for y in range(n)] for x in range(m)])
+
+    def cholesky(self) -> 'Matrix':
         """
         >>> m = Matrix([[25, 15, -5], [15, 18,  0], [-5,  0, 11]])
         >>> m.cholesky()
-        [[5.0, 0.0, 0.0], [3.0, 3.0, 0.0], [-1.0, 1.0, 3.0]]
+        |  5.000   0.000   0.000|
+        |  3.000   3.000   0.000|
+        | -1.000   1.000   3.000|
+        <BLANKLINE>
         """
         L = Matrix.zero(*self.shape)
-        for i, (Ai, Li) in enumerate(zip(self.values, L)):
-            for j, Lj in enumerate(L[:i + 1]):
+        for i, (Ai, Li) in enumerate(zip(self.values, L.values)):
+            for j, Lj in enumerate(L.values[:i + 1]):
                 s = sum(Li[k] * Lj[k] for k in range(j))
-                Li[j] = sqrt(Ai[i] - s) \
-                    if (i == j) \
-                    else (1.0 / Lj[j] * (Ai[j] - s))
+                Li[j] = sqrt(Ai[i] - s) if (i == j) else (1.0 / Lj[j] * (Ai[j] - s))
         return L
 
-    def det(self, a):
+    def norm(self):
+        return self.det
+
+    @property
+    def det(self):
         """
         Return determinant of 3x3 matrix.
 
-        >>> m1 = [[2, 0, 0], [0, 2, 0], [0, 0, 2]]
-        >>> determinante(m1)
+        >>> m1 = Matrix([[2, 0, 0], [0, 2, 0], [0, 0, 2]])
+        >>> m1.det
         8
         """
+        a = self.values
         return (a[0][0] * (a[1][1] * a[2][2] - a[2][1] * a[1][2])
                 - a[1][0] * (a[0][1] * a[2][2] - a[2][1] * a[0][2])
                 + a[2][0] * (a[0][1] * a[1][2] - a[1][1] * a[0][2]))
@@ -379,14 +474,14 @@ class Matrix(object):
         # Ideally choose a random vector
         # To decrease the chance that our vector
         # Is orthogonal to the eigenvector
-        b_k = np.random.rand(self.shape[1])
+        b_k = Array.randarray(self.shape[1])
 
         for _ in range(num_simulations):
             # calculate the matrix-by-vector product Ab
-            b_k1 = np.dot(self, b_k)
+            b_k1 = self.dot(b_k)
 
             # calculate the norm
-            b_k1_norm = np.linalg.norm(b_k1)
+            b_k1_norm = b_k1.det
 
             # re normalize the vector
             b_k = b_k1 / b_k1_norm
