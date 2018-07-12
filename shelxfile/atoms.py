@@ -202,15 +202,24 @@ class Atoms():
     def torsion_angle(self, at1: 'Atom', at2: 'Atom', at3: 'Atom', at4: 'Atom') -> float:
         """
         Calculates the torsion angle (dieder angle) between four atoms.
-        O1 C1 C2 F1
+
+        Trom the book of Camelo Giacovazzo:
+        For a sequence of four atoms A, B, C, D, the torsion angle w(ABCD) is
+        defined as the angle between the normals to the planes ABC and BCD. 
+        By convention w is positive if the sense of rotation from BA to
+        CD, viewed down BC, is clockwise, otherwise it is negative.
+
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> at1 = shx.atoms.get_atom_by_name('O1')
         >>> at2 = shx.atoms.get_atom_by_name('C1')
         >>> at3 = shx.atoms.get_atom_by_name('C2')
         >>> at4 = shx.atoms.get_atom_by_name('F1')
-        >>> round(shx.atoms.torsion_angle(at1, at2, at3 ,at4), 6)
+        >>> round(shx.atoms.torsion_angle(at1, at2, at3, at4), 6)
         74.095731
+        >>> at4 = shx.atoms.get_atom_by_name('F2')
+        >>> round(shx.atoms.torsion_angle(at1, at2, at3, at4), 6)
+        -44.467358
         """
         ac1 = Array(at1.cart_coords)
         ac2 = Array(at2.cart_coords)
@@ -223,9 +232,14 @@ class Atoms():
         # cross product:
         a = v1.cross(v2)
         b = v2.cross(v3)
+        # If direction > 0, angle is positive, else negative:
+        direction = v1[0] * v2[1] * v3[2] - v1[2] * v1[1] * v3[0] + v1[2] * v2[0] * v3[1] - v1[0] \
+            * v2[2] * v3[1] + v1[1] * v2[2] * v3[0] - v1[1] * v2[0] * v3[2]
         # angle between plane normals:
-        ang = acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) * sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2])))
-        return degrees(ang)
+        ang = acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) /
+                   (sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) *
+                    sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2])))
+        return degrees(ang) if direction > 0 else degrees(-ang)
 
     def atoms_in_class(self, name: str) -> list:
         """
