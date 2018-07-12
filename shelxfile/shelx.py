@@ -37,11 +37,10 @@ from dsrmath import Matrix
 
 """
 TODO:
+- fix atom IDs
 - shx.update_weight
 - shx.weight_difference
-- shx.atoms.angle(at1, at2, at3)
 - shx.atoms.tors(at1, at2, at3, at4)
-- shx.atom.change_type('xx')
 
 - Atoms.add_atom(position=None) method. default for position is after FVAR table
 - fit fragment without shelxl
@@ -1150,7 +1149,7 @@ class ShelXFile():
 if __name__ == "__main__":
     #get_commands()
     #sys.exit()
-    file = r'tests/014EP-4_a_shelxl.res'
+    file = r'tests/p21c.res'
     try:
         shx = ShelXFile(file)
     except Exception:

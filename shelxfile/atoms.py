@@ -1,6 +1,4 @@
-from math import acos
-
-from dsrmath import atomic_distance, frac_to_cart, Matrix, Array
+from dsrmath import atomic_distance, frac_to_cart, Array
 from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
 from shelxfile.cards import AFIX, PART, RESI
 
@@ -232,6 +230,7 @@ class Atom():
     def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: PART = None,
                  afix: AFIX = None, resi: RESI = None, sof: float = 0) -> None:
         # super(Atom, self).__init__(shelx)
+        self.cell = shelx.cell
         self._line_number = line_number
         self._lines = line_nums
         self.sfac_num = None
@@ -242,7 +241,6 @@ class Atom():
         self.atomid = Atom.atid
         Atom.atid += 1
         self.shx = shelx
-        self.element = None
         # fractional coordinates:
         self.x = None
         self.y = None
@@ -251,6 +249,17 @@ class Atom():
         self.xc = None
         self.yc = None
         self.zc = None
+        self.resiclass = resi.residue_class
+        if not resi.residue_number:
+            self.resinum = 0  # all other atoms are residue 0
+        else:
+            self.resinum = resi.residue_number
+        self.chain_id = resi.ID
+        self.part = part
+        self.afix = afix
+        self.qpeak = False
+        self.peak_height = 0.0
+        self.parse_line(spline)
         self.frag_atom = False
         self.restraints = []
         self.previous_non_h = self.shx.non_h
@@ -284,18 +293,6 @@ class Atom():
                 self.occupancy = 1 + (self.shx.fvars[self.fvar] * occ)
         self.shx.fvars.set_fvar_usage(self.fvar)
         self.uvals = [0.04]  # [u11 u12 u13 u21 u22 u23]
-        self.resiclass = resi.residue_class
-        if not resi.residue_number:
-            self.resinum = 0  # all other atoms are residue 0
-        else:
-            self.resinum = resi.residue_number
-        self.chain_id = resi.ID
-        self.part = part
-        self.afix = afix
-        self.qpeak = False
-        self.peak_height = 0.0
-        self.cell = shelx.cell
-        self.parse_line(spline)
         #if self.shx.anis:
         #    self.parse_anis()
         for n, u in enumerate(self.uvals):
@@ -360,14 +357,38 @@ class Atom():
         self.x = x
         self.y = y
         self.z = z
+        self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell.cell_list)
         self.uvals = uvals
         if len(self.uvals) == 2:
             self.peak_height = uvals.pop()
         if self.shx.end:  # After 'END' can only be Q-peaks!
             self.qpeak = True
         self.sfac_num = int(line[1])
-        self.element = self.shx.sfac2elem(self.sfac_num).capitalize()
-        self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell.cell_list)
+
+    @property
+    def element(self) -> str:
+        """
+        >>> from shelxfile.shelx import ShelXFile
+        >>> shx = ShelXFile('tests/p21c.res')
+        >>> at = shx.atoms.get_atom_by_name('C1_4')
+        >>> at.sfac_num
+        1
+        >>> at.element
+        'C'
+        >>> at.element = 'O'
+        >>> at.element
+        'O'
+        >>> at.sfac_num
+        3
+        """
+        return self.shx.sfac2elem(self.sfac_num).capitalize()
+
+    @element.setter
+    def element(self, new_element: str):
+        """
+        Sets the element type of an atom.
+        """
+        self.sfac_num = self.shx.elem2sfac(new_element)
 
     def __iter__(self):
         for x in self.__repr__().split():
@@ -469,8 +490,8 @@ class Atom():
         >>> at = shx.atoms.get_atom_by_name('C1_4')
         >>> at.find_atoms_around(dist=2, only_part=2)
         [Atom ID: 148, Atom ID: 150, Atom ID: 154, Atom ID: 158]
-        >>> shx.atoms.get_atom_by_id(150).cart_coords
-        [0.8366626279178719, 4.0648946100000005, 6.101228338240846]
+        >>> shx.atoms.get_atom_by_name('C1_4').cart_coords
+        [-0.19777464582150567, 4.902748697000001, 6.897766400656786]
         """
         found = []
         for at in self.shx.atoms:
