@@ -114,6 +114,7 @@ shx.restraints[1].residue_class
 
 shx.restraints[1].s
 0.02
+
 ```
 
 Writes current shx object to test.ins
@@ -152,6 +153,22 @@ shx.symmcards
 | 1  0  0|   | 0.0|
 | 0 -1  0| + |-0.5|
 | 0  0  1|   |-0.5|
+
+
+#The (bond) angle between three atoms:
+at1 = shx.atoms.get_atom_by_name('O1_4')
+at2 = shx.atoms.get_atom_by_name('C1_4')
+at3 = shx.atoms.get_atom_by_name('C2_4')
+shx.atoms.angle(at1, at2, at3)
+109.688123
+
+#The torsion angle between four atoms:
+at1 = shx.atoms.get_atom_by_name('O1')
+at2 = shx.atoms.get_atom_by_name('C1')
+at3 = shx.atoms.get_atom_by_name('C2')
+at4 = shx.atoms.get_atom_by_name('F1')
+shx.atoms.torsion_angle(at1, at2, at3, at4)
+74.095731
 ```
 
 ## References

@@ -1,3 +1,5 @@
+from math import acos, sqrt, degrees
+
 from dsrmath import atomic_distance, frac_to_cart, Array
 from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
 from shelxfile.cards import AFIX, PART, RESI
@@ -193,9 +195,37 @@ class Atoms():
         ac1 = Array(at1.cart_coords)
         ac2 = Array(at2.cart_coords)
         ac3 = Array(at3.cart_coords)
-        vec1 = ac2 - ac1 
+        vec1 = ac2 - ac1
         vec2 = ac2 - ac3
         return vec1.angle(vec2)
+
+    def torsion_angle(self, at1: 'Atom', at2: 'Atom', at3: 'Atom', at4: 'Atom') -> float:
+        """
+        Calculates the torsion angle (dieder angle) between four atoms.
+        O1 C1 C2 F1
+        >>> from shelxfile.shelx import ShelXFile
+        >>> shx = ShelXFile('./tests/p21c.res')
+        >>> at1 = shx.atoms.get_atom_by_name('O1')
+        >>> at2 = shx.atoms.get_atom_by_name('C1')
+        >>> at3 = shx.atoms.get_atom_by_name('C2')
+        >>> at4 = shx.atoms.get_atom_by_name('F1')
+        >>> round(shx.atoms.torsion_angle(at1, at2, at3 ,at4), 6)
+        74.095731
+        """
+        ac1 = Array(at1.cart_coords)
+        ac2 = Array(at2.cart_coords)
+        ac3 = Array(at3.cart_coords)
+        ac4 = Array(at4.cart_coords)
+        # Three vectors between four atoms:
+        v1 = ac2 - ac1
+        v2 = ac3 - ac2
+        v3 = ac4 - ac3
+        # cross product:
+        a = v1.cross(v2)
+        b = v2.cross(v3)
+        # angle between plane normals:
+        ang = acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) * sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2])))
+        return degrees(ang)
 
     def atoms_in_class(self, name: str) -> list:
         """
@@ -293,7 +323,7 @@ class Atom():
                 self.occupancy = 1 + (self.shx.fvars[self.fvar] * occ)
         self.shx.fvars.set_fvar_usage(self.fvar)
         self.uvals = [0.04]  # [u11 u12 u13 u21 u22 u23]
-        #if self.shx.anis:
+        # if self.shx.anis:
         #    self.parse_anis()
         for n, u in enumerate(self.uvals):
             if abs(u) > 4.0:
@@ -427,7 +457,7 @@ class Atom():
     def resolve_restraints(self):
         for num, r in enumerate(self.shx.restraints):
             for at in r.atoms:
-                #print(r.residue_number, self.resinum, r.residue_class, self.resiclass, self.name, at)
+                # print(r.residue_number, self.resinum, r.residue_class, self.resiclass, self.name, at)
                 if r.residue_number == self.resinum and r.residue_class == self.resiclass and self.name == at:
                     self.restraints.append(r)
 

@@ -136,6 +136,16 @@ class Array(object):
         """
         return self.values[val]
 
+    def __setitem__(self, pos, val):
+        """
+        Get one item from the array.
+        >>> a = Array([0, 0, 0])
+        >>> a[1] = 5
+        >>> a
+        Array([0, 5, 0])
+        """
+        self.values[pos] = val
+
     @staticmethod
     def zero(m: int) -> 'Array':
         """
