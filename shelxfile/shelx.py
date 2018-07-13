@@ -40,10 +40,9 @@ TODO:
 - fix atom IDs
 - shx.update_weight
 - shx.weight_difference
-- shx.atoms.tors(at1, at2, at3, at4)
+- fit fragment without shelxl
 
 - Atoms.add_atom(position=None) method. default for position is after FVAR table
-- fit fragment without shelxl
 - check if atoms in restraints are also in structure
 - restraints involved with an atom should also be part of the atoms properties
 ------------------------------------------------------------
