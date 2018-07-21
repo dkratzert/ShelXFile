@@ -203,7 +203,7 @@ class Atoms():
         """
         Calculates the torsion angle (dieder angle) between four atoms.
 
-        Trom the book of Camelo Giacovazzo:
+        From the book of Camelo Giacovazzo:
         For a sequence of four atoms A, B, C, D, the torsion angle w(ABCD) is
         defined as the angle between the normals to the planes ABC and BCD. 
         By convention w is positive if the sense of rotation from BA to
