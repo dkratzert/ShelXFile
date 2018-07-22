@@ -21,6 +21,7 @@ class Atoms():
         Adds a new atom to the list of atoms. Using append is essential.
         """
         self.all_atoms.append(atom)
+        atom.atomid = self.all_atoms.index(atom)
         name = atom.name + '_{}'.format(atom.resinum)
         self.atomsdict[name] = atom
         self.nameslist.append(name.upper())
@@ -102,7 +103,7 @@ class Atoms():
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.get_atom_by_name('Al1')
-        Atom ID: 903
+        Atom ID: 15
         """
         if '_' not in atom_name:
             atom_name += '_0'
@@ -159,7 +160,7 @@ class Atoms():
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.q_peaks[:5] # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
-        [Atom ID: 328, Atom ID: 329, Atom ID: 330, Atom ID: 331, Atom ID: 332]
+        [Atom ID: 128, Atom ID: 129, Atom ID: 130, Atom ID: 131, Atom ID: 132]
         """
         return [x for x in self.all_atoms if x.qpeak]
 
@@ -269,7 +270,6 @@ class Atom():
     _isoatomstr = '{:<5.5s} {:<3}{:>10.6f}  {:>10.6f}  {:>9.6f}  {:>9.5f}  {:>9.5f}'
     _qpeakstr = '{:<5.5s} {:<3}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
     _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
-    atid = 0
 
     def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: PART = None,
                  afix: AFIX = None, resi: RESI = None, sof: float = 0) -> None:
@@ -282,8 +282,7 @@ class Atom():
         self.fullname = None  # Name including residue nimber like "C1_2"
         # Site occupation factor including free variable like 31.0
         self.sof = None
-        self.atomid = Atom.atid
-        Atom.atid += 1
+        self.atomid = 0
         self.shx = shelx
         # fractional coordinates:
         self.x = None
@@ -502,8 +501,14 @@ class Atom():
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> at = shx.atoms.get_atom_by_id(56)
+        >>> at.fullname
+        'C31_0'
         >>> at.delete()
-
+        >>> shx.atoms.all_atoms[54:58]
+        [Atom ID: 54, Atom ID: 55, Atom ID: 57, Atom ID: 58]
+        
+        #>>> shx.write_shelx_file('test2.res')
+        #True
         """
         del self.shx.atoms[self.atomid]
 
@@ -533,7 +538,7 @@ class Atom():
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> at = shx.atoms.get_atom_by_name('C1_4')
         >>> at.find_atoms_around(dist=2, only_part=2)
-        [Atom ID: 148, Atom ID: 150, Atom ID: 154, Atom ID: 158]
+        [Atom ID: 0, Atom ID: 2, Atom ID: 6, Atom ID: 10]
         >>> shx.atoms.get_atom_by_name('C1_4').cart_coords
         [-0.19777464582150567, 4.902748697000001, 6.897766400656786]
         """

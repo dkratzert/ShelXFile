@@ -37,7 +37,9 @@ from dsrmath import Matrix
 
 """
 TODO:
-- fix atom IDs
+- fix atom write and delete
+- array outer product
+- eigenvalues and right eigenvectors of a square array
 - shx.update_weight
 - shx.weight_difference
 - fit fragment without shelxl
