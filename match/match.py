@@ -53,15 +53,17 @@ def match_point_clouds(cloud1, cloud2, threshold=1, maxiter=0, same_order=False)
     quatx = np.array([1, 0, 0, 0])
     while True:
         if same_order:
+            # Mapping is defined by order:
             matchlist = [x for x in range(len(cloud1))]
         else:
+            # Try to find the atom maping:
             matchlist = map_clouds(cloud1, cloud2)
         quat, r = get_quaternion(cloud1, cloud2, matchlist)
         cloud2 = rotate_by_quaternion(cloud2, quat)
         quatx = multiply_quaternion(quatx, quat)
         if abs(r - r_old) < 0.00000000001:
             if accept(cloud1, cloud2, matchlist, threshold):
-                return [matchlist[:len(cloud2) + 1], get_rotation_matrix_from_quaternion(quatx)]
+                return [matchlist[:len(cloud2) + 1], get_rotation_matrix_from_quaternion(quatx), cloud2]
             elif iteration < maxiter or not maxiter:
                 iteration += 1
                 cloud2 = list(ref_cloud)
@@ -71,7 +73,7 @@ def match_point_clouds(cloud1, cloud2, threshold=1, maxiter=0, same_order=False)
         r_old = r
 
 
-def center(cloud):
+def center(cloud: list):
     """
     Moves the center of 'cloud' to its center of mass.
 
@@ -286,17 +288,14 @@ def get_transform(points1, points2, matchlist=None, use=3, matrix=False):
 
 def test():
     import time
-
     start = time.time()
 
     def test_match_clouds():
         """
         Function for testing the functionality of the module.
         """
-
         def random_coord():
             return np.array([randint(1, 100), randint(1, 100), randint(1, 100)])
-
         no = 0
         wrong = 0
         tries = 500
@@ -319,17 +318,13 @@ def test():
                             random_coord(),
                             random_coord(), ]
             sample_cloud = center(sample_cloud)
-
             angle = 23. * np.pi / 180
-
             sample_rotmat = np.matrix([[np.cos(angle), -np.sin(angle), 0],
                                        [np.sin(angle), np.cos(angle), 0],
                                        [0, 0, 1]])
-
             rotated_cloud = rotate_by_matrix(sample_cloud, sample_rotmat)
             xx = match_point_clouds(sample_cloud, rotated_cloud, threshold=2)
             x = xx[0]
-
             if not x:
                 no += 1
             if not x == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]:
@@ -338,7 +333,6 @@ def test():
         print('wrong solution:', wrong)
         print('Cycles:', tries)
         print('Success:', (1 - float(wrong) / float(tries)) * 100, '%')
-
     test_match_clouds()
     end = time.time()
     print("Time taken:", end - start)
@@ -376,11 +370,13 @@ def test_fitmol():
                     [-0.057354,    0.300876,    0.252663], # F8
                     [0.130286,    0.325479,   0.293388]]  # F9
     target_cloud = [np.array(frac_to_cart(i, cell)) for i in target_cloud]
-    #print(sample_cloud)
-    #print(target_cloud)
     sample_cloud = center(sample_cloud)
     xx = match_point_clouds(sample_cloud, target_cloud, threshold=1, same_order=True)
-    print(xx)
+    print(xx[0])  # matchlist
+    print(xx[1])  # rotation matrix
+    print(xx[2])  # sample coords rotated
+    sample_rotated = xx[2]
+    
 
 if __name__ == '__main__':
     #test()
