@@ -1262,7 +1262,7 @@ def frac_to_cart(frac_coord: list, cell: list) -> tuple:
     xc = a * x + (b * cos(gamma)) * y + (c * cos(beta)) * z
     yc = 0 + (b * sin(gamma)) * y + (-c * sin(beta) * cosastar) * z
     zc = 0 + 0 + (c * sin(beta) * sinastar) * z
-    return xc, yc, zc
+    return [xc, yc, zc]
 
 
 def cart_to_frac(cart_coord: list, cell: list) -> tuple:

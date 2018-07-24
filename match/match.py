@@ -10,15 +10,15 @@ Based on the work of Paul J. Besl:
 (IEEE Transactions on Pattern Analysis and Machine Intelligence,
  14(2), 239 - 256, 1992.)
 """
-
+import sys
 from random import randint
-
 import numpy as np
+from dsrmath import frac_to_cart
 
 bestFit = None
 
 
-def match_point_clouds(cloud1, cloud2, threshold=1, maxiter=0):
+def match_point_clouds(cloud1, cloud2, threshold=1, maxiter=0, same_order=False):
     """
     Matches two point clouds.
     'cloud1' and 'cloud2' are lists of numpy.arrays.
@@ -36,6 +36,8 @@ def match_point_clouds(cloud1, cloud2, threshold=1, maxiter=0):
     be called before the process is aborted.
     :param maxiter: Boolean: if  maxiter is 'None', the algorithm is never
     aborted.
+    :param same_order: Matches both clouds in the same order as the input order.
+                       e.g. [1, 2, 3] to [1, 2, 3]
 
     :return:If no solution is found after 'maxiter' iterations,
     the function returns 'None'. The function returns a matchlist
@@ -50,7 +52,10 @@ def match_point_clouds(cloud1, cloud2, threshold=1, maxiter=0):
     ref_cloud = list(cloud2)
     quatx = np.array([1, 0, 0, 0])
     while True:
-        matchlist = map_clouds(cloud1, cloud2)
+        if same_order:
+            matchlist = [x for x in range(len(cloud1))]
+        else:
+            matchlist = map_clouds(cloud1, cloud2)
         quat, r = get_quaternion(cloud1, cloud2, matchlist)
         cloud2 = rotate_by_quaternion(cloud2, quat)
         quatx = multiply_quaternion(quatx, quat)
@@ -92,47 +97,6 @@ def multiply_quaternion(q1, q2):
     t2 = q1[0] * q2[2] + q1[1] * q2[3] + q1[2] * q2[0] - q1[3] * q2[1]
     t3 = q1[0] * q2[3] - q1[1] * q2[2] + q1[2] * q2[1] + q1[3] * q2[0]
     return np.array([t0, t1, t2, t3])
-
-
-def get_transformation(cloud1, cloud2, matchlist):
-    """
-    Returns the transformation matrix that transforms
-    'cloud1' to 'cloud2'. 'matchlist' is a list of
-    integers where the first element represents the
-    index of the point corresponding to the first
-    point in 'cloud1' in 'cloud2'.
-
-    DEPRECATED
-    :param cloud1: ...
-    :param cloud2: ...
-    :param matchlist: ...
-    """
-    print('Please don\'t use me. I am an innocent function in the \'match\' module and I am only kept alive because'
-          'someone else might still be using me.')
-    cloud22 = [cloud2[i] for i in matchlist]
-    p1 = cloud1[0]
-    p2 = cloud1[-1]
-    p3 = cloud1[len(cloud1) / 2]
-    v1 = p2 - p1
-    v1 /= np.linalg.norm(v1)
-    v2 = np.cross(v1, p3 - p1)
-    v2 /= np.linalg.norm(v2)
-    v3 = np.cross(v1, v2)
-    m1 = np.matrix([[v1[0], v2[0], v3[0]],
-                    [v1[1], v2[1], v3[1]],
-                    [v1[2], v2[2], v3[2]]])
-    p1 = cloud22[0]
-    p2 = cloud22[-1]
-    p3 = cloud22[len(cloud22) / 2]
-    v1 = p2 - p1
-    v1 /= np.linalg.norm(v1)
-    v2 = np.cross(v1, p3 - p1)
-    v2 /= np.linalg.norm(v2)
-    v3 = np.cross(v1, v2)
-    m2 = np.matrix([[v1[0], v2[0], v3[0]],
-                    [v1[1], v2[1], v3[1]],
-                    [v1[2], v2[2], v3[2]]])
-    return np.dot(m1.T, m2)
 
 
 def get_best_fit():
@@ -185,7 +149,7 @@ def map_clouds(cloud1, cloud2):
                 best_hit = i
                 best_dist = dist
         matchlist.append(best_hit)
-    print(matchlist)
+    #print(matchlist)
     return matchlist
 
 
@@ -380,8 +344,47 @@ def test():
     print("Time taken:", end - start)
 
 
+def test_fitmol():
+    sample_cloud = [np.array([-0.01453,    1.66590 ,   0.10966]), # O1
+                    np.array([-0.00146,    0.26814 ,   0.06351]), # C1
+                    np.array([-1.13341,   -0.23247 ,  -0.90730]), # C2
+                    np.array([-2.34661,   -0.11273 ,  -0.34544]), # F1
+                    np.array([-0.96254,   -1.50665 ,  -1.29080]), # F2
+                    np.array([-1.12263,    0.55028,   -2.01763]),  # F3
+                    np.array([1.40566 ,  -0.23179 ,  -0.43131]),  # C3
+                    np.array([2.38529 ,   0.42340 ,   0.20561]),  # F4
+                    np.array([1.53256 ,   0.03843 ,  -1.75538]),  # F5
+                    np.array([1.57833 ,  -1.55153 ,  -0.25035]),  # F6
+                    np.array([-0.27813,   -0.21605,    1.52795]), # C4
+                    np.array([0.80602 ,  -0.03759 ,   2.30431]),  # F7
+                    np.array([-0.58910,   -1.52859,    1.53460]), # F8
+                    np.array([-1.29323,    0.46963,    2.06735])] # F9
+
+    cell = [10.5086, 20.9035, 20.5072, 90.0, 94.13, 90.0]
+    target_cloud = [[0.074835,    0.238436,    0.402457],  # O1
+                    [0.028576,    0.234542,    0.337234 ], # C1
+                    [0.121540,    0.194460,    0.298291],  # C2
+                    [0.241900,    0.211233,    0.314197],  # F1
+                    [0.098797,    0.200975,    0.234210],  # F2
+                    [0.112375,    0.132048,    0.311380],  # F3
+                    [-0.103502,    0.202241,    0.332346], # C3
+                    [-0.194239,    0.242467,    0.347077], # F4
+                    [-0.106378,    0.152755,    0.373514], # F5
+                    [-0.132107,    0.178669,    0.272635], # F6
+                    [ 0.018702,    0.302508,    0.307595], # C4
+                    [-0.033689,    0.340543,    0.350061], # F7
+                    [-0.057354,    0.300876,    0.252663], # F8
+                    [0.130286,    0.325479,   0.293388]]  # F9
+    target_cloud = [np.array(frac_to_cart(i, cell)) for i in target_cloud]
+    #print(sample_cloud)
+    #print(target_cloud)
+    sample_cloud = center(sample_cloud)
+    xx = match_point_clouds(sample_cloud, target_cloud, threshold=1, same_order=True)
+    print(xx)
+
 if __name__ == '__main__':
-    test()
+    #test()
+    test_fitmol()
 
 
 
