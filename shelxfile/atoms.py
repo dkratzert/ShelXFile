@@ -302,6 +302,7 @@ class Atom():
         self.afix = afix
         self.qpeak = False
         self.peak_height = 0.0
+        self.uvals = [0.04]  # [u11 u12 u13 u21 u22 u23]
         self.parse_line(spline)
         self.frag_atom = False
         self.restraints = []
@@ -335,7 +336,6 @@ class Atom():
             else:
                 self.occupancy = 1 + (self.shx.fvars[self.fvar] * occ)
         self.shx.fvars.set_fvar_usage(self.fvar)
-        self.uvals = [0.04]  # [u11 u12 u13 u21 u22 u23]
         # if self.shx.anis:
         #    self.parse_anis()
         for n, u in enumerate(self.uvals):
@@ -404,6 +404,7 @@ class Atom():
         self.uvals = uvals
         if len(self.uvals) == 2:
             self.peak_height = uvals.pop()
+            self.qpeak = True
         if self.shx.end:  # After 'END' can only be Q-peaks!
             self.qpeak = True
         self.sfac_num = int(line[1])

@@ -228,6 +228,15 @@ class ShelXFile():
 
         line is upper() after multiline_test()
         spline is as in .res file.
+
+        >>> from pathlib import Path
+        >>> shx = ShelXFile('tests/complete_run/p21c.res')
+        >>> shx.write_shelx_file('tests/complete_run/test.ins')
+        True
+        >>> orig = Path('tests/complete_run/test-orig.ins').read_text()
+        >>> new = Path('tests/complete_run/test.ins').read_text()
+        >>> orig == new
+        True
         """
         lastcard = ''
         sof = 0
@@ -991,7 +1000,7 @@ class ShelXFile():
     def elem2sfac(self, atom_type: str) -> int:
         """
         returns an sfac-number for the element given in "atom_type"
-        >>> shx = ShelXFile('../tests/p21c.res')
+        >>> shx = ShelXFile('tests/p21c.res')
         >>> shx.elem2sfac('O')
         3
         >>> shx.elem2sfac('c')
@@ -1007,7 +1016,7 @@ class ShelXFile():
         """
         returns an element and needs an sfac-number
         :param sfacnum: string like '2'
-        >>> shx = ShelXFile('../tests/p21c.res')
+        >>> shx = ShelXFile('tests/p21c.res')
         >>> shx.sfac2elem(1)
         'C'
         >>> shx.sfac2elem(2)
@@ -1156,8 +1165,9 @@ if __name__ == "__main__":
     except Exception:
         raise
     print(shx.sum_formula_exact)
+    shx.write_shelx_file('tests/complete_run/test.ins')
 
-    #sys.exit()
+    sys.exit()
     from misc import walkdir
     files = walkdir(r'D:\GitHub\testresfiles', '.res')
     print('Indexing...')
