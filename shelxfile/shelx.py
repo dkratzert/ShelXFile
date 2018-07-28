@@ -37,7 +37,6 @@ from dsrmath import Matrix
 
 """
 TODO:
-- fix atom write and delete
 - array outer product
 - eigenvalues and right eigenvectors of a square array
 - shx.update_weight
@@ -82,7 +81,6 @@ class ShelXFile():
 
     :type restraints: List[Restraint]
     """
-    delete_on_write = None
     atoms = None
     _r1_regex = re.compile(r'^REM\s+R1\s+=', re.IGNORECASE)
     _wr2_regex = re.compile(r'^REM\s+wR2\s+=', re.IGNORECASE)

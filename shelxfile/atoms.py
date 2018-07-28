@@ -28,13 +28,12 @@ class Atoms():
 
     def __repr__(self):
         if self.all_atoms:
-            return '\n'.join([str(x) for x in self.all_atoms])
+            return '\n'.join([str(x) for x in self.all_atoms if not x.deleted])
         else:
             return 'No Atoms in file.'
 
     def __iter__(self):
-        for x in self.all_atoms:
-            yield x
+        return iter(x for x in self.all_atoms if not x.deleted)
 
     def __getitem__(self, item: int) -> 'Atom':
         return self.get_atom_by_id(item)
@@ -51,11 +50,12 @@ class Atoms():
             if key == at.atomid:
                 if DEBUG:
                     print("deleting atom", at.name)
-                del self.all_atoms[n]
-                del self.atomsdict[at.name + '_{}'.format(at.resinum)]
-                del self.nameslist[self.nameslist.index(at.fullname.upper())]
-                for x in at._line_numbers:
-                    del self.shx._reslist[x]
+                at.delete()
+                #del self.all_atoms[n]
+                #del self.atomsdict[at.name + '_{}'.format(at.resinum)]
+                #del self.nameslist[self.nameslist.index(at.fullname.upper())]
+                #for x in at._line_numbers:
+                #    del self.shx._reslist[x]
 
     @property
     def number(self) -> int:
@@ -73,7 +73,7 @@ class Atoms():
         Returns the atom objext with atomId id.
         """
         for a in self.all_atoms:
-            if aid == a.atomid:
+            if aid == a.atomid and not a.deleted:
                 return a
 
     def has_atom(self, atom_name: str) -> bool:
@@ -274,6 +274,7 @@ class Atom():
     def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: PART = None,
                  afix: AFIX = None, resi: RESI = None, sof: float = 0) -> None:
         # super(Atom, self).__init__(shelx)
+        self.deleted = False  # Indicates if atom was deleted
         self.cell = shelx.cell
         self._line_number = line_number
         self._lines = line_nums
@@ -507,11 +508,11 @@ class Atom():
         >>> at.delete()
         >>> shx.atoms.all_atoms[54:58]
         [Atom ID: 54, Atom ID: 55, Atom ID: 57, Atom ID: 58]
-        
-        #>>> shx.write_shelx_file('test2.res')
-        #True
         """
-        del self.shx.atoms[self.atomid]
+        self.deleted = True
+        del self.shx.atoms.atomsdict[self.name + '_{}'.format(self.resinum)]
+        del self.shx.atoms.nameslist[self.shx.atoms.nameslist.index(self.fullname.upper())]
+        self.shx.delete_on_write.update(self._line_numbers)
 
     def to_isotropic(self) -> None:
         """
