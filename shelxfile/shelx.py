@@ -20,20 +20,18 @@ it will fail.
 import os
 import re
 import sys
+from math import radians, cos, sin, sqrt
 
+from dsrmath import Matrix
+from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
+    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 from refine.shx_refine import ShelxlRefine
+from shelxfile.atoms import Atoms, Atom
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues
-from shelxfile.atoms import Atoms, Atom
-from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
-    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
-
-from math import radians, cos, sin, sqrt
-
-from dsrmath import Matrix
 
 """
 TODO:
@@ -157,8 +155,8 @@ class ShelXFile():
         self.ansr = 0.001
         self.bloc = []
         self.afix = None  # AFIX(self, [''])
-        self.part = PART(self, ['PART',  '0'])
-        self.resi = RESI(self, ['RESI',  '0'])
+        self.part = PART(self, ['PART', '0'])
+        self.resi = RESI(self, ['RESI', '0'])
         self.residues = Residues()
         self.dsrlines = []
         self.dsrline_nums = []
@@ -197,7 +195,7 @@ class ShelXFile():
             self.parse_shx_file()
             pass
         except Exception as e:
-            #print('File not parsed:', self.resfile)
+            # print('File not parsed:', self.resfile)
             if DEBUG:
                 try:
                     print(self.resfile[self.error_line_num])
@@ -214,7 +212,7 @@ class ShelXFile():
             try:
                 self.run_after_parse()
             except Exception as e:
-                #print('File not parsed!:', self.resfile)
+                # print('File not parsed!:', self.resfile)
                 if DEBUG:
                     print(e)
                     raise
@@ -762,8 +760,8 @@ class ShelXFile():
         for r in self.restraints:
             if r.atoms:
                 pass
-                #print(r)
-                #Restraints._resolve_atoms(self, r.atoms)
+                # print(r)
+                # Restraints._resolve_atoms(self, r.atoms)
             if r.name == "DFIX" or r.name == "DANG":
                 if abs(r.d) > 4:
                     fvar, value = split_fvar_and_parameter(r.d)
@@ -786,6 +784,18 @@ class ShelXFile():
         """
         self.acta = ACTA(self, acta.split())
         self._reslist.insert(self.unit.position + 1, self.acta)
+
+    def add_atom(self, name: str = None, coordinates: list = None, element = 'C', uvals: list = None, part: int = 0,
+                 occupancy: float = 1.0, fvar: int = 1):
+        """
+        Adds an atom to the ShelxFile.atoms list. If no element is given, carbon atoms are assumed.
+        """
+        if uvals is None:
+            uvals = [0.04]
+        p = PART(self, ['PART', '{}'.format(part)])
+        spline = [name, str(self.elem2sfac(element))] + coordinates + [str(fvar)+"{:<5.4}".format(occupancy)] + uvals
+        a = Atom(self, spline, line_nums=[self.fvars.position + 1], line_number=self.fvars.position + 1, part=p, 
+                 afix=None, resi=None, sof=11)
 
     def orthogonal_matrix(self):
         """
@@ -898,7 +908,7 @@ class ShelXFile():
                         except IndexError:
                             if DEBUG:
                                 print('*** CANNOT READ INCLUDE FILE {} ***'.format(line))
-                            #del reslist[n]
+                            # del reslist[n]
         except (IOError) as e:
             print(e)
             print('*** CANNOT READ FILE {} ***'.format(resfile))
@@ -938,16 +948,16 @@ class ShelXFile():
         except ValueError:
             pass
         # THis does not work:
-        #acta = self.acta.remove_acta_card()
+        # acta = self.acta.remove_acta_card()
         self.cycles.cycles = cycles
         filen, _ = os.path.splitext(self.resfile)
         self.write_shelx_file(filen + '.ins')
-        #shutil.copyfile(filen+'.res', filen+'.ins')
+        # shutil.copyfile(filen+'.res', filen+'.ins')
         ref = ShelxlRefine(self, self.resfile)
         ref.run_shelxl()
         self.reload()
         # Does not work:
-        #self.restore_acta_card(acta)
+        # self.restore_acta_card(acta)
         self.cycles.cycles = bc
         self.write_shelx_file(filen + '.res')
         return True
@@ -1063,7 +1073,7 @@ class ShelXFile():
         if len(val) == len(eli):
             for el, num in zip(self.sfac_table.elements_list, self.unit.values):
                 try:
-                    formstring += "{}{:,g} ".format(el, num/self.Z)
+                    formstring += "{}{:,g} ".format(el, num / self.Z)
                 except ZeroDivisionError:
                     return ''
         return formstring.strip()
@@ -1142,7 +1152,7 @@ class ShelXFile():
             except(IndexError, ValueError):
                 if DEBUG:
                     pass
-                    #raise
+                    # raise
                 pass
         if ShelXFile._diff_peak_regex.match(line):
             # REM Highest difference peak  0.407,  deepest hole -0.691,  1-sigma level  0.073
@@ -1153,10 +1163,9 @@ class ShelXFile():
                 pass
 
 
-
 if __name__ == "__main__":
-    #get_commands()
-    #sys.exit()
+    # get_commands()
+    # sys.exit()
     file = r'tests/p21c.res'
     try:
         shx = ShelXFile(file)
@@ -1167,6 +1176,7 @@ if __name__ == "__main__":
 
     sys.exit()
     from misc import walkdir
+
     files = walkdir(r'D:\GitHub\testresfiles', '.res')
     print('Indexing...')
     num = 0
@@ -1181,20 +1191,19 @@ if __name__ == "__main__":
                 cont = True
         if cont:
             continue
-        #path = f.parent
-        #file = f.name
-        #print(path.joinpath(file))
-        #id = id_generator(size=4)
-        #copy(str(f), Path(r"d:/Github/testresfiles/").joinpath(id+file))
-        #print('copied', str(f.name))
-        
-        #print(f)
+        # path = f.parent
+        # file = f.name
+        # print(path.joinpath(file))
+        # id = id_generator(size=4)
+        # copy(str(f), Path(r"d:/Github/testresfiles/").joinpath(id+file))
+        # print('copied', str(f.name))
+
+        # print(f)
         shx = ShelXFile(f)
         num += 1
-        #print(f)
-        #print(shx.sum_formula_exact)
+        # print(f)
+        # print(shx.sum_formula_exact)
     print(num, 'Files')
-
 
     """
     def get_commands():
