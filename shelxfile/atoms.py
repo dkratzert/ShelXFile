@@ -277,10 +277,15 @@ class Atom():
         self.shx = shx
         self.cell = shx.cell
         self.sfac_num = None
+        self.resiclass = ''
+        self.resinum = 0  # all other atoms are residue 0
+        self.chain_id = None
+        self.fullname = name + ' ' + str(self.resinum)  # Name including residue nimber like "C1_2"
+        self.part = None
+        self.afix = None
         self.name = name  # Name without residue number like "C1"
-        self.fullname = name + ' ' + resi.residue_number  # Name including residue nimber like "C1_2"
         # Site occupation factor including free variable like 31.0
-        self.sof = fvar + occ
+        self.sof = 11.0
         self.atomid = 0
         # fractional coordinates:
         self.x = coords[0]
@@ -290,48 +295,46 @@ class Atom():
         self.xc = None
         self.yc = None
         self.zc = None
-        self.resiclass = ''
-        self.resinum = 0  # all other atoms are residue 0
-        self.chain_id = None
-        self.part = None
-        self.afix = None
         self.qpeak = False
         self.peak_height = 0.0
-        self.uvals = [0.04]  # [u11 u12 u13 u21 u22 u23]
+        self.uvals = [0.04]  # [U] or [u11 u12 u13 u21 u22 u23]
         self.frag_atom = False
         self.restraints = []
         self.previous_non_h = None
-        self.sof = 11.0
-        self.fvar = 1
-        # Only the occupancy of the atom *without* the free variable like 0.5
-        self.occupancy = 1
+        self._occupancy = 1.0
+
+    @property
+    def fvar(self):
         # Be aware: fvar can be negative!
-        self.fvar, occ = split_fvar_and_parameter(self.sof)
+        fvar, _ = split_fvar_and_parameter(self.sof)
+        return fvar
+
+    @property
+    def occupancy(self):
+        # Only the occupancy of the atom like 0.5 (without the free variable)
+        _, occ = split_fvar_and_parameter(self.sof)
         # Fractional occupancy:
-        # Normalized to FVAR number one:
         if abs(self.fvar) == 1:
-            self.occupancy = occ
+            return occ
         else:
             if occ > 0:
                 try:
-                    self.occupancy = self.shx.fvars[self.fvar] * occ
+                    occ = self.shx.fvars[self.fvar] * occ
                 except IndexError:
                     raise ParseSyntaxError
             else:
-                self.occupancy = 1 + (self.shx.fvars[self.fvar] * occ)
-        self.shx.fvars.set_fvar_usage(self.fvar)
-        # if self.shx.anis:
-        #    self.parse_anis()
-        for n, u in enumerate(self.uvals):
-            if abs(u) > 4.0:
-                self.fvar, uval = split_fvar_and_parameter(u)
-                self.uvals[n] = uval
-                self.shx.fvars.set_fvar_usage(self.fvar)
+                occ = 1 + (self.shx.fvars[self.fvar] * occ)
+        return occ
 
-    def parse_anis(self):
+    @occupancy.setter
+    def occupancy(self, occ):
+        self._occupancy = occ
+
+    def set_uvals(self, uvals: list):
         """
         Parses the ANIS card. It can be either ANIS, ANIS name(s) or ANIS number.
         # TODO: Test if ANIS $CL works and if ANIS_* $C works
+        # TODO: Make this method work again
         """
         try:
             # ANIS with a number as parameter
@@ -361,13 +364,22 @@ class Atom():
             else:
                 if len(self.uvals) < 6:
                     self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
+        for n, u in enumerate(self.uvals):
+            if abs(u) > 4.0:
+                fvar, uval = split_fvar_and_parameter(u)
+                #self.uvals[n] = uval
+                self.shx.fvars.set_fvar_usage(fvar)
 
-    def parse_line(self, line):
-        self.name = line[0][:4]
+    def parse_line(self, atline: list):
+        """
+        Parsers the text line of an atom from SHELXL to initialize the atom parameters.
+        # TODO: Make this method work again
+        """
+        self.name = atline[0][:4]  # Atom names are limited to 4 characters
         self.fullname = self.name + '_{}'.format(self.resinum)
-        uvals = [float(x) for x in line[6:12]]
+        uvals = [float(x) for x in atline[6:12]]
         try:
-            x, y, z = [float(x) for x in line[2:5]]
+            x, y, z = [float(x) for x in atline[2:5]]
         except ValueError as e:
             if DEBUG:
                 print(e, 'Line:', self._line_numbers[-1])
@@ -391,7 +403,9 @@ class Atom():
             self.qpeak = True
         if self.shx.end:  # After 'END' can only be Q-peaks!
             self.qpeak = True
-        self.sfac_num = int(line[1])
+        self.sfac_num = int(atline[1])
+        self.shx.fvars.set_fvar_usage(self.fvar)
+
 
     @property
     def element(self) -> str:
