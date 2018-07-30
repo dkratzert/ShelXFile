@@ -258,7 +258,7 @@ class Atoms():
         return atoms
 
 
-class AbstractAtom():
+class Atom():
     """
     An object holding all Properties of a shelxl atom plus some extra information like
     kartesian coordinates and element type.
@@ -271,54 +271,39 @@ class AbstractAtom():
     _qpeakstr = '{:<5.5s} {:<3}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
     _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
-    def __init__(self) -> None:
-        # super(Atom, self).__init__(shelx)
+    def __init__(self, shx, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None, afix: AFIX = None,
+                 resi: RESI = None, fvar: int = 1, occ: float = 1.0) -> None:
         self.deleted = False  # Indicates if atom was deleted
-        self.cell = shelx.cell
-        self._line_number = line_number
-        self._lines = line_nums
+        self.shx = shx
+        self.cell = shx.cell
         self.sfac_num = None
-        self.name = None  # Name without residue number like "C1"
-        self.fullname = None  # Name including residue nimber like "C1_2"
+        self.name = name  # Name without residue number like "C1"
+        self.fullname = name + ' ' + resi.residue_number  # Name including residue nimber like "C1_2"
         # Site occupation factor including free variable like 31.0
-        self.sof = None
+        self.sof = fvar + occ
         self.atomid = 0
-        self.shx = shelx
         # fractional coordinates:
-        self.x = None
-        self.y = None
-        self.z = None
+        self.x = coords[0]
+        self.y = coords[1]
+        self.z = coords[2]
         # cartesian coordinates:
         self.xc = None
         self.yc = None
         self.zc = None
-        self.resiclass = resi.residue_class
-        if not resi.residue_number:
-            self.resinum = 0  # all other atoms are residue 0
-        else:
-            self.resinum = resi.residue_number
-        self.chain_id = resi.ID
-        self.part = part
-        self.afix = afix
+        self.resiclass = ''
+        self.resinum = 0  # all other atoms are residue 0
+        self.chain_id = None
+        self.part = None
+        self.afix = None
         self.qpeak = False
         self.peak_height = 0.0
         self.uvals = [0.04]  # [u11 u12 u13 u21 u22 u23]
         self.frag_atom = False
         self.restraints = []
-        self.previous_non_h = self.shx.non_h
-        if self.element not in ['H', 'D']:
-            self.shx.non_h = line_number
-        else:
-            self.shx.non_h = None
-        if sof:
-            # sof defined from outside e.g. by PART 1 31
-            self.sof = float(sof)
-        elif len(spline) > 5:
-            self.sof = float(spline[5])
-        else:
-            self.sof = 11.0
-        # Only the occupancy of the atom *without* the free variable like 0.5
+        self.previous_non_h = None
+        self.sof = 11.0
         self.fvar = 1
+        # Only the occupancy of the atom *without* the free variable like 0.5
         self.occupancy = 1
         # Be aware: fvar can be negative!
         self.fvar, occ = split_fvar_and_parameter(self.sof)
@@ -342,6 +327,71 @@ class AbstractAtom():
                 self.fvar, uval = split_fvar_and_parameter(u)
                 self.uvals[n] = uval
                 self.shx.fvars.set_fvar_usage(self.fvar)
+
+    def parse_anis(self):
+        """
+        Parses the ANIS card. It can be either ANIS, ANIS name(s) or ANIS number.
+        # TODO: Test if ANIS $CL works and if ANIS_* $C works
+        """
+        try:
+            # ANIS with a number as parameter
+            if int(self.shx.anis[1]) > 0:
+                self.shx.anis[1] -= 1
+                if len(self.uvals) < 6:
+                    self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
+        except (TypeError, KeyError, ValueError, IndexError):
+            # ANIS with a list of atoms
+            if not self.shx.anis.all_atoms and self.shx.anis.atoms:
+                # if '_' in self.shx.anis[0]:
+                #    resinum = self.shx.anis[0].upper().split('_')[1]
+                for x in self.shx.anis.atoms:
+                    if '_' in x:
+                        name, resinum = x.upper().split('_')
+                    else:
+                        name = x.upper()
+                        resinum = 0
+                    if self.name == name and (int(self.resinum) == int(resinum) or resinum == '*'):
+                        self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
+                    if x.startswith('$'):
+                        if name[1:].upper() == self.element \
+                                and (int(self.resinum) == int(resinum) or resinum == '*'):
+                            self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
+                            # TODO: This is a mess. Test and fix all sorts of ANIS possibilities.
+            # ANIS for all atoms
+            else:
+                if len(self.uvals) < 6:
+                    self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    def parse_line(self, line):
+        self.name = line[0][:4]
+        self.fullname = self.name + '_{}'.format(self.resinum)
+        uvals = [float(x) for x in line[6:12]]
+        try:
+            x, y, z = [float(x) for x in line[2:5]]
+        except ValueError as e:
+            if DEBUG:
+                print(e, 'Line:', self._line_numbers[-1])
+            raise ParseUnknownParam
+        if abs(x) > 4:
+            fvar, x = split_fvar_and_parameter(x)
+            self.shx.fvars.set_fvar_usage(fvar)
+        if abs(y) > 4:
+            fvar, x = split_fvar_and_parameter(y)
+            self.shx.fvars.set_fvar_usage(fvar)
+        if abs(z) > 4:
+            fvar, x = split_fvar_and_parameter(z)
+            self.shx.fvars.set_fvar_usage(fvar)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell.cell_list)
+        self.uvals = uvals
+        if len(self.uvals) == 2:
+            self.peak_height = uvals.pop()
+            self.qpeak = True
+        if self.shx.end:  # After 'END' can only be Q-peaks!
+            self.qpeak = True
+        self.sfac_num = int(line[1])
 
     @property
     def element(self) -> str:
@@ -486,87 +536,3 @@ class AbstractAtom():
                     if at.part.n == only_part and not at.qpeak:
                         found.append(at)
         return found
-
-
-class AtomParser(AbstractAtom):
-    """
-    Parses the atomic information from the shelx file to be stored in AbstractAtom class.
-    """
-    def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: PART = None,
-                 afix: AFIX = None, resi: RESI = None, sof: float = 0):
-        super(AtomParser, self).__init__()
-        self.parse_line(spline)
-
-    def parse_anis(self):
-        """
-        Parses the ANIS card. It can be either ANIS, ANIS name(s) or ANIS number.
-        # TODO: Test if ANIS $CL works and if ANIS_* $C works
-        """
-        try:
-            # ANIS with a number as parameter
-            if int(self.shx.anis[1]) > 0:
-                self.shx.anis[1] -= 1
-                if len(self.uvals) < 6:
-                    self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-        except (TypeError, KeyError, ValueError, IndexError):
-            # ANIS with a list of atoms
-            if not self.shx.anis.all_atoms and self.shx.anis.atoms:
-                # if '_' in self.shx.anis[0]:
-                #    resinum = self.shx.anis[0].upper().split('_')[1]
-                for x in self.shx.anis.atoms:
-                    if '_' in x:
-                        name, resinum = x.upper().split('_')
-                    else:
-                        name = x.upper()
-                        resinum = 0
-                    if self.name == name and (int(self.resinum) == int(resinum) or resinum == '*'):
-                        self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-                    if x.startswith('$'):
-                        if name[1:].upper() == self.element \
-                                and (int(self.resinum) == int(resinum) or resinum == '*'):
-                            self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-                            # TODO: This is a mess. Test and fix all sorts of ANIS possibilities.
-            # ANIS for all atoms
-            else:
-                if len(self.uvals) < 6:
-                    self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-    def parse_line(self, line):
-        self.name = line[0][:4]
-        self.fullname = self.name + '_{}'.format(self.resinum)
-        uvals = [float(x) for x in line[6:12]]
-        try:
-            x, y, z = [float(x) for x in line[2:5]]
-        except ValueError as e:
-            if DEBUG:
-                print(e, 'Line:', self._line_numbers[-1])
-            raise ParseUnknownParam
-        if abs(x) > 4:
-            fvar, x = split_fvar_and_parameter(x)
-            self.shx.fvars.set_fvar_usage(fvar)
-        if abs(y) > 4:
-            fvar, x = split_fvar_and_parameter(y)
-            self.shx.fvars.set_fvar_usage(fvar)
-        if abs(z) > 4:
-            fvar, x = split_fvar_and_parameter(z)
-            self.shx.fvars.set_fvar_usage(fvar)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell.cell_list)
-        self.uvals = uvals
-        if len(self.uvals) == 2:
-            self.peak_height = uvals.pop()
-            self.qpeak = True
-        if self.shx.end:  # After 'END' can only be Q-peaks!
-            self.qpeak = True
-        self.sfac_num = int(line[1])
-
-
-class Atom(AtomParser, AbstractAtom):
-    def __int__(self):
-        super(Atom, self).__init__()
-
-class DAtom(AbstractAtom):
-    def __init__(self):
-        super(DAtom, self).__init__()
