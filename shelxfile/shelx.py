@@ -41,7 +41,6 @@ TODO:
 - shx.weight_difference
 - fit fragment without shelxl
 
-- Atoms.add_atom(position=None) method. default for position is after FVAR table
 - check if atoms in restraints are also in structure
 - restraints involved with an atom should also be part of the atoms properties
 ------------------------------------------------------------
