@@ -37,8 +37,6 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
 TODO:
 - array outer product
 - eigenvalues and right eigenvectors of a square array
-- shx.update_weight
-- shx.weight_difference
 - fit fragment without shelxl
 
 - check if atoms in restraints are also in structure
@@ -177,6 +175,7 @@ class ShelXFile():
         self.non_h = None
         self.error_line_num = -1  # Only used to tell the line number during an exception.
         self.restrdict = {}
+        self.wght_suggested = None
         self.resfile = os.path.abspath(resfile)
         if DEBUG:
             print('Resfile is:', self.resfile)
@@ -479,6 +478,7 @@ class ShelXFile():
             elif word == 'WGHT':
                 # WGHT a[0.1] b[0] c[0] d[0] e[0] f[.33333]
                 if self.end:
+                    self.wght_suggested = self.assign_card(WGHT(self, spline), line_num)
                     continue
                 self.wght = self.assign_card(WGHT(self, spline), line_num)
                 continue
@@ -966,6 +966,22 @@ class ShelXFile():
         self.write_shelx_file(filen + '.res')
         return True
 
+    def refine_weight_convergence(self, stop_after: int = 10):
+        """
+        Tries to refine weigting sheme from SHELXL until it converged (self.weight_difference() is zero) or
+        stopt_after cycles are reached. 
+        """
+        for n in range(stop_after):
+            diff = self.wght.difference()
+            print("Weighting difference = {} {}".format(*diff))
+            if diff == [0.0, 0.0]:
+                return True
+            else:
+                self.update_weight()
+                self.refine(8)
+        print("Maximum number of refinement cycles reached, but no WGHT convergence.")
+        return False
+
     def append_card(self, obj, card, line_num):
         """
         Appends SHELX card to an object list, e.g. self.restraints and
@@ -1081,6 +1097,17 @@ class ShelXFile():
                 except ZeroDivisionError:
                     return ''
         return formstring.strip()
+
+    def update_weight(self):
+        try:
+            self.wght.a = self.wght_suggested.a
+            self.wght.b = self.wght_suggested.b
+            self.wght.c = self.wght_suggested.c
+            self.wght.d = self.wght_suggested.d
+            self.wght.e = self.wght_suggested.e
+            self.wght.f = self.wght_suggested.f
+        except AttributeError:
+            return
 
     @property
     def sum_formula_exact(self) -> str:

@@ -1745,6 +1745,7 @@ class WGHT(Command):
         Usually only WGHT a b
         """
         super(WGHT, self).__init__(shx, spline)
+        self.shx = shx
         self.a = 0.1
         self.b = 0.0
         self.c = 0.0
@@ -1771,6 +1772,18 @@ class WGHT(Command):
         if (self.c + self.d + self.e + self.f) != 0.33333:
             wght += ' {} {} {} {}'.format(self.c, self.d, self.e, self.f)
         return wght
+
+    def difference(self) -> list:
+        """
+        Returns a list with the weight differences of the parameters a and b. 
+        """
+        try:
+            adiff = abs(self.shx.wght.a - self.shx.wght_suggested.a)
+            bdiff = abs(self.shx.wght.b - self.shx.wght_suggested.b)
+        except AttributeError:
+            print("No suggested weighting scheme found. Unable to proceed.")
+            return [0.0, 0.0]
+        return [round(adiff, 3), round(bdiff, 3)]
 
     def __repr__(self):
         return self._as_string()
