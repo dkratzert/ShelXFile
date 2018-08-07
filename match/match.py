@@ -13,7 +13,7 @@ Based on the work of Paul J. Besl:
 import sys
 from random import randint
 import numpy as np
-from dsrmath import frac_to_cart
+from dsrmath import frac_to_cart, cart_to_frac
 
 bestFit = None
 
@@ -63,7 +63,7 @@ def match_point_clouds(cloud1, cloud2, threshold=1, maxiter=0, same_order=False)
         quatx = multiply_quaternion(quatx, quat)
         if abs(r - r_old) < 0.00000000001:
             if accept(cloud1, cloud2, matchlist, threshold):
-                return [matchlist[:len(cloud2) + 1], get_rotation_matrix_from_quaternion(quatx), cloud2]
+                return [matchlist[:len(cloud2) + 1], get_rotation_matrix_from_quaternion(quatx), cloud2, quat]
             elif iteration < maxiter or not maxiter:
                 iteration += 1
                 cloud2 = list(ref_cloud)
@@ -73,7 +73,7 @@ def match_point_clouds(cloud1, cloud2, threshold=1, maxiter=0, same_order=False)
         r_old = r
 
 
-def center(cloud: list):
+def center(cloud: np.array):
     """
     Moves the center of 'cloud' to its center of mass.
 
@@ -286,7 +286,7 @@ def get_transform(points1, points2, matchlist=None, use=3, matrix=False):
         return get_rotation_matrix_from_quaternion(quat)
 
 
-def test():
+def old_test():
     import time
     start = time.time()
 
@@ -339,20 +339,20 @@ def test():
 
 
 def test_fitmol():
-    sample_cloud = [np.array([-0.01453,    1.66590 ,   0.10966]), # O1
-                    np.array([-0.00146,    0.26814 ,   0.06351]), # C1
-                    np.array([-1.13341,   -0.23247 ,  -0.90730]), # C2
-                    np.array([-2.34661,   -0.11273 ,  -0.34544]), # F1
-                    np.array([-0.96254,   -1.50665 ,  -1.29080]), # F2
-                    np.array([-1.12263,    0.55028,   -2.01763]),  # F3
-                    np.array([1.40566 ,  -0.23179 ,  -0.43131]),  # C3
-                    np.array([2.38529 ,   0.42340 ,   0.20561]),  # F4
-                    np.array([1.53256 ,   0.03843 ,  -1.75538]),  # F5
-                    np.array([1.57833 ,  -1.55153 ,  -0.25035]),  # F6
-                    np.array([-0.27813,   -0.21605,    1.52795]), # C4
-                    np.array([0.80602 ,  -0.03759 ,   2.30431]),  # F7
-                    np.array([-0.58910,   -1.52859,    1.53460]), # F8
-                    np.array([-1.29323,    0.46963,    2.06735])] # F9
+    sample_cloud = np.array([[-0.01453,    1.66590 ,   0.10966], # O1
+                             [-0.00146,    0.26814 ,   0.06351], # C1
+                             [-1.13341,   -0.23247 ,  -0.90730], # C2
+                             [-2.34661,   -0.11273 ,  -0.34544], # F1
+                             [-0.96254,   -1.50665 ,  -1.29080], # F2
+                             [-1.12263,    0.55028,   -2.01763],  # F3
+                             [1.40566 ,  -0.23179 ,  -0.43131],  # C3
+                             [2.38529 ,   0.42340 ,   0.20561],  # F4
+                             [1.53256 ,   0.03843 ,  -1.75538],  # F5
+                             [1.57833 ,  -1.55153 ,  -0.25035],  # F6
+                             [-0.27813,   -0.21605,    1.52795], # C4
+                             [0.80602 ,  -0.03759 ,   2.30431],  # F7
+                             [-0.58910,   -1.52859,    1.53460], # F8
+                             [-1.29323,    0.46963,    2.06735]]) # F9
 
     cell = [10.5086, 20.9035, 20.5072, 90.0, 94.13, 90.0]
     target_cloud = [[0.074835,    0.238436,    0.402457],  # O1
@@ -375,8 +375,24 @@ def test_fitmol():
     print(xx[0])  # matchlist
     print(xx[1])  # rotation matrix
     print(xx[2])  # sample coords rotated
+    print(xx[3])
     sample_rotated = xx[2]
-    
+    rotation_matrix = xx[1]
+    quaternion = xx[3]
+    sample_rotated_cart = [list(x) for x in sample_rotated]
+    print(sample_rotated_cart)
+    print('####')
+    for n, x in enumerate(sample_rotated_cart):
+        x = cart_to_frac(x, cell)
+        print("C{}d  1  {:>10.6f}  {:>9.6f}  {:>9.5f} 11.0   0.04 ".format(n, *x))
+
+    print('rotate by quaternion: #####')
+    #sample_cloud = np.array(rotation_matrix).dot(np.array(sample_cloud).T).T
+    #sample_cloud = rotate_by_matrix(sample_cloud, rotation_matrix)
+    sample_cloud = rotate_by_quaternion(sample_cloud, quaternion)
+    for n, y in enumerate(sample_cloud):
+        y = cart_to_frac(y.tolist(), cell)
+        print("C{}d  1  {:>10.6f}  {:>9.6f}  {:>9.5f} 11.0   0.04 ".format(n, *y))
 
 if __name__ == '__main__':
     """

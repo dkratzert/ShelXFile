@@ -443,7 +443,7 @@ class Atom():
         return self.shx.sfac2elem(self.sfac_num).capitalize()
 
     @element.setter
-    def element(self, new_element: str):
+    def element(self, new_element: str) -> None:
         """
         Sets the element type of an atom.
         """
