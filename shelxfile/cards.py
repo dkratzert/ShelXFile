@@ -422,19 +422,19 @@ class RESI(Command):
 
         Allowed residue numbers is now from -999 to 9999 (2017/1)
         >>> r = RESI(None, 'RESI 1 TOL'.split())
-        >>> r.residue_class, r.residue_number, r.ID, r.alias
+        >>> r.residue_class, r.residue_number, r.chainID, r.alias
         ('TOL', 1, None, None)
         >>> r = RESI(None, 'RESI TOL 1'.split())
-        >>> r.residue_class, r.residue_number, r.ID, r.alias
+        >>> r.residue_class, r.residue_number, r.chainID, r.alias
         ('TOL', 1, None, None)
         >>> r = RESI(None, 'RESI A:100 TOL'.split())
-        >>> r.residue_class, r.residue_number, r.ID, r.alias
+        >>> r.residue_class, r.residue_number, r.chainID, r.alias
         ('TOL', 100, 'A', None)
         >>> r = RESI(None, 'RESI -10 TOL'.split())
-        >>> r.residue_class, r.residue_number, r.ID, r.alias
+        >>> r.residue_class, r.residue_number, r.chainID, r.alias
         ('TOL', -10, None, None)
         >>> r = RESI(None, 'RESI b:-10 TOL'.split())
-        >>> r.residue_class, r.residue_number, r.ID, r.alias
+        >>> r.residue_class, r.residue_number, r.chainID, r.alias
         ('TOL', -10, 'b', None)
         """
         for x in resi:

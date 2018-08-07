@@ -500,13 +500,8 @@ class Atom():
         return self.shx._reslist.index(self)
 
     @property
-<<<<<<< HEAD
-    def frac_coords(self):
-        return [round(self.x, 14), round(self.y, 14), round(self.z, 14)]
-=======
     def frac_coords(self) -> list:
-        return [self.x, self.y, self.z]
->>>>>>> match
+        return [round(self.x, 14), round(self.y, 14), round(self.z, 14)]
 
     @frac_coords.setter
     def frac_coords(self, coords: list):

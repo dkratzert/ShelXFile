@@ -2,10 +2,11 @@ import doctest
 
 import dsrmath
 import misc
+from match import match
 from refine import shx_refine
 from shelxfile import shelx, cards, atoms
 
-modules = [shelx, cards, misc, atoms, shx_refine] 
+modules = [shelx, cards, misc, atoms, shx_refine, match, dsrmath] 
 
 
 def run_tests():
