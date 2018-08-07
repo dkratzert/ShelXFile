@@ -369,28 +369,35 @@ def test_fitmol():
                     [-0.033689,    0.340543,    0.350061], # F7
                     [-0.057354,    0.300876,    0.252663], # F8
                     [0.130286,    0.325479,   0.293388]]  # F9
-    target_cloud = [np.array(frac_to_cart(i, cell)) for i in target_cloud]
+    target_cloud = np.array([frac_to_cart(i, cell) for i in target_cloud])
     sample_cloud = center(sample_cloud)
-    xx = match_point_clouds(sample_cloud, target_cloud, threshold=1, same_order=True)
+    xx = match_point_clouds(sample_cloud, target_cloud, threshold=1, same_order=False)
     print(xx[0])  # matchlist
     print(xx[1])  # rotation matrix
     print(xx[2])  # sample coords rotated
     print(xx[3])
-    sample_rotated = xx[2]
+    sample_rotated_cart = xx[2]
     rotation_matrix = xx[1]
     quaternion = xx[3]
-    sample_rotated_cart = [list(x) for x in sample_rotated]
     print(sample_rotated_cart)
     print('####')
+    #diff = np.array(center(np.array(target_cloud))) - np.array(center(sample_rotated_cart))
+    #diff = np.array([cart_to_frac(x, cell) for x in diff])
     for n, x in enumerate(sample_rotated_cart):
-        x = cart_to_frac(x, cell)
+        #x = np.array(x) + diff 
+        x = cart_to_frac(x.tolist(), cell)
         print("C{}d  1  {:>10.6f}  {:>9.6f}  {:>9.5f} 11.0   0.04 ".format(n, *x))
 
     print('rotate by quaternion: #####')
     #sample_cloud = np.array(rotation_matrix).dot(np.array(sample_cloud).T).T
     #sample_cloud = rotate_by_matrix(sample_cloud, rotation_matrix)
-    sample_cloud = rotate_by_quaternion(sample_cloud, quaternion)
-    for n, y in enumerate(sample_cloud):
+
+    sample_cloud2 = rotate_by_quaternion(sample_cloud, quaternion)
+
+    diff = np.array(frac_to_cart(list(target_cloud[0]), cell)) - np.array(sample_rotated_cart[0])
+    diff = cart_to_frac(diff.tolist(), cell)
+    for n, y in enumerate(sample_cloud2):
+        y = diff - y
         y = cart_to_frac(y.tolist(), cell)
         print("C{}d  1  {:>10.6f}  {:>9.6f}  {:>9.5f} 11.0   0.04 ".format(n, *y))
 
