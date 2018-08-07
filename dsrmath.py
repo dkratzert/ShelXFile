@@ -1241,7 +1241,7 @@ def almost_equal(a, b, places=3):
     return round(abs(a - b), places) == 0
 
 
-def frac_to_cart(frac_coord: list, cell: list) -> tuple:
+def frac_to_cart(frac_coord: list, cell: list) -> list:
     """
     Converts fractional coordinates to cartesian coodinates
     :param frac_coord: [float, float, float]
@@ -1250,7 +1250,7 @@ def frac_to_cart(frac_coord: list, cell: list) -> tuple:
     >>> cell = [10.5086, 20.9035, 20.5072, 90, 94.13, 90]
     >>> coord1 = [-0.186843,   0.282708,   0.526803]
     >>> print(frac_to_cart(coord1, cell))
-    (-2.741505423999065, 5.909586678000002, 10.775200700893734)
+    [-2.741505423999065, 5.909586678000002, 10.775200700893734]
     """
     a, b, c, alpha, beta, gamma = cell
     x, y, z = frac_coord

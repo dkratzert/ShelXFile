@@ -492,11 +492,11 @@ class Atom():
 
     @property
     def frac_coords(self):
-        return [self.x, self.y, self.z]
+        return [round(self.x, 14), round(self.y, 14), round(self.z, 14)]
 
     @property
     def cart_coords(self):
-        return [self.xc, self.yc, self.zc]
+        return [round(self.xc, 14), round(self.yc, 14), round(self.zc, 14)]
 
     def delete(self):
         """
@@ -512,6 +512,7 @@ class Atom():
         self.deleted = True
         del self.shx.atoms.atomsdict[self.name + '_{}'.format(self.resinum)]
         del self.shx.atoms.nameslist[self.shx.atoms.nameslist.index(self.fullname.upper())]
+        del self.shx.atoms.all_atoms[self.shx.atoms.all_atoms.index(self)]
         self.shx.delete_on_write.update(self._line_numbers)
 
     def to_isotropic(self) -> None:
@@ -542,7 +543,7 @@ class Atom():
         >>> at.find_atoms_around(dist=2, only_part=2)
         [Atom ID: 0, Atom ID: 2, Atom ID: 6, Atom ID: 10]
         >>> shx.atoms.get_atom_by_name('C1_4').cart_coords
-        [-0.19777464582150567, 4.902748697000001, 6.897766400656786]
+        [-0.19777464582151, 4.902748697, 6.89776640065679]
         """
         found = []
         for at in self.shx.atoms:
