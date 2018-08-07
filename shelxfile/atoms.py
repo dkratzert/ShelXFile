@@ -271,8 +271,7 @@ class Atom():
     _qpeakstr = '{:<5.5s} {:<3}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
     _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
-    def __init__(self, shx, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None, afix: AFIX = None,
-                 resi: RESI = None, fvar: int = 1, occ: float = 1.0) -> None:
+    def __init__(self, shx) -> None:
         self.deleted = False  # Indicates if atom was deleted
         self.shx = shx
         self.cell = shx.cell
@@ -280,17 +279,17 @@ class Atom():
         self.resiclass = ''
         self.resinum = 0  # all other atoms are residue 0
         self.chain_id = None
-        self.fullname = name + ' ' + str(self.resinum)  # Name including residue nimber like "C1_2"
+        self.fullname = 'name' + '_' + str(self.resinum)  # Name including residue nimber like "C1_2"
         self.part = None
         self.afix = None
-        self.name = name  # Name without residue number like "C1"
+        self.name = 'name'  # Name without residue number like "C1"
         # Site occupation factor including free variable like 31.0
         self.sof = 11.0
         self.atomid = 0
         # fractional coordinates:
-        self.x = coords[0]
-        self.y = coords[1]
-        self.z = coords[2]
+        self.x = None
+        self.y = None
+        self.z = None
         # cartesian coordinates:
         self.xc = None
         self.yc = None
@@ -300,7 +299,7 @@ class Atom():
         self.uvals = [0.04]  # [U] or [u11 u12 u13 u21 u22 u23]
         self.frag_atom = False
         self.restraints = []
-        self.previous_non_h = None
+        self.previous_non_h = None  # Find in self.shx.atoms durinf initialization
         self._occupancy = 1.0
 
     @property
@@ -329,6 +328,13 @@ class Atom():
     @occupancy.setter
     def occupancy(self, occ):
         self._occupancy = occ
+
+    def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None,
+        afix: AFIX = None, resi: RESI = None, fvar: int = 1, occ: float = 1.0):
+        """
+        Sets atom properties manually if not parsed from a SHELXL file.
+        """
+        pass
 
     def set_uvals(self, uvals: list):
         """
