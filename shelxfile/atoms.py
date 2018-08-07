@@ -341,15 +341,23 @@ class Atom():
         return occ
 
     @occupancy.setter
-    def occupancy(self, occ):
+    def occupancy(self, occ: float):
         self._occupancy = occ
 
     def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None,
-        afix: AFIX = None, resi: RESI = None, fvar: int = 1, occ: float = 1.0):
+        afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0, uvals: list = None):
         """
         Sets atom properties manually if not parsed from a SHELXL file.
         """
-        pass
+        self.name = name
+        self.sfac_num = sfac_num
+        self.frac_coords = coords
+        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell.cell_list)
+        self.part = part
+        self.afix = afix
+        self.resi = resi
+        self.sof = site_occupation
+        self.uvals = uvals
 
     def set_uvals(self, uvals: list):
         """
@@ -406,7 +414,7 @@ class Atom():
         self.x = x
         self.y = y
         self.z = z
-        self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell.cell_list)
+        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell.cell_list)
         if len(self.uvals) == 2:
             self.peak_height = uvals.pop()
             self.qpeak = True
@@ -492,8 +500,12 @@ class Atom():
         return self.shx._reslist.index(self)
 
     @property
-    def frac_coords(self):
+    def frac_coords(self) -> list:
         return [self.x, self.y, self.z]
+
+    @frac_coords.setter
+    def frac_coords(self, coords: list):
+        self.x, self.y, self.z = coords
 
     @property
     def cart_coords(self):

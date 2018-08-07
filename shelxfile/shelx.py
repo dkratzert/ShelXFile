@@ -787,16 +787,20 @@ class ShelXFile():
         self._reslist.insert(self.unit.position + 1, self.acta)
 
     def add_atom(self, name: str = None, coordinates: list = None, element = 'C', uvals: list = None, part: int = 0,
-                 occupancy: float = 1.0, fvar: int = 1):
+                 sof: float = 11.0):
         """
         Adds an atom to the ShelxFile.atoms list. If no element is given, carbon atoms are assumed.
         """
         if uvals is None:
             uvals = [0.04]
-        p = PART(self, ['PART', '{}'.format(part)])
-        spline = [name, str(self.elem2sfac(element))] + coordinates + [str(fvar)+"{:<5.4}".format(occupancy)] + uvals
-        a = Atom(self, spline, line_nums=[self.fvars.position + 1], line_number=self.fvars.position + 1, part=p, 
-                 afix=None, resi=None, sof=11)
+        part = PART(self, 'PART {}'.format(part).split())
+        afix = AFIX(self, 'AFIX 0'.split())
+        resi = RESI(self, 'RESI 0'.split())
+        a = Atom(self)
+        sfac_num = self.elem2sfac(element)
+        a.set_atom_parameters(name=name, sfac_num=sfac_num, coords=coordinates, 
+                              part=part, afix=afix, resi=resi, site_occupation=sof, uvals=uvals)
+        self.append_card(self.atoms, a, 0)
 
     def orthogonal_matrix(self):
         """
