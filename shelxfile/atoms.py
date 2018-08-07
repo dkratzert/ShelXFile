@@ -276,10 +276,7 @@ class Atom():
         self.shx = shx
         self.cell = shx.cell
         self.sfac_num = None
-        self.resiclass = ''
-        self.resinum = 0  # all other atoms are residue 0
-        self.chain_id = None
-        self.fullname = 'name' + '_' + str(self.resinum)  # Name including residue nimber like "C1_2"
+        self.resi = None
         self.part = None
         self.afix = None
         self.name = 'name'  # Name without residue number like "C1"
@@ -297,10 +294,28 @@ class Atom():
         self.qpeak = False
         self.peak_height = 0.0
         self.uvals = [0.04]  # [U] or [u11 u12 u13 u21 u22 u23]
+        self.uvals_orig = [0.04]
         self.frag_atom = False
         self.restraints = []
         self.previous_non_h = None  # Find in self.shx.atoms durinf initialization
+        self._line_numbers = None
         self._occupancy = 1.0
+
+    @property
+    def fullname(self):
+        return self.name + '_' + str(self.resinum)  # Name including residue nimber like "C1_2"
+
+    @property
+    def resiclass(self):
+        return self.resi.residue_class
+
+    @property
+    def resinum(self):
+        return self.resi.residue_number
+
+    @property
+    def chain_id(self):
+        return self.resi.chainID
 
     @property
     def fvar(self):
@@ -338,52 +353,41 @@ class Atom():
 
     def set_uvals(self, uvals: list):
         """
-        Parses the ANIS card. It can be either ANIS, ANIS name(s) or ANIS number.
-        # TODO: Test if ANIS $CL works and if ANIS_* $C works
-        # TODO: Make this method work again
+        Sets u values and checks if a free variable was used.
         """
-        try:
-            # ANIS with a number as parameter
-            if int(self.shx.anis[1]) > 0:
-                self.shx.anis[1] -= 1
-                if len(self.uvals) < 6:
-                    self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-        except (TypeError, KeyError, ValueError, IndexError):
-            # ANIS with a list of atoms
-            if not self.shx.anis.all_atoms and self.shx.anis.atoms:
-                # if '_' in self.shx.anis[0]:
-                #    resinum = self.shx.anis[0].upper().split('_')[1]
-                for x in self.shx.anis.atoms:
-                    if '_' in x:
-                        name, resinum = x.upper().split('_')
-                    else:
-                        name = x.upper()
-                        resinum = 0
-                    if self.name == name and (int(self.resinum) == int(resinum) or resinum == '*'):
-                        self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-                    if x.startswith('$'):
-                        if name[1:].upper() == self.element \
-                                and (int(self.resinum) == int(resinum) or resinum == '*'):
-                            self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-                            # TODO: This is a mess. Test and fix all sorts of ANIS possibilities.
-            # ANIS for all atoms
-            else:
-                if len(self.uvals) < 6:
-                    self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-        for n, u in enumerate(self.uvals):
+        self.uvals = uvals
+        for n, u in enumerate(uvals):
             if abs(u) > 4.0:
                 fvar, uval = split_fvar_and_parameter(u)
-                #self.uvals[n] = uval
+                self.uvals[n] = uval
                 self.shx.fvars.set_fvar_usage(fvar)
 
-    def parse_line(self, atline: list):
+    def parse_line(self, atline: list, list_of_lines: list, part: PART, afix: AFIX, resi: RESI):
         """
         Parsers the text line of an atom from SHELXL to initialize the atom parameters.
-        # TODO: Make this method work again
         """
         self.name = atline[0][:4]  # Atom names are limited to 4 characters
-        self.fullname = self.name + '_{}'.format(self.resinum)
         uvals = [float(x) for x in atline[6:12]]
+        self.uvals_orig = uvals[:]
+        self.set_uvals(uvals)
+        self._line_numbers = list_of_lines
+        self.part = part
+        self.afix = afix
+        self.resi = resi
+        if self.part.sof != 11.0:
+            if self.afix and self.afix.sof:  # handles position of afix and part:
+                if self.afix.position > self.part.position:
+                    self.sof = self.afix.sof
+            else:
+                self.sof = self.part.sof
+        elif self.afix and self.afix.sof:
+            if self.part.sof:
+                if self.part.position > self.afix.position:
+                    self.sof = self.part.sof
+            else:
+                self.sof = self.afix.sof
+        else:
+            self.sof = float(atline[5])
         try:
             x, y, z = [float(x) for x in atline[2:5]]
         except ValueError as e:
@@ -403,7 +407,6 @@ class Atom():
         self.y = y
         self.z = z
         self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell.cell_list)
-        self.uvals = uvals
         if len(self.uvals) == 2:
             self.peak_height = uvals.pop()
             self.qpeak = True
@@ -473,6 +476,10 @@ class Atom():
                     return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
 
     def resolve_restraints(self):
+        """
+        This method should generate a list of restraints objects for each restraints involved with this atom.
+        TODO: Make this work 
+        """
         for num, r in enumerate(self.shx.restraints):
             for at in r.atoms:
                 # print(r.residue_number, self.resinum, r.residue_class, self.resiclass, self.name, at)
@@ -480,17 +487,8 @@ class Atom():
                     self.restraints.append(r)
 
     @property
-    def _line_numbers(self) -> list:
-        # Line numbers (indexes) in the resfile.
-        return self._lines
-
-    @_line_numbers.setter
-    def _line_numbers(self, value: list):
-        self._lines = value
-
-    @property
     def position(self):
-        # The position in the res file.
+        # The position in the res file as index number (starting from 0).
         return self.shx._reslist.index(self)
 
     @property

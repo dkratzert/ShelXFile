@@ -348,7 +348,7 @@ class AFIX(Command):
         super(AFIX, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
         self.U = 10.08
-        self.sof = 11
+        self.sof = 11.0
         if len(p) > 0:
             self.mn = int(p[0])
         if len(p) > 1:
@@ -400,7 +400,7 @@ class RESI(Command):
         self.residue_class = ''
         self.residue_number = 0
         self.alias = None
-        self.ID = None
+        self.chainID = None
         if len(spline) < 2:
             if DEBUG:
                 print('*** Wrong RESI definition found! Check your RESI instructions ***')
@@ -441,7 +441,7 @@ class RESI(Command):
             if re.search('[a-zA-Z]', x):
                 if ':' in x:
                     # contains ":" thus must be a chain-id+number
-                    self.ID, self.residue_number = x.split(':')[0], int(x.split(':')[1])
+                    self.chainID, self.residue_number = x.split(':')[0], int(x.split(':')[1])
                 else:
                     # contains letters, must be a name (class)
                     self.residue_class = x
@@ -454,7 +454,7 @@ class RESI(Command):
                         self.residue_number = int(x)
                     except ValueError:
                         self.residue_number = 0
-        return self.residue_class, self.residue_number, self.ID, self.alias
+        return self.residue_class, self.residue_number, self.chainID, self.alias
 
     def __bool__(self):
         if self.residue_number > 0:
@@ -471,7 +471,7 @@ class PART(Command):
         """
         super(PART, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
-        self.sof = 0
+        self.sof = 11.0
         self.n = 0
         try:
             self.n = int(p[0])

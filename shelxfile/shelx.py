@@ -284,8 +284,6 @@ class ShelXFile():
                 continue
             if line.startswith('PART'):
                 self.part = PART(self, spline)
-                if abs(self.part.sof) != 0:
-                    sof = self.part.sof
                 self.assign_card(self.part, line_num)
                 continue
             # collect AFIX:
@@ -302,8 +300,8 @@ class ShelXFile():
                 # A SHELXL atom:
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
                 #            0.03649  -0.00522  -0.01212   0.00157 )
-                a = Atom(self, list_of_lines, part=self.part, afix=self.afix, resi=self.resi, sof=sof)
-                a.parse_line(spline)
+                a = Atom(self)
+                a.parse_line(spline, list_of_lines, part=self.part, afix=self.afix, resi=self.resi)
                 self.append_card(self.atoms, a, line_num)
                 continue
             elif word == 'SADI':
