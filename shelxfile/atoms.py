@@ -260,7 +260,7 @@ class Atoms():
 
 class Atom():
     """
-    An Opbect holding all Properties of a shelxl atom plus some extra information like
+    An object holding all Properties of a shelxl atom plus some extra information like
     kartesian coordinates and element type.
     """
     #                name    sfac     x         y        z       occ      u11      u12 ...
@@ -271,20 +271,18 @@ class Atom():
     _qpeakstr = '{:<5.5s} {:<3}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
     _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
-    def __init__(self, shelx, spline: list, line_nums: list, line_number: int, part: PART = None,
-                 afix: AFIX = None, resi: RESI = None, sof: float = 0) -> None:
-        # super(Atom, self).__init__(shelx)
+    def __init__(self, shx) -> None:
         self.deleted = False  # Indicates if atom was deleted
-        self.cell = shelx.cell
-        self._line_number = line_number
-        self._lines = line_nums
+        self.shx = shx
+        self.cell = shx.cell
         self.sfac_num = None
-        self.name = None  # Name without residue number like "C1"
-        self.fullname = None  # Name including residue nimber like "C1_2"
+        self.resi = None
+        self.part = None
+        self.afix = None
+        self.name = 'name'  # Name without residue number like "C1"
         # Site occupation factor including free variable like 31.0
-        self.sof = None
+        self.sof = 11.0
         self.atomid = 0
-        self.shx = shelx
         # fractional coordinates:
         self.x = None
         self.y = None
@@ -293,98 +291,113 @@ class Atom():
         self.xc = None
         self.yc = None
         self.zc = None
-        self.resiclass = resi.residue_class
-        if not resi.residue_number:
-            self.resinum = 0  # all other atoms are residue 0
-        else:
-            self.resinum = resi.residue_number
-        self.chain_id = resi.ID
-        self.part = part
-        self.afix = afix
         self.qpeak = False
         self.peak_height = 0.0
-        self.uvals = [0.04]  # [u11 u12 u13 u21 u22 u23]
-        self.parse_line(spline)
+        self.uvals = [0.04]  # [U] or [u11 u12 u13 u21 u22 u23]
+        self.uvals_orig = [0.04]
         self.frag_atom = False
         self.restraints = []
-        self.previous_non_h = self.shx.non_h
-        if self.element not in ['H', 'D']:
-            self.shx.non_h = line_number
-        else:
-            self.shx.non_h = None
-        if sof:
-            # sof defined from outside e.g. by PART 1 31
-            self.sof = float(sof)
-        elif len(spline) > 5:
-            self.sof = float(spline[5])
-        else:
-            self.sof = 11.0
-        # Only the occupancy of the atom *without* the free variable like 0.5
-        self.fvar = 1
-        self.occupancy = 1
+        self.previous_non_h = None  # Find in self.shx.atoms durinf initialization
+        self._line_numbers = None
+        self._occupancy = 1.0
+
+    @property
+    def fullname(self):
+        return self.name + '_' + str(self.resinum)  # Name including residue nimber like "C1_2"
+
+    @property
+    def resiclass(self):
+        return self.resi.residue_class
+
+    @property
+    def resinum(self):
+        return self.resi.residue_number
+
+    @property
+    def chain_id(self):
+        return self.resi.chainID
+
+    @property
+    def fvar(self):
         # Be aware: fvar can be negative!
-        self.fvar, occ = split_fvar_and_parameter(self.sof)
+        fvar, _ = split_fvar_and_parameter(self.sof)
+        return fvar
+
+    @property
+    def occupancy(self):
+        # Only the occupancy of the atom like 0.5 (without the free variable)
+        _, occ = split_fvar_and_parameter(self.sof)
         # Fractional occupancy:
-        # Normalized to FVAR number one:
         if abs(self.fvar) == 1:
-            self.occupancy = occ
+            return occ
         else:
             if occ > 0:
                 try:
-                    self.occupancy = self.shx.fvars[self.fvar] * occ
+                    occ = self.shx.fvars[self.fvar] * occ
                 except IndexError:
                     raise ParseSyntaxError
             else:
-                self.occupancy = 1 + (self.shx.fvars[self.fvar] * occ)
-        self.shx.fvars.set_fvar_usage(self.fvar)
-        # if self.shx.anis:
-        #    self.parse_anis()
-        for n, u in enumerate(self.uvals):
+                occ = 1 + (self.shx.fvars[self.fvar] * occ)
+        return occ
+
+    @occupancy.setter
+    def occupancy(self, occ: float):
+        self._occupancy = occ
+
+    def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None,
+        afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0, uvals: list = None):
+        """
+        Sets atom properties manually if not parsed from a SHELXL file.
+        """
+        self.name = name
+        self.sfac_num = sfac_num
+        self.frac_coords = coords
+        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell.cell_list)
+        self.part = part
+        self.afix = afix
+        self.resi = resi
+        self.sof = site_occupation
+        self.uvals = uvals
+
+    def set_uvals(self, uvals: list):
+        """
+        Sets u values and checks if a free variable was used.
+        """
+        self.uvals = uvals
+        for n, u in enumerate(uvals):
             if abs(u) > 4.0:
-                self.fvar, uval = split_fvar_and_parameter(u)
+                fvar, uval = split_fvar_and_parameter(u)
                 self.uvals[n] = uval
-                self.shx.fvars.set_fvar_usage(self.fvar)
+                self.shx.fvars.set_fvar_usage(fvar)
 
-    def parse_anis(self):
+    def parse_line(self, atline: list, list_of_lines: list, part: PART, afix: AFIX, resi: RESI):
         """
-        Parses the ANIS card. It can be either ANIS, ANIS name(s) or ANIS number.
-        # TODO: Test if ANIS $CL works and if ANIS_* $C works
+        Parsers the text line of an atom from SHELXL to initialize the atom parameters.
         """
-        try:
-            # ANIS with a number as parameter
-            if int(self.shx.anis[1]) > 0:
-                self.shx.anis[1] -= 1
-                if len(self.uvals) < 6:
-                    self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-        except (TypeError, KeyError, ValueError, IndexError):
-            # ANIS with a list of atoms
-            if not self.shx.anis.all_atoms and self.shx.anis.atoms:
-                # if '_' in self.shx.anis[0]:
-                #    resinum = self.shx.anis[0].upper().split('_')[1]
-                for x in self.shx.anis.atoms:
-                    if '_' in x:
-                        name, resinum = x.upper().split('_')
-                    else:
-                        name = x.upper()
-                        resinum = 0
-                    if self.name == name and (int(self.resinum) == int(resinum) or resinum == '*'):
-                        self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-                    if x.startswith('$'):
-                        if name[1:].upper() == self.element \
-                                and (int(self.resinum) == int(resinum) or resinum == '*'):
-                            self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-                            # TODO: This is a mess. Test and fix all sorts of ANIS possibilities.
-            # ANIS for all atoms
+        self.name = atline[0][:4]  # Atom names are limited to 4 characters
+        uvals = [float(x) for x in atline[6:12]]
+        self.uvals_orig = uvals[:]
+        self.set_uvals(uvals)
+        self._line_numbers = list_of_lines
+        self.part = part
+        self.afix = afix
+        self.resi = resi
+        if self.part.sof != 11.0:
+            if self.afix and self.afix.sof:  # handles position of afix and part:
+                if self.afix.position > self.part.position:
+                    self.sof = self.afix.sof
             else:
-                if len(self.uvals) < 6:
-                    self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-    def parse_line(self, line):
-        self.name = line[0][:4]
-        self.fullname = self.name + '_{}'.format(self.resinum)
-        uvals = [float(x) for x in line[6:12]]
+                self.sof = self.part.sof
+        elif self.afix and self.afix.sof:
+            if self.part.sof:
+                if self.part.position > self.afix.position:
+                    self.sof = self.part.sof
+            else:
+                self.sof = self.afix.sof
+        else:
+            self.sof = float(atline[5])
         try:
-            x, y, z = [float(x) for x in line[2:5]]
+            x, y, z = [float(x) for x in atline[2:5]]
         except ValueError as e:
             if DEBUG:
                 print(e, 'Line:', self._line_numbers[-1])
@@ -401,14 +414,15 @@ class Atom():
         self.x = x
         self.y = y
         self.z = z
-        self.xc, self.yc, self.zc = frac_to_cart([self.x, self.y, self.z], self.cell.cell_list)
-        self.uvals = uvals
+        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell.cell_list)
         if len(self.uvals) == 2:
             self.peak_height = uvals.pop()
             self.qpeak = True
         if self.shx.end:  # After 'END' can only be Q-peaks!
             self.qpeak = True
-        self.sfac_num = int(line[1])
+        self.sfac_num = int(atline[1])
+        self.shx.fvars.set_fvar_usage(self.fvar)
+
 
     @property
     def element(self) -> str:
@@ -470,6 +484,10 @@ class Atom():
                     return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
 
     def resolve_restraints(self):
+        """
+        This method should generate a list of restraints objects for each restraints involved with this atom.
+        TODO: Make this work 
+        """
         for num, r in enumerate(self.shx.restraints):
             for at in r.atoms:
                 # print(r.residue_number, self.resinum, r.residue_class, self.resiclass, self.name, at)
@@ -477,22 +495,22 @@ class Atom():
                     self.restraints.append(r)
 
     @property
-    def _line_numbers(self) -> list:
-        # Line numbers (indexes) in the resfile.
-        return self._lines
-
-    @_line_numbers.setter
-    def _line_numbers(self, value: list):
-        self._lines = value
-
-    @property
     def position(self):
-        # The position in the res file.
+        # The position in the res file as index number (starting from 0).
         return self.shx._reslist.index(self)
 
     @property
+<<<<<<< HEAD
     def frac_coords(self):
         return [round(self.x, 14), round(self.y, 14), round(self.z, 14)]
+=======
+    def frac_coords(self) -> list:
+        return [self.x, self.y, self.z]
+>>>>>>> match
+
+    @frac_coords.setter
+    def frac_coords(self, coords: list):
+        self.x, self.y, self.z = coords
 
     @property
     def cart_coords(self):

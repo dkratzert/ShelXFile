@@ -379,6 +379,13 @@ def test_fitmol():
     
 
 if __name__ == '__main__':
+    """
+    TODO:
+    - make test where fragment is fitted into p21c.res
+    - method to retrieve coordinates from structure
+    - match molecule
+    - translate center to target position
+    """
     #test()
     test_fitmol()
 

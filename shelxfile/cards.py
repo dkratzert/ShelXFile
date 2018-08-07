@@ -348,7 +348,7 @@ class AFIX(Command):
         super(AFIX, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
         self.U = 10.08
-        self.sof = 11
+        self.sof = 11.0
         if len(p) > 0:
             self.mn = int(p[0])
         if len(p) > 1:
@@ -400,7 +400,7 @@ class RESI(Command):
         self.residue_class = ''
         self.residue_number = 0
         self.alias = None
-        self.ID = None
+        self.chainID = None
         if len(spline) < 2:
             if DEBUG:
                 print('*** Wrong RESI definition found! Check your RESI instructions ***')
@@ -441,7 +441,7 @@ class RESI(Command):
             if re.search('[a-zA-Z]', x):
                 if ':' in x:
                     # contains ":" thus must be a chain-id+number
-                    self.ID, self.residue_number = x.split(':')[0], int(x.split(':')[1])
+                    self.chainID, self.residue_number = x.split(':')[0], int(x.split(':')[1])
                 else:
                     # contains letters, must be a name (class)
                     self.residue_class = x
@@ -454,7 +454,7 @@ class RESI(Command):
                         self.residue_number = int(x)
                     except ValueError:
                         self.residue_number = 0
-        return self.residue_class, self.residue_number, self.ID, self.alias
+        return self.residue_class, self.residue_number, self.chainID, self.alias
 
     def __bool__(self):
         if self.residue_number > 0:
@@ -471,7 +471,7 @@ class PART(Command):
         """
         super(PART, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
-        self.sof = 0
+        self.sof = 11.0
         self.n = 0
         try:
             self.n = int(p[0])
@@ -1745,6 +1745,7 @@ class WGHT(Command):
         Usually only WGHT a b
         """
         super(WGHT, self).__init__(shx, spline)
+        self.shx = shx
         self.a = 0.1
         self.b = 0.0
         self.c = 0.0
@@ -1771,6 +1772,18 @@ class WGHT(Command):
         if (self.c + self.d + self.e + self.f) != 0.33333:
             wght += ' {} {} {} {}'.format(self.c, self.d, self.e, self.f)
         return wght
+
+    def difference(self) -> list:
+        """
+        Returns a list with the weight differences of the parameters a and b. 
+        """
+        try:
+            adiff = abs(self.shx.wght.a - self.shx.wght_suggested.a)
+            bdiff = abs(self.shx.wght.b - self.shx.wght_suggested.b)
+        except AttributeError:
+            print("No suggested weighting scheme found. Unable to proceed.")
+            return [0.0, 0.0]
+        return [round(adiff, 3), round(bdiff, 3)]
 
     def __repr__(self):
         return self._as_string()

@@ -17,6 +17,9 @@ from shutil import get_terminal_size
 
 from dsrmath import frac_to_cart, subtract_vect, determinante
 
+# TODO: Add verbose mode that doesn't fail but gives output like debug mode.
+# Without DEBUG, the parser should only fail if the file is realy damaged. With DEBUG enabled, the parser
+# fails even in harmless cases.
 DEBUG = False
 PROFILE = False
 

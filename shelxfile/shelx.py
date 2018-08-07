@@ -20,30 +20,25 @@ it will fail.
 import os
 import re
 import sys
+from math import radians, cos, sin, sqrt
 
+from dsrmath import Matrix
+from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
+    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 from refine.shx_refine import ShelxlRefine
+from shelxfile.atoms import Atoms, Atom
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues
-from shelxfile.atoms import Atoms, Atom
-from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
-    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
-
-from math import radians, cos, sin, sqrt
-
-from dsrmath import Matrix
 
 """
 TODO:
 - array outer product
 - eigenvalues and right eigenvectors of a square array
-- shx.update_weight
-- shx.weight_difference
 - fit fragment without shelxl
 
-- Atoms.add_atom(position=None) method. default for position is after FVAR table
 - check if atoms in restraints are also in structure
 - restraints involved with an atom should also be part of the atoms properties
 ------------------------------------------------------------
@@ -157,8 +152,8 @@ class ShelXFile():
         self.ansr = 0.001
         self.bloc = []
         self.afix = None  # AFIX(self, [''])
-        self.part = PART(self, ['PART',  '0'])
-        self.resi = RESI(self, ['RESI',  '0'])
+        self.part = PART(self, ['PART', '0'])
+        self.resi = RESI(self, ['RESI', '0'])
         self.residues = Residues()
         self.dsrlines = []
         self.dsrline_nums = []
@@ -180,6 +175,7 @@ class ShelXFile():
         self.non_h = None
         self.error_line_num = -1  # Only used to tell the line number during an exception.
         self.restrdict = {}
+        self.wght_suggested = None
         self.resfile = os.path.abspath(resfile)
         if DEBUG:
             print('Resfile is:', self.resfile)
@@ -197,7 +193,7 @@ class ShelXFile():
             self.parse_shx_file()
             pass
         except Exception as e:
-            #print('File not parsed:', self.resfile)
+            # print('File not parsed:', self.resfile)
             if DEBUG:
                 try:
                     print(self.resfile[self.error_line_num])
@@ -214,7 +210,7 @@ class ShelXFile():
             try:
                 self.run_after_parse()
             except Exception as e:
-                #print('File not parsed!:', self.resfile)
+                # print('File not parsed!:', self.resfile)
                 if DEBUG:
                     print(e)
                     raise
@@ -302,7 +298,8 @@ class ShelXFile():
                 # A SHELXL atom:
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
                 #            0.03649  -0.00522  -0.01212   0.00157 )
-                a = Atom(self, spline, list_of_lines, line_num, part=self.part, afix=self.afix, resi=self.resi, sof=sof)
+                a = Atom(self)
+                a.parse_line(spline, list_of_lines, part=self.part, afix=self.afix, resi=self.resi)
                 self.append_card(self.atoms, a, line_num)
                 continue
             elif word == 'SADI':
@@ -481,6 +478,7 @@ class ShelXFile():
             elif word == 'WGHT':
                 # WGHT a[0.1] b[0] c[0] d[0] e[0] f[.33333]
                 if self.end:
+                    self.wght_suggested = self.assign_card(WGHT(self, spline), line_num)
                     continue
                 self.wght = self.assign_card(WGHT(self, spline), line_num)
                 continue
@@ -762,8 +760,8 @@ class ShelXFile():
         for r in self.restraints:
             if r.atoms:
                 pass
-                #print(r)
-                #Restraints._resolve_atoms(self, r.atoms)
+                # print(r)
+                # Restraints._resolve_atoms(self, r.atoms)
             if r.name == "DFIX" or r.name == "DANG":
                 if abs(r.d) > 4:
                     fvar, value = split_fvar_and_parameter(r.d)
@@ -786,6 +784,22 @@ class ShelXFile():
         """
         self.acta = ACTA(self, acta.split())
         self._reslist.insert(self.unit.position + 1, self.acta)
+
+    def add_atom(self, name: str = None, coordinates: list = None, element = 'C', uvals: list = None, part: int = 0,
+                 sof: float = 11.0):
+        """
+        Adds an atom to the ShelxFile.atoms list. If no element is given, carbon atoms are assumed.
+        """
+        if uvals is None:
+            uvals = [0.04]
+        part = PART(self, 'PART {}'.format(part).split())
+        afix = AFIX(self, 'AFIX 0'.split())
+        resi = RESI(self, 'RESI 0'.split())
+        a = Atom(self)
+        sfac_num = self.elem2sfac(element)
+        a.set_atom_parameters(name=name, sfac_num=sfac_num, coords=coordinates, 
+                              part=part, afix=afix, resi=resi, site_occupation=sof, uvals=uvals)
+        self.append_card(self.atoms, a, 0)
 
     def orthogonal_matrix(self):
         """
@@ -898,7 +912,7 @@ class ShelXFile():
                         except IndexError:
                             if DEBUG:
                                 print('*** CANNOT READ INCLUDE FILE {} ***'.format(line))
-                            #del reslist[n]
+                            # del reslist[n]
         except (IOError) as e:
             print(e)
             print('*** CANNOT READ FILE {} ***'.format(resfile))
@@ -938,19 +952,35 @@ class ShelXFile():
         except ValueError:
             pass
         # THis does not work:
-        #acta = self.acta.remove_acta_card()
+        # acta = self.acta.remove_acta_card()
         self.cycles.cycles = cycles
         filen, _ = os.path.splitext(self.resfile)
         self.write_shelx_file(filen + '.ins')
-        #shutil.copyfile(filen+'.res', filen+'.ins')
+        # shutil.copyfile(filen+'.res', filen+'.ins')
         ref = ShelxlRefine(self, self.resfile)
         ref.run_shelxl()
         self.reload()
         # Does not work:
-        #self.restore_acta_card(acta)
+        # self.restore_acta_card(acta)
         self.cycles.cycles = bc
         self.write_shelx_file(filen + '.res')
         return True
+
+    def refine_weight_convergence(self, stop_after: int = 10):
+        """
+        Tries to refine weigting sheme from SHELXL until it converged (self.weight_difference() is zero) or
+        stopt_after cycles are reached. 
+        """
+        for n in range(stop_after):
+            diff = self.wght.difference()
+            print("Weighting difference = {} {}".format(*diff))
+            if diff == [0.0, 0.0]:
+                return True
+            else:
+                self.update_weight()
+                self.refine(8)
+        print("Maximum number of refinement cycles reached, but no WGHT convergence.")
+        return False
 
     def append_card(self, obj, card, line_num):
         """
@@ -1063,10 +1093,21 @@ class ShelXFile():
         if len(val) == len(eli):
             for el, num in zip(self.sfac_table.elements_list, self.unit.values):
                 try:
-                    formstring += "{}{:,g} ".format(el, num/self.Z)
+                    formstring += "{}{:,g} ".format(el, num / self.Z)
                 except ZeroDivisionError:
                     return ''
         return formstring.strip()
+
+    def update_weight(self):
+        try:
+            self.wght.a = self.wght_suggested.a
+            self.wght.b = self.wght_suggested.b
+            self.wght.c = self.wght_suggested.c
+            self.wght.d = self.wght_suggested.d
+            self.wght.e = self.wght_suggested.e
+            self.wght.f = self.wght_suggested.f
+        except AttributeError:
+            return
 
     @property
     def sum_formula_exact(self) -> str:
@@ -1142,7 +1183,7 @@ class ShelXFile():
             except(IndexError, ValueError):
                 if DEBUG:
                     pass
-                    #raise
+                    # raise
                 pass
         if ShelXFile._diff_peak_regex.match(line):
             # REM Highest difference peak  0.407,  deepest hole -0.691,  1-sigma level  0.073
@@ -1153,10 +1194,9 @@ class ShelXFile():
                 pass
 
 
-
 if __name__ == "__main__":
-    #get_commands()
-    #sys.exit()
+    # get_commands()
+    # sys.exit()
     file = r'tests/p21c.res'
     try:
         shx = ShelXFile(file)
@@ -1167,6 +1207,7 @@ if __name__ == "__main__":
 
     sys.exit()
     from misc import walkdir
+
     files = walkdir(r'D:\GitHub\testresfiles', '.res')
     print('Indexing...')
     num = 0
@@ -1181,20 +1222,19 @@ if __name__ == "__main__":
                 cont = True
         if cont:
             continue
-        #path = f.parent
-        #file = f.name
-        #print(path.joinpath(file))
-        #id = id_generator(size=4)
-        #copy(str(f), Path(r"d:/Github/testresfiles/").joinpath(id+file))
-        #print('copied', str(f.name))
-        
-        #print(f)
+        # path = f.parent
+        # file = f.name
+        # print(path.joinpath(file))
+        # id = id_generator(size=4)
+        # copy(str(f), Path(r"d:/Github/testresfiles/").joinpath(id+file))
+        # print('copied', str(f.name))
+
+        # print(f)
         shx = ShelXFile(f)
         num += 1
-        #print(f)
-        #print(shx.sum_formula_exact)
+        # print(f)
+        # print(shx.sum_formula_exact)
     print(num, 'Files')
-
 
     """
     def get_commands():
