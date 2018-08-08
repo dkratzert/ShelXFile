@@ -11,7 +11,7 @@ __all__ = [
     "quaternion_rotate",
     "centroid",
     "rmsd",
-    "write_coordinates"]
+    "print_coordinates"]
 
 if __name__ == "__main__":
     pass

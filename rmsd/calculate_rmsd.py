@@ -269,7 +269,7 @@ def rmsd(V, W):
     return np.sqrt(rmsd/N)
 
 
-def write_coordinates(atoms, V):
+def print_coordinates(atoms, V):
     """
     Print coordinates V with corresponding atoms to stdout in XYZ format.
 
@@ -279,9 +279,6 @@ def write_coordinates(atoms, V):
         List of atomic types
     V : np.array
         (N,3) matrix of atomic coordinates
-    title : string (optional)
-        Title of molecule
-
     """
     for n, atom in enumerate(atoms):
         atom = atom[0].upper() + atom[1:]
@@ -404,7 +401,7 @@ https://github.com/charnley/rmsd
         p_all -= Pc
         p_all = np.dot(p_all, U)
         p_all += Qc
-        write_coordinates(p_atoms, p_all)
+        print_coordinates(p_atoms, p_all)
 
     return
 
@@ -482,7 +479,7 @@ def test():
     Tc = q_all[0] - p_all[0]  # difference vector from first target atom and first sample cloud atom 
     p_all += Tc  # translate the difference
     p_all_frac = np.array([cart_to_frac(x, cell) for x in p_all])
-    write_coordinates(p_atoms, p_all_frac)
+    print_coordinates(p_atoms, p_all_frac)
 
 
 if __name__ == "__main__":
