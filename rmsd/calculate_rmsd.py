@@ -409,30 +409,32 @@ https://github.com/charnley/rmsd
 def test():
     """
     >>> test()
-    Kabsch RMSD: 0.0191  
-    C0d   1      0.15686000      0.21033000      0.52975000   11.0  0.04
-    C1d   1      0.19963799      0.14804699      0.54327020   11.0  0.04
-    C2d   1      0.10709656      0.09900232      0.50598163   11.0  0.04
-    C3d   1     -0.00321619      0.09369303      0.53472035   11.0  0.04
-    C4d   1      0.15865270      0.04057955      0.50164540   11.0  0.04
-    C5d   1      0.07873863      0.12124919      0.44440086   11.0  0.04
-    C6d   1      0.33922488      0.13998353      0.52145478   11.0  0.04
-    C7d   1      0.41158942      0.18995907      0.54157217   11.0  0.04
-    C8d   1      0.33557446      0.13871925      0.45517204   11.0  0.04
-    C9d   1      0.39530779      0.08596844      0.54443389   11.0  0.04
-    C10d   1      0.19689526      0.13932384      0.61905039   11.0  0.04
-    C11d   1      0.29372382      0.17121768      0.65086805   11.0  0.04
-    C12d   1      0.20809858      0.07687889      0.63502723   11.0  0.04
-    C13d   1      0.08743699      0.16161370      0.63979012   11.0  0.04
+    Kabsch RMSD:   0.0191
+    C0d   1      0.15641558      0.21086972      0.53025647   11.0  0.04
+    C1d   1      0.19919357      0.14858671      0.54377667   11.0  0.04
+    C2d   1      0.10665214      0.09954204      0.50648810   11.0  0.04
+    C3d   1     -0.00366061      0.09423276      0.53522682   11.0  0.04
+    C4d   1      0.15820828      0.04111927      0.50215187   11.0  0.04
+    C5d   1      0.07829421      0.12178891      0.44490733   11.0  0.04
+    C6d   1      0.33878046      0.14052326      0.52196125   11.0  0.04
+    C7d   1      0.41114500      0.19049879      0.54207864   11.0  0.04
+    C8d   1      0.33513004      0.13925898      0.45567850   11.0  0.04
+    C9d   1      0.39486337      0.08650816      0.54494035   11.0  0.04
+    C10d   1      0.19645085      0.13986357      0.61955686   11.0  0.04
+    C11d   1      0.29327940      0.17175740      0.65137451   11.0  0.04
+    C12d   1      0.20765416      0.07741861      0.63553370   11.0  0.04
+    C13d   1      0.08699257      0.16215343      0.64029659   11.0  0.04
     """
     cell = [10.5086, 20.9035, 20.5072, 90.0, 94.13, 90.0]
 
-    target_coords = [[0.156860, 0.210330, 0.529750],  # O1
-                     [0.198400, 0.149690, 0.543840],  # C1
-                     [0.1968, 0.1393, 0.6200]]  # Q11
-    target_coords = np.array([frac_to_cart(x, cell) for x in target_coords])
+    target_atoms = [[0.156860, 0.210330, 0.529750],  # O1
+                    [0.198400, 0.149690, 0.543840],  # C1
+                    [0.1968, 0.1393, 0.6200]]  # Q11
+    # F8: [0.297220,    0.093900,    0.636590] 
+    # Q11: [0.1968, 0.1393, 0.6200]  # Q11
+    target_atoms = np.array([frac_to_cart(x, cell) for x in target_atoms])
 
-    sample_cloud = np.array([[-0.01453, 1.66590, 0.10966],  # O1  *0
+    fragment_atoms = np.array([[-0.01453, 1.66590, 0.10966],  # O1  *0
                              [-0.00146, 0.26814, 0.06351],  # C1  *1
                              [-1.13341, -0.23247, -0.90730],  # C2
                              [-2.34661, -0.11273, -0.34544],  # F1
@@ -451,35 +453,39 @@ def test():
 
     # p_atoms = np.array(['O1', 'C1', 'C4'])
     p_atoms = []
-    for n in range(len(sample_cloud)):
+    for n in range(len(fragment_atoms)):
         at = "C{}d".format(n)
         p_atoms.append(at)
     p_atoms = np.array(p_atoms)
-    p_all = np.array([sample_cloud[0], sample_cloud[1], sample_cloud[10]])
-    q_all = target_coords
-    q_atoms = np.array(['O1', 'C1', 'Q11'])
+    source_atoms = np.array([fragment_atoms[0], fragment_atoms[1], fragment_atoms[10]])
+    target_names = np.array(['O1', 'C1', 'Q11'])
 
-    P = copy.deepcopy(p_all)
-    Q = copy.deepcopy(q_all)
+    P = copy.deepcopy(source_atoms)
+    Q = copy.deepcopy(target_atoms)
 
     # Create the centroid of P and Q which is the geometric center of a
     # N-dimensional region and translate P and Q onto that center.
     # http://en.wikipedia.org/wiki/Centroid
     Pc = centroid(P)
     Qc = centroid(Q)
+    # Move P and Q to origin:
     P -= Pc
     Q -= Qc
 
-    print("Kabsch RMSD: {0:<8.3}".format(kabsch_rmsd(P, Q)))
+    print("Kabsch RMSD: {0:8.3}".format(kabsch_rmsd(P, Q)))
 
-    U = kabsch(P, Q)
-    p_all -= Pc  # translate p_all onto center
-    p_all = np.dot(sample_cloud, U)  # rotate sample cloud
-    p_all += Qc  # move back
-    Tc = q_all[0] - p_all[0]  # difference vector from first target atom and first sample cloud atom 
-    p_all += Tc  # translate the difference
-    p_all_frac = np.array([cart_to_frac(x, cell) for x in p_all])
-    print_coordinates(p_atoms, p_all_frac)
+    U = kabsch(P, Q)  # Rotation matrix
+    source_atoms -= Pc  # translate source_atoms onto center
+    rotated_fragment = np.dot(fragment_atoms, U)  # rotate fragment_atoms
+    source_atoms = np.dot(source_atoms, U)  # rotate source_atoms (the subsection for position definition)
+    rotated_fragment += Qc  # move fragment back from zero
+    source_atoms += Qc  # move source_atoms back from zero
+    center_difference = source_atoms[0] - rotated_fragment[0]  # vector from first source_atoms and first rotated_fragment atom
+    rotated_fragment += center_difference  # translate to source_atoms position
+    rotated_fragment = np.array([cart_to_frac(x, cell) for x in rotated_fragment])  # back to fractional coordinates
+    #source_atoms = np.array([cart_to_frac(x, cell) for x in source_atoms])
+    #print_coordinates(p_atoms[:3], source_atoms)
+    print_coordinates(p_atoms, rotated_fragment)
 
 
 if __name__ == "__main__":
