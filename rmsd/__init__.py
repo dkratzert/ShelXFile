@@ -11,7 +11,8 @@ __all__ = [
     "quaternion_rotate",
     "centroid",
     "rmsd",
-    "print_coordinates"]
+    "print_coordinates",
+    "fit_fragment"]
 
 if __name__ == "__main__":
     pass
