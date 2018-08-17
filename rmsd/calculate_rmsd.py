@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-from dsrmath import frac_to_cart, cart_to_frac
+
+from misc import cart_to_frac, frac_to_cart
 
 __doc__ = \
     """
@@ -200,7 +201,7 @@ def quaternion_rotate(X, Y):
 
     Returns
     -------
-    rot : matrix
+    rot : np.matrix
         Rotation matrix (D,D)
     """
     N = X.shape[0]
@@ -281,17 +282,15 @@ def print_coordinates(atoms, V):
         print("{0:2s}   1 {1:15.8f} {2:15.8f} {3:15.8f}   11.0  0.04".format(atom, *V[n]))
 
 
-def fit_fragment(cell, fragment_atoms, source_atoms, target_atoms):
+def fit_fragment(fragment_atoms, source_atoms, target_atoms):
     """
-    Takes a list of fragment atoms and fits them to the position of target atoms. source_atoms are a fraction 
+    Takes a list of fragment atoms and fits them to the position of target atoms. source_atoms are a fraction
     of the fragment to be fitted on the target_atoms.
 
     Parameters
     ----------
-    cell: list
-        unit cell
     fragment_atoms: list
-        complete set of atoms of a fragment 
+        complete set of atoms of a fragment
     source_atoms: list
         subsection of fragment atoms
     target_atoms: list
@@ -307,50 +306,44 @@ def fit_fragment(cell, fragment_atoms, source_atoms, target_atoms):
     source_atoms = np.array(source_atoms)
     target_atoms = np.array(target_atoms)
     fragment_atoms = np.array(fragment_atoms)
-    P = copy.deepcopy(source_atoms)
-    Q = copy.deepcopy(target_atoms)
-    # Create the centroid of P and Q which is the geometric center of a
-    # N-dimensional region and translate P and Q onto that center.
+    P_source = copy.deepcopy(source_atoms)
+    Q_target = copy.deepcopy(target_atoms)
+    # Create the centroid of P_source and Q_target which is the geometric center of a
+    # N-dimensional region and translate P_source and Q_target onto that center.
     # http://en.wikipedia.org/wiki/Centroid
-    Pcentroid = centroid(P)
-    Qcentroid = centroid(Q)
-    # Move P and Q to origin:
-    P -= Pcentroid
-    Q -= Qcentroid
-    U = kabsch(P, Q)  # get the Kabsch rotation matrix
+    Pcentroid = centroid(P_source)
+    Qcentroid = centroid(Q_target)
+    # Move P_source and Q_target to origin:
+    P_source -= Pcentroid
+    Q_target -= Qcentroid
+    U = kabsch(P_source, Q_target)  # get the Kabsch rotation matrix
+    #U = quaternion_rotate(P_source, Q_target)  # get the Kabsch rotation matrix
     source_atoms -= Pcentroid  # translate source_atoms onto center
-    rotated_fragment = np.dot(fragment_atoms, U)  # rotate fragment_atoms
-    source_atoms = np.dot(source_atoms, U)  # rotate source_atoms (the subsection for position definition)
-    rotated_fragment += Qcentroid  # move fragment back from zero
-    source_atoms += Qcentroid  # move source_atoms back from zero
-    # vector from first source_atoms and first rotated_fragment atom:
-    center_difference = source_atoms[0] - rotated_fragment[0]
-    # translate to source_atoms position, because center of fragment_atoms != center of source_atoms,
-    # because its a subsection:
-    rotated_fragment += center_difference
-    rotated_fragment = np.array([cart_to_frac(x, cell) for x in rotated_fragment])  # back to fractional coordinates
-    rmsd = kabsch_rmsd(P, Q)
-    return rotated_fragment, rmsd
+    rotated_fragment = np.dot(fragment_atoms, U)  # rotate fragment_atoms (instead of source_atoms)
+    rotated_fragment += Qcentroid  # move fragment back from zero (be aware that the translation is still wrong!)
+    rmsd = kabsch_rmsd(P_source, Q_target)
+    return list(rotated_fragment), rmsd
 
 
 def test():
     """
     >>> test()
     Kabsch RMSD:   0.0191
-    C0d   1      0.15641558      0.21086972      0.53025647   11.0  0.04
-    C1d   1      0.19919357      0.14858671      0.54377667   11.0  0.04
-    C2d   1      0.10665214      0.09954204      0.50648810   11.0  0.04
-    C3d   1     -0.00366061      0.09423276      0.53522682   11.0  0.04
-    C4d   1      0.15820828      0.04111927      0.50215187   11.0  0.04
-    C5d   1      0.07829421      0.12178891      0.44490733   11.0  0.04
-    C6d   1      0.33878046      0.14052326      0.52196125   11.0  0.04
-    C7d   1      0.41114500      0.19049879      0.54207864   11.0  0.04
-    C8d   1      0.33513004      0.13925898      0.45567850   11.0  0.04
-    C9d   1      0.39486337      0.08650816      0.54494035   11.0  0.04
-    C10d   1      0.19645085      0.13986357      0.61955686   11.0  0.04
-    C11d   1      0.29327940      0.17175740      0.65137451   11.0  0.04
-    C12d   1      0.20765416      0.07741861      0.63553370   11.0  0.04
-    C13d   1      0.08699257      0.16215343      0.64029659   11.0  0.04
+    C0d   1      0.13342089      0.24130563      0.55100894   11.0  0.04
+    C1d   1      0.17619888      0.17902262      0.56452914   11.0  0.04
+    C2d   1      0.08365746      0.12997794      0.52724057   11.0  0.04
+    C3d   1     -0.02665530      0.12466866      0.55597929   11.0  0.04
+    C4d   1      0.13521359      0.07155518      0.52290434   11.0  0.04
+    C5d   1      0.05529952      0.15222482      0.46565980   11.0  0.04
+    C6d   1      0.31578577      0.17095916      0.54271372   11.0  0.04
+    C7d   1      0.38815031      0.22093469      0.56283111   11.0  0.04
+    C8d   1      0.31213535      0.16969488      0.47643097   11.0  0.04
+    C9d   1      0.37186868      0.11694406      0.56569282   11.0  0.04
+    C10d   1      0.17345616      0.17029947      0.64030933   11.0  0.04
+    C11d   1      0.27028472      0.20219330      0.67212698   11.0  0.04
+    C12d   1      0.18465947      0.10785452      0.65628617   11.0  0.04
+    C13d   1      0.06399788      0.19258933      0.66104906   11.0  0.04
+
     """
     cell = [10.5086, 20.9035, 20.5072, 90.0, 94.13, 90.0]
 
@@ -385,7 +378,8 @@ def test():
         fragment_atom_names.append(at)
     fragment_atom_names = np.array(fragment_atom_names)
     source_atoms = [fragment_atoms[0], fragment_atoms[1], fragment_atoms[10]]
-    rotated_fragment, rmsd = fit_fragment(cell, fragment_atoms, source_atoms, target_atoms)
+    rotated_fragment, rmsd = fit_fragment(fragment_atoms, source_atoms, target_atoms)
+    rotated_fragment = np.array([cart_to_frac(x, cell) for x in rotated_fragment])  # back to fractional coordinates
     print('Kabsch RMSD: {0:8.3}'.format(rmsd))
     print_coordinates(fragment_atom_names, rotated_fragment)
 
