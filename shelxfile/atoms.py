@@ -1,7 +1,7 @@
 from math import acos, sqrt, degrees
 
-from dsrmath import atomic_distance, frac_to_cart, Array
-from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
+from shelxfile.dsrmath import atomic_distance, frac_to_cart, Array
+from shelxfile.misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
 from shelxfile.cards import AFIX, PART, RESI
 
 

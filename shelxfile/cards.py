@@ -1,7 +1,7 @@
 import re
 
-from dsrmath import my_isnumeric, SymmetryElement
-from misc import chunks, ParseParamError, ParseNumError, \
+from shelxfile.dsrmath import my_isnumeric, SymmetryElement
+from shelxfile.misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, DEBUG, ParseSyntaxError
 
 """

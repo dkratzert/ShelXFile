@@ -9,7 +9,7 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
-"""
+__doc__ = """
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
 
@@ -17,13 +17,14 @@ The parser is quiet about the most errors unless you enable DEBUG in misc.py. Th
 SHELX file even if it has syntax errors, but if for example, the SFAC and UNIT instruction is not consistent 
 it will fail.
 """
+
 import os
 import re
 import sys
 from math import radians, cos, sin, sqrt
 
-from dsrmath import Matrix
-from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
+from shelxfile.dsrmath import Matrix
+from shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 from refine.shx_refine import ShelxlRefine
 from shelxfile.atoms import Atoms, Atom
@@ -33,6 +34,7 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues
 
+__version__ = 3
 """
 TODO:
 - array outer product
@@ -1206,7 +1208,7 @@ if __name__ == "__main__":
     shx.write_shelx_file('tests/complete_run/test.ins')
 
     sys.exit()
-    from misc import walkdir
+    from shelxfile.misc import walkdir
 
     files = walkdir(r'D:\GitHub\testresfiles', '.res')
     print('Indexing...')

@@ -17,7 +17,7 @@ import subprocess
 import sys
 from shutil import which, disk_usage, copyfile
 
-from misc import remove_file, sep_line, find_line
+from shelxfile.misc import remove_file, sep_line, find_line
 
 __metaclass__ = type  # use new-style classes
 

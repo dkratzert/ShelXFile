@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from misc import cart_to_frac, frac_to_cart
+from shelxfile.misc import cart_to_frac, frac_to_cart
 
 __doc__ = \
     """

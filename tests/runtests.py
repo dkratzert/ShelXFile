@@ -1,9 +1,7 @@
 import doctest
 
-import dsrmath
-import misc
 from refine import shx_refine
-from shelxfile import shelx, cards, atoms
+from shelxfile import shelx, cards, atoms, dsrmath, misc
 
 modules = [shelx, cards, misc, atoms, shx_refine, dsrmath]
 
