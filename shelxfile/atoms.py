@@ -4,6 +4,12 @@ from shelxfile.dsrmath import atomic_distance, frac_to_cart, Array
 from shelxfile.misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
 from shelxfile.cards import AFIX, PART, RESI
 
+"""
+TODO:
+- position property for every shelx object that automatically
+  handles the position in the resfile (and position changes)
+  maybe also addition/delete
+"""
 
 class Atoms():
     """
