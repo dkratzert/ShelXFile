@@ -19,18 +19,16 @@ class Atoms():
     def __init__(self, shx):
         self.shx = shx
         self.all_atoms = []
-        self.atomsdict = {}
-        self.nameslist = []
 
     def append(self, atom: 'Atom') -> None:
         """
         Adds a new atom to the list of atoms. Using append is essential.
         """
         self.all_atoms.append(atom)
-        atom.atomid = self.all_atoms.index(atom)
-        name = atom.name + '_{}'.format(atom.resinum)
-        self.atomsdict[name] = atom
-        self.nameslist.append(name.upper())
+
+    @property
+    def nameslist(self):
+        return [at.name.upper() for at in self.all_atoms]
 
     def __repr__(self):
         if self.all_atoms:
@@ -55,13 +53,15 @@ class Atoms():
         for n, at in enumerate(self.all_atoms):
             if key == at.atomid:
                 if DEBUG:
-                    print("deleting atom", at.name)
-                at.delete()
-                #del self.all_atoms[n]
-                #del self.atomsdict[at.name + '_{}'.format(at.resinum)]
-                #del self.nameslist[self.nameslist.index(at.fullname.upper())]
-                #for x in at._line_numbers:
-                #    del self.shx._reslist[x]
+                    print("deleting atom", at.fullname)
+                del self.all_atoms[n]
+                del self.shx._reslist[self.shx._reslist.index(at)]
+        #if DEBUG:
+        #    print('Could not delete atom {}'.format(self.get_atom_by_id(key.atomid).fullname))
+
+    @property
+    def atomsdict(self):
+        return dict((atom.fullname, atom) for atom in self.all_atoms)
 
     @property
     def number(self) -> int:
@@ -79,7 +79,7 @@ class Atoms():
         Returns the atom objext with atomId id.
         """
         for a in self.all_atoms:
-            if aid == a.atomid and not a.deleted:
+            if aid == a.atomid:
                 return a
 
     def has_atom(self, atom_name: str) -> bool:
@@ -157,7 +157,7 @@ class Atoms():
         >>> shx.atoms.residues
         [0, 1, 2, 3, 4]
         """
-        return list({x.resinum for x in self.all_atoms})
+        return [x.resinum for x in self.all_atoms]
 
     @property
     def q_peaks(self) -> list:
@@ -278,7 +278,6 @@ class Atom():
     _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
     def __init__(self, shx) -> None:
-        self.deleted = False  # Indicates if atom was deleted
         self.shx = shx
         self.cell = shx.cell
         self.sfac_num = None
@@ -288,7 +287,6 @@ class Atom():
         self.name = 'name'  # Name without residue number like "C1"
         # Site occupation factor including free variable like 31.0
         self.sof = 11.0
-        self.atomid = 0
         # fractional coordinates:
         self.x = None
         self.y = None
@@ -306,6 +304,10 @@ class Atom():
         self.previous_non_h = None  # Find in self.shx.atoms durinf initialization
         self._line_numbers = None
         self._occupancy = 1.0
+
+    @property
+    def atomid(self):
+        return self.shx._reslist.index(self)
 
     @property
     def fullname(self):
@@ -351,7 +353,7 @@ class Atom():
         self._occupancy = occ
 
     def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None,
-        afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0, uvals: list = None):
+                            afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0, uvals: list = None):
         """
         Sets atom properties manually if not parsed from a SHELXL file.
         """
@@ -390,13 +392,13 @@ class Atom():
         self.resi = resi
         if self.part.sof != 11.0:
             if self.afix and self.afix.sof:  # handles position of afix and part:
-                if self.afix.position > self.part.position:
+                if self.afix.index > self.part.index:
                     self.sof = self.afix.sof
             else:
                 self.sof = self.part.sof
         elif self.afix and self.afix.sof:
             if self.part.sof:
-                if self.part.position > self.afix.position:
+                if self.part.index > self.afix.index:
                     self.sof = self.part.sof
             else:
                 self.sof = self.afix.sof
@@ -428,7 +430,6 @@ class Atom():
             self.qpeak = True
         self.sfac_num = int(atline[1])
         self.shx.fvars.set_fvar_usage(self.fvar)
-
 
     @property
     def element(self) -> str:
@@ -501,9 +502,9 @@ class Atom():
                     self.restraints.append(r)
 
     @property
-    def position(self):
+    def index(self):
         # The position in the res file as index number (starting from 0).
-        return self.shx._reslist.index(self)
+        return self.shx.index_of(self)
 
     @property
     def frac_coords(self) -> list:
@@ -528,11 +529,7 @@ class Atom():
         >>> shx.atoms.all_atoms[54:58]
         [Atom ID: 54, Atom ID: 55, Atom ID: 57, Atom ID: 58]
         """
-        self.deleted = True
-        del self.shx.atoms.atomsdict[self.name + '_{}'.format(self.resinum)]
-        del self.shx.atoms.nameslist[self.shx.atoms.nameslist.index(self.fullname.upper())]
-        del self.shx.atoms.all_atoms[self.shx.atoms.all_atoms.index(self)]
-        self.shx.delete_on_write.update(self._line_numbers)
+        del self.shx.atoms[self.index]
 
     def to_isotropic(self) -> None:
         """

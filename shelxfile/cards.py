@@ -108,7 +108,7 @@ class Restraint():
         self.atoms = []
 
     @property
-    def position(self):
+    def index(self):
         return self.shx.index_of(self)
 
     def _parse_line(self, spline, pairs=False):
@@ -219,7 +219,7 @@ class Command():
         return numparams, words
 
     @property
-    def position(self):
+    def index(self):
         return self._shx.index_of(self)
 
     def __iter__(self):
@@ -782,11 +782,9 @@ class ACTA(Command):
     ACTA 45
     >>> shx._reslist.index(shx.acta)
     12
-    >>> ac = shx.acta.remove_acta_card()
+    >>> del shx._reslist[shx.acta.index]
     >>> shx._reslist[12]
     SIZE 0.12 0.23 0.33
-    >>> ac
-    'ACTA 45'
     >>> shx.restore_acta_card(ac)
     >>> shx.index_of(shx.acta)
     8

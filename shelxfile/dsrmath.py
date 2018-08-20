@@ -357,60 +357,6 @@ class Matrix(object):
     def T(self):
         return self.transpose()
 
-    def gauss_jordan(self, eps=1.0 / (10 ** 10)):
-        """
-        Puts given matrix (2D array) into the Reduced Row Echelon Form.
-        Returns True if successful, False if 'm' is singular.
-        NOTE: make sure all the matrix items support fractions! Int matrix will NOT work!
-        Written by Jarno Elonen in April 2005, released into Public Domain.
-
-        >>> m = Matrix([[1.0, 2.0, 0.0], [2.0, 4.0, 1.0], [2.0, 1.0, 0.0]])
-        >>> m.gauss_jordan()
-        True
-        >>> m.solve(Array([1.0, 2, 3]))
-        """
-        h, w = self.shape  # (len(self), len(self[0]))
-        for y in range(0, h):
-            maxrow = y
-            for y2 in range(y + 1, h):  # Find max pivot
-                if abs(self.values[y2][y]) > abs(self.values[maxrow][y]):
-                    maxrow = y2
-            (self.values[y], self.values[maxrow]) = (self.values[maxrow], self.values[y])
-            if abs(self.values[y][y]) <= eps:  # Singular?
-                return False
-            for y2 in range(y + 1, h):  # Eliminate column y
-                c = self.values[y2][y] / self.values[y][y]
-                for x in range(y, w):
-                    self.values[y2][x] -= self.values[y][x] * c
-        for y in range(h - 1, 0 - 1, -1):  # Backsubstitute
-            c = self.values[y][y]
-            for y2 in range(0, y):
-                for x in range(w - 1, y - 1, -1):
-                    self.values[y2][x] -= self.values[y][x] * self.values[y2][y] / c
-            self.values[y][y] /= c
-            for x in range(h, w):  # Normalize row y
-                self.values[y][x] /= c
-        return True
-
-    def solve(self, b):
-        """
-        solves M*x = b
-        return vector x so that M*x = b
-        :param b: a vector in the form of a simple list of scalars
-        """
-        m2 = Matrix([row[:] + [right] for row, right in zip(self.values, b)])
-        return [row[-1] for row in m2.values] if m2.gauss_jordan() else None
-
-    def inv(self):
-        """
-        return the inv of the matrix M
-        """
-        # clone the matrix and append the identity matrix
-        # [int(i==j) for j in range_M] is nothing but the i(th row of the identity matrix
-        m2 = Matrix([row[:] + [int(i == j) for j in range(len(self))] for i, row in enumerate(self.values)])
-        # extract the appended matrix (kind of m2[m:,...]
-        return [row[len(self.values[0]):] for row in m2] if m2.gauss_jordan() else None
-
     def transpose(self) -> 'Matrix':
         """
         transposes a matrix

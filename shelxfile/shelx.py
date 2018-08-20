@@ -16,6 +16,9 @@ The implementation is Python3-only and supports SHELXL after 2017 (You should no
 The parser is quiet about the most errors unless you enable DEBUG in misc.py. The parser will try to read the 
 SHELX file even if it has syntax errors, but if for example, the SFAC and UNIT instruction is not consistent 
 it will fail.
+
+All objects (SHELX cards) from the resfile are stored in the ShelxFile._reslist list. If you delete one item,
+e.g. atom C1 with del shx.atoms[shx.atoms.get_atom_by_name('C1_4').position], the atom ids change, because 
 """
 
 import os
@@ -37,10 +40,6 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
 __version__ = 3
 """
 TODO:
-- array outer product
-- eigenvalues and right eigenvectors of a square array
-- fit fragment without shelxl
-
 - check if atoms in restraints are also in structure
 - restraints involved with an atom should also be part of the atoms properties
 ------------------------------------------------------------
@@ -240,8 +239,6 @@ class ShelXFile():
         for line_num, line in enumerate(self._reslist):
             self.error_line_num = line_num  # For exception during parsing.
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
-            if line[:1] == ' ' or line == '':
-                continue
             if not self.titl and line[:4] == 'TITL':
                 # TITL[]  ->  = and ! can be part of the TITL!
                 self.titl = line[5:76]
@@ -256,9 +253,12 @@ class ShelXFile():
                 wrapindex += 1
                 line = line.rpartition('=')[0] + self._reslist[line_num + wrapindex]
                 self.delete_on_write.update([line_num + wrapindex])
+                list_of_lines.append(line_num + wrapindex)  # list containing the lines of a multiline command
                 # Do not activate this, otherwise, the unwrapping stops after two lines.
                 # self._reslist[line_num + wrapindex] = ''
-                list_of_lines.append(line_num + wrapindex)  # list containing the lines of a multiline command
+            if (line[:1] == ' ' or line == '') and not multiline_test(self._reslist[line_num-1]):
+                self._reslist[line_num] = ' '
+                continue
             # The current line splitted:
             spline = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
             # The current line as string:
@@ -785,7 +785,7 @@ class ShelXFile():
         Place ACTA after UNIT
         """
         self.acta = ACTA(self, acta.split())
-        self._reslist.insert(self.unit.position + 1, self.acta)
+        self._reslist.insert(self.unit.index + 1, self.acta)
 
     def add_atom(self, name: str = None, coordinates: list = None, element = 'C', uvals: list = None, part: int = 0,
                  sof: float = 11.0):
