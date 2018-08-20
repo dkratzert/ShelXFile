@@ -456,7 +456,7 @@ class ShelXFile():
             elif word in ['L.S.', 'CGLS']:
                 # CGLS nls[0] nrf[0] nextra[0]
                 # L.S. nls[0] nrf[0] nextra[0]
-                self.cycles = self.assign_card(LSCycles(self, spline, line_num), line_num)
+                self.cycles = self.assign_card(LSCycles(self, spline), line_num)
                 continue
             elif word == "LIST":
                 # LIST m[#] mult[1] (mult is for list 4 only)
@@ -780,13 +780,6 @@ class ShelXFile():
         # for a in self.atoms:
         #    a.resolve_restraints()
 
-    def restore_acta_card(self, acta: str):
-        """
-        Place ACTA after UNIT
-        """
-        self.acta = ACTA(self, acta.split())
-        self._reslist.insert(self.unit.index + 1, self.acta)
-
     def add_atom(self, name: str = None, coordinates: list = None, element = 'C', uvals: list = None, part: int = 0,
                  sof: float = 11.0):
         """
@@ -946,25 +939,17 @@ class ShelXFile():
         self.__init__(self.resfile)
 
     def refine(self, cycles: int = 0) -> bool:
-        bc = 0
-        acta = ''
-        bc = int(self.cycles.cycles)
-        try:
-            self._reslist[self.index_of(self.acta)] = ' '
-        except ValueError:
-            pass
-        # THis does not work:
-        # acta = self.acta.remove_acta_card()
-        self.cycles.cycles = cycles
+        cycl = self.cycles.cycles.textline[:]
         filen, _ = os.path.splitext(self.resfile)
         self.write_shelx_file(filen + '.ins')
         # shutil.copyfile(filen+'.res', filen+'.ins')
         ref = ShelxlRefine(self, self.resfile)
+        ref.remove_acta_card(self.acta)
         ref.run_shelxl()
         self.reload()
-        # Does not work:
-        # self.restore_acta_card(acta)
-        self.cycles.cycles = bc
+        ref.restore_acta_card()
+        c = LSCycles(self, cycl)
+        self.cycles.cycles = c
         self.write_shelx_file(filen + '.res')
         return True
 

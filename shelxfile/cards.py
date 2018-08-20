@@ -221,6 +221,12 @@ class Command():
     @property
     def index(self):
         return self._shx.index_of(self)
+    
+    def rfind(self, sub, start=None, end=None):
+        return self.textline.rfind(sub)
+    
+    def startswith(self, prefix, start=None, end=None):
+        return self.textline.startswith(prefix, start, end)
 
     def __iter__(self):
         for x in self.__repr__().split():
@@ -777,19 +783,21 @@ class GRID(Command):
 class ACTA(Command):
     """
     >>> from shelxfile.shelx import ShelXFile
+    >>> from refine import ShelxlRefine
     >>> shx = ShelXFile('./tests/p21c.res')
+    >>> ref = ShelxlRefine(shx, './tests/p21c.res')
+    >>> shx._reslist[12]
+    ACTA 45
     >>> shx.acta
     ACTA 45
-    >>> shx._reslist.index(shx.acta)
-    12
-    >>> del shx._reslist[shx.acta.index]
+    >>> ref.remove_acta_card(shx.acta)
     >>> shx._reslist[12]
     SIZE 0.12 0.23 0.33
-    >>> shx.restore_acta_card(ac)
+    >>> ref.restore_acta_card()
     >>> shx.index_of(shx.acta)
     8
-    >>> shx._reslist[8:10]
-    [ACTA 45, 'LIST 4 ! automatically inserted. Change 6 to 4 for CHECKCIF!!']
+    >>> shx._reslist[7:10]
+    [UNIT 1  2  3  4  5  6, ACTA 45, 'LIST 4 ! automatically inserted. Change 6 to 4 for CHECKCIF!!']
     """
 
     def __init__(self, shx, spline: list):
@@ -799,11 +807,6 @@ class ACTA(Command):
         super(ACTA, self).__init__(shx, spline)
         self.twotheta, _ = self._parse_line(spline)
         self.shx = shx
-
-    def remove_acta_card(self):
-        del self.shx._reslist[self.shx.index_of(self)]
-        del self.shx.acta
-        return self.textline.strip('\r\n')
 
     def _as_str(self):
         if self.twotheta:
@@ -1494,8 +1497,8 @@ class SymmCards():
         self.lattOps = lattOps
 
 
-class LSCycles():
-    def __init__(self, shx, spline: list, line_number: int = 0):
+class LSCycles(Command):
+    def __init__(self, shx, spline: list):
         """
         L.S. nls[0] nrf[0] nextra[0]
         If nrf is positive, it is the number of these cycles that should be performed before applying ANIS.
@@ -1504,22 +1507,23 @@ class LSCycles():
         nextra is the number of additional parameters that were derived from the data when 'squeezing' the
         structure etc.
         """
+        super(LSCycles, self).__init__(shx, spline)
+        p, _ = self._parse_line(spline)
         self.shx = shx
         self.cgls = False
         self.cycles = 0
         self.nrf = ''
         self.nextra = ''
-        self.line_number = line_number  # line number in res file
         try:
-            self.cycles = int(spline[1])
+            self.cycles = p[0]
         except (IndexError, NameError):
             raise ParseNumError
         try:
-            self.nrf = spline[2]
+            self.nrf = p[1]
         except IndexError:
             pass
         try:
-            self.nextra = spline[3]
+            self.nextra = p[2]
         except IndexError:
             pass
         if spline[0].upper() == 'CGLS':
@@ -1535,7 +1539,7 @@ class LSCycles():
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.cycles.set_refine_cycles(44)
-        >>> shx._reslist[shx.cycles.line_number]
+        >>> shx._reslist[shx.cycles.index]
         L.S. 44
         """
         self.cycles = number

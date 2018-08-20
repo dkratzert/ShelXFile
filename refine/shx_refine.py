@@ -16,7 +16,7 @@ import re
 import subprocess
 import sys
 from shutil import which, disk_usage, copyfile
-
+from shelxfile.cards import ACTA
 from shelxfile.misc import remove_file, sep_line, find_line
 
 __metaclass__ = type  # use new-style classes
@@ -56,6 +56,7 @@ class ShelxlRefine():
         self.resfile_name, ext = os.path.splitext(resfile_name)
         self._shelx_command = self.find_shelxl_exe()
         self.backup_file = os.path.abspath(str(self.resfile_name + '.shx-bak'))
+        self._acta_card = ''  # stores the ACTA values if acta is removed before refinement
 
         if not self._shelx_command:
             print('\nSHELXL executable not found in system path! No fragment fitting possible.\n')
@@ -104,6 +105,23 @@ class ShelxlRefine():
         if barray <= 3000:
             barray = 3000
         return barray
+
+    def remove_acta_card(self, acta_card):
+        """
+        Removes ACTA x from reslist and stores value in self._acta_card.
+        """
+        self._acta_card = acta_card.textline.strip('\r\n')[:]
+        del self.shx._reslist[self.shx.index_of(acta_card)]
+        self.shx.acta = None
+
+    def restore_acta_card(self):
+        """
+        Place ACTA after UNIT
+        """
+        acta = ACTA(self.shx, self._acta_card.split())
+        self.shx._reslist.insert(self.shx.unit.index + 1, ' ')
+        self.shx.acta = self.shx.assign_card(acta, self.shx.unit.index + 1)
+        pass
 
     def backup_shx_file(self):
         """

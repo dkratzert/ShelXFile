@@ -4,6 +4,7 @@ from shelxfile.shelx import __doc__
 from shelxfile.shelx import *
 from shelxfile.atoms import *
 from shelxfile.misc import *
+from shelxfile.cards import *
 from shelxfile.dsrmath import *
 from refine.shx_refine import *
 
@@ -12,9 +13,7 @@ __all__ = [
     "Atoms",
     "Atom",
     "frac_to_cart",
-    "cart_to_frac",
-    "get_xl_version_string",
-    "ShelxlRefine"]
+    "cart_to_frac"]
 
 if __name__ == "__main__":
     ver = sys.version_info
