@@ -28,16 +28,16 @@ class Atoms():
 
     @property
     def nameslist(self):
-        return [at.name.upper() for at in self.all_atoms]
+        return [at.fullname.upper() for at in self.all_atoms]
 
     def __repr__(self):
         if self.all_atoms:
-            return '\n'.join([str(x) for x in self.all_atoms if not x.deleted])
+            return '\n'.join([str(x) for x in self.all_atoms])
         else:
             return 'No Atoms in file.'
 
     def __iter__(self):
-        return iter(x for x in self.all_atoms if not x.deleted)
+        return iter(x for x in self.all_atoms)
 
     def __getitem__(self, item: int) -> 'Atom':
         return self.get_atom_by_id(item)
@@ -109,7 +109,7 @@ class Atoms():
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.get_atom_by_name('Al1')
-        Atom ID: 15
+        Atom ID: 73
         """
         if '_' not in atom_name:
             atom_name += '_0'
@@ -157,7 +157,7 @@ class Atoms():
         >>> shx.atoms.residues
         [0, 1, 2, 3, 4]
         """
-        return [x.resinum for x in self.all_atoms]
+        return list(set([x.resinum for x in self.all_atoms]))
 
     @property
     def q_peaks(self) -> list:
@@ -166,7 +166,7 @@ class Atoms():
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.q_peaks[:5] # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
-        [Atom ID: 128, Atom ID: 129, Atom ID: 130, Atom ID: 131, Atom ID: 132]
+        [Atom ID: 328, Atom ID: 329, Atom ID: 330, Atom ID: 331, Atom ID: 332]
         """
         return [x for x in self.all_atoms if x.qpeak]
 
@@ -522,12 +522,14 @@ class Atom():
         """
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
-        >>> at = shx.atoms.get_atom_by_id(56)
+        >>> at = shx.atoms.get_atom_by_id(40)
+        >>> shx.atoms.all_atoms[:3]
+        [Atom ID: 38, Atom ID: 40, Atom ID: 42]
         >>> at.fullname
-        'C31_0'
+        'C1_4'
         >>> at.delete()
-        >>> shx.atoms.all_atoms[54:58]
-        [Atom ID: 54, Atom ID: 55, Atom ID: 57, Atom ID: 58]
+        >>> shx.atoms.all_atoms[:3]
+        [Atom ID: 38, Atom ID: 41, Atom ID: 43]
         """
         del self.shx.atoms[self.index]
 
@@ -557,7 +559,7 @@ class Atom():
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> at = shx.atoms.get_atom_by_name('C1_4')
         >>> at.find_atoms_around(dist=2, only_part=2)
-        [Atom ID: 0, Atom ID: 2, Atom ID: 6, Atom ID: 10]
+        [Atom ID: 38, Atom ID: 42, Atom ID: 50, Atom ID: 58]
         >>> shx.atoms.get_atom_by_name('C1_4').cart_coords
         [-0.19777464582151, 4.902748697, 6.89776640065679]
         """

@@ -239,6 +239,8 @@ class ShelXFile():
         for line_num, line in enumerate(self._reslist):
             self.error_line_num = line_num  # For exception during parsing.
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
+            if line[:1] == ' ' or line == '':
+                continue
             if not self.titl and line[:4] == 'TITL':
                 # TITL[]  ->  = and ! can be part of the TITL!
                 self.titl = line[5:76]
@@ -256,9 +258,6 @@ class ShelXFile():
                 list_of_lines.append(line_num + wrapindex)  # list containing the lines of a multiline command
                 # Do not activate this, otherwise, the unwrapping stops after two lines.
                 # self._reslist[line_num + wrapindex] = ''
-            if (line[:1] == ' ' or line == '') and not multiline_test(self._reslist[line_num-1]):
-                self._reslist[line_num] = ' '
-                continue
             # The current line splitted:
             spline = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
             # The current line as string:

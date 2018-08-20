@@ -221,12 +221,6 @@ class Command():
     @property
     def index(self):
         return self._shx.index_of(self)
-    
-    def rfind(self, sub, start=None, end=None):
-        return self.textline.rfind(sub)
-    
-    def startswith(self, prefix, start=None, end=None):
-        return self.textline.startswith(prefix, start, end)
 
     def __iter__(self):
         for x in self.__repr__().split():
