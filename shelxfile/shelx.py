@@ -899,8 +899,9 @@ class ShelXFile():
                                     # '+filename' include files are not copied to res file,
                                     #  so I have to delete these lines on write.
                                     # '++filename' copies them to the .res file where appropriate
-                                    if l.startswith('+') and l[:2] != '++':
-                                        self.delete_on_write.update([lnum])
+                                    # I leave this out, because I am not SHELXL:
+                                    #if l.startswith('+') and l[:2] != '++':
+                                    #    self.delete_on_write.update([lnum])
                                     reslist.insert(lnum, l)
                                 continue
                         except IndexError:
