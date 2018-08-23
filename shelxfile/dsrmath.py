@@ -477,6 +477,12 @@ class Matrix(object):
 class SymmetryElement(object):
     """
     Class representing a symmetry operation.
+    >>> from shelxfile.shelx import ShelXFile
+    >>> shx = ShelXFile('../tests/p21c.res')
+    >>> shx.symmcards[1]  # __repr__()
+    -X, -Y, -Z
+    >>> print(shx.symmcards[1])  # __str__()
+    |-1  0  0|   | 0.0|| 0 -1  0| + | 0.0|| 0  0 -1|   | 0.0|
     """
     symm_ID = 1
 
@@ -501,10 +507,9 @@ class SymmetryElement(object):
             self.trans *= -1
 
     def __str__(self):
-        string = r'''
-|{aa:2} {ab:2} {ac:2}|   |{v:>4.2}|
-|{ba:2} {bb:2} {bc:2}| + |{vv:>4.2}|
-|{ca:2} {cb:2} {cc:2}|   |{vvv:>4.2}|'''.format(aa=self.matrix[0, 0],
+        string = r"|{aa:2} {ab:2} {ac:2}|   |{v:>4.2}|" \
+                 r"|{ba:2} {bb:2} {bc:2}| + |{vv:>4.2}|" \
+                 r"|{ca:2} {cb:2} {cc:2}|   |{vvv:>4.2}|".format(aa=self.matrix[0, 0],
                                                 ab=self.matrix[0, 1],
                                                 ac=self.matrix[0, 2],
                                                 ba=self.matrix[1, 0],
@@ -527,6 +532,11 @@ class SymmetryElement(object):
         Note that differences in lattice translation are ignored.
         :param other: SymmetryElement instance
         :return: True/False
+        >>> m1 = Matrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        >>> m2 = Matrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        >>> m1 == m2
+        False
+        TODO: Fix his test.
         """
         m = (self.matrix == other.matrix).all()
         t1 = Array([v % 1 for v in self.trans])
