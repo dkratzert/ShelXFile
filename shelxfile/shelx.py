@@ -358,9 +358,7 @@ class ShelXFile():
                     # raise ParseOrderError
                 self.cell = CELL(self, spline)
                 self.assign_card(self.cell, line_num)
-                self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell.cell_list
-                self.V = self.vol_unitcell(self._a, self._b, self._c, self._alpha, self._beta, self._gamma)
-                self.cell.volume = self.V
+                self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell
                 # self.A = self.orthogonal_matrix()
                 self.wavelen = self.cell.wavelen
                 lastcard = 'CELL'
@@ -801,6 +799,7 @@ class ShelXFile():
         Invert the matrix to do the opposite.
 
         Old tests:
+        TODO: port these to current implementation:
         #>>> import mpmath as mpm
         #>>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
         #>>> coord = (-0.186843,   0.282708,   0.526803)
@@ -817,19 +816,7 @@ class ShelXFile():
         return Matrix([[self._a, self._b * cos(self._gamma), self._c * cos(self._beta)],
                        [0, self._b * sin(self._gamma),
                         (self._c * (cos(self._alpha) - cos(self._beta) * cos(self._gamma)) / sin(self._gamma))],
-                       [0, 0, self.V / (self._a * self._b * sin(self._gamma))]])
-
-    @staticmethod
-    def vol_unitcell(a, b, c, al, be, ga) -> float:
-        """
-        calculates the volume of a unit cell
-        >>> v = ShelXFile.vol_unitcell(2, 2, 2, 90, 90, 90)
-        >>> print(v)
-        8.0
-        """
-        ca, cb, cg = cos(radians(al)), cos(radians(be)), cos(radians(ga))
-        v = a * b * c * sqrt(1 + 2 * ca * cb * cg - ca ** 2 - cb ** 2 - cg ** 2)
-        return v
+                       [0, 0, self.cell.volume / (self._a * self._b * sin(self._gamma))]])
 
     def __repr__(self):
         """

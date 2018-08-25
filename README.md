@@ -19,7 +19,7 @@ shx = ShelXFile('./tests/p21c.res')
 shx.cell
 CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 
-shx.cell.cell_list
+list(shx.cell)
 [10.5086, 20.9035, 20.5072, 90.0, 94.13, 90.0]
 
 shx.cell.volume

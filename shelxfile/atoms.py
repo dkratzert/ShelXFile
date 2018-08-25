@@ -422,7 +422,7 @@ class Atom():
         self.x = x
         self.y = y
         self.z = z
-        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell.cell_list)
+        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell)
         if len(self.uvals) == 2:
             self.peak_height = uvals.pop()
             self.qpeak = True

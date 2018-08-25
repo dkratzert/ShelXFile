@@ -1,4 +1,5 @@
 import re
+from math import cos, radians, sqrt
 
 from shelxfile.dsrmath import my_isnumeric, SymmetryElement
 from shelxfile.misc import chunks, ParseParamError, ParseNumError, \
@@ -303,19 +304,37 @@ class CELL(Command):
         """
         super(CELL, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
-        self.cell_list = []
-        # TODO: calculate volume here after parse
-        self.volume = None
+        self._cell_list = []
         if len(p) > 0:
             self.wavelen = p[0]
         if len(p) > 6:
-            self.cell_list = p[1:]
+            self._cell_list = p[1:]
             self.a = p[1]
             self.b = p[2]
             self.c = p[3]
             self.al = p[4]
             self.be = p[5]
             self.ga = p[6]
+
+    @property
+    def volume(self) -> float:
+        """
+        calculates the volume of a unit cell
+
+        >>> from shelxfile.shelx import ShelXFile
+        >>> shx = ShelXFile('./tests/p21c.res')
+        >>> round(shx.cell.volume, 4)
+        4493.0474
+        """
+        ca, cb, cg = cos(radians(self.al)), cos(radians(self.be)), cos(radians(self.ga))
+        v = self.a * self.b * self.c * sqrt(1 + 2 * ca * cb * cg - ca ** 2 - cb ** 2 - cg ** 2)
+        return v
+
+    def __iter__(self):
+        return iter(self._cell_list)
+
+    def __getitem__(self, item):
+        return self._cell_list[item]
 
 
 class ZERR(Command):
