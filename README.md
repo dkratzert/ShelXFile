@@ -71,7 +71,7 @@ shx.elem2sfac('F')
 4
 
 a.find_atoms_around(dist=2.0, only_part=1)
-[Atom ID: 254, Atom ID: 256, Atom ID: 260]
+[Atom ID: 254, Atom ID: 256, Atom ID: 260]   # Found some atoms 
 
 [str(x) for x in a.find_atoms_around(dist=2.2, only_part=2)]
 ['C2   1    0.192984    0.140449    0.621265   -21.00000    0.04315    0.02747    0.02385    0.00686   -0.00757    0.00126', 
@@ -91,7 +91,7 @@ a.sfac_num
 4
 
 [x for x in a.find_atoms_around(dist=2.5, only_part=2)]
-[Atom ID: 269, Atom ID: 271, Atom ID: 275, Atom ID: 277]
+[Atom ID: 254, Atom ID: 256, Atom ID: 260, Atom ID: 262]
 
 for x in a.find_atoms_around(dist=2.5, only_part=2):
     x.delete()
@@ -140,6 +140,7 @@ shx.refine(2)
  SHELXL Version 2018/3
 ```
 ```python
+# Symmcards that are implied by lattice symmetry are generated on-the-fly:
 shx.symmcards
 | 1  0  0|   | 0.0|
 | 0  1  0| + | 0.0|

@@ -40,6 +40,7 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
 __version__ = 3
 """
 TODO:
+- Delete atoms (H) in AFIX -> delete entire afix group
 - check if atoms in restraints are also in structure
 - restraints involved with an atom should also be part of the atoms properties
 ------------------------------------------------------------
@@ -250,14 +251,22 @@ class ShelXFile():
             # This while loop makes wrapped lines look like they are not wrapped. The following lines are then
             # beginning with a space character and thus are ignored. The 'lines' list holds the line nnumbers where
             # 'line' is located ([line_num]) plus the wrapped lines.
-            while multiline_test(self._reslist[line_num + wrapindex]):
+            if multiline_test(self._reslist[line_num]):
+                multiline = True
+            else:
+                multiline = False
+            while multiline:
                 # Glue together the two lines wrapped with "=":
                 wrapindex += 1
                 line = line.rpartition('=')[0] + self._reslist[line_num + wrapindex]
-                self.delete_on_write.update([line_num + wrapindex])
+                #self.delete_on_write.update([line_num + wrapindex])
                 list_of_lines.append(line_num + wrapindex)  # list containing the lines of a multiline command
                 # Do not activate this, otherwise, the unwrapping stops after two lines.
-                # self._reslist[line_num + wrapindex] = ''
+                if multiline_test(self._reslist[line_num + wrapindex]):
+                    multiline = True
+                else:
+                    multiline = False
+                self._reslist[line_num + wrapindex] = ''
             # The current line splitted:
             spline = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
             # The current line as string:
@@ -849,7 +858,7 @@ class ShelXFile():
                         pass
                         # print('Deleted line {}'.format(num + 1))
                     continue
-                if line == '' and self._reslist[num + 1] == '':
+                if line == '':  # and self._reslist[num + 1] == '':
                     continue
                 # Prevent wrapping long lines with \n breaks by splitting first:
                 line = "\n".join([wrap_line(x) for x in str(line).split("\n")])

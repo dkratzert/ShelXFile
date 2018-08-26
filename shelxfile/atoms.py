@@ -360,7 +360,7 @@ class Atom():
         self.name = name
         self.sfac_num = sfac_num
         self.frac_coords = coords
-        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell.cell_list)
+        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell)
         self.part = part
         self.afix = afix
         self.resi = resi
@@ -565,7 +565,7 @@ class Atom():
         """
         found = []
         for at in self.shx.atoms:
-            if atomic_distance([self.x, self.y, self.z], [at.x, at.y, at.z], self.cell.cell_list) < dist:
+            if atomic_distance([self.x, self.y, self.z], [at.x, at.y, at.z], self.cell) < dist:
                 # Not the atom itselv:
                 if not self == at:
                     # only in special part and no q-peaks:
