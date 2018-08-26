@@ -41,6 +41,7 @@ __version__ = 3
 """
 TODO:
 - Delete atoms (H) in AFIX -> delete entire afix group
+- Is backup file and reccovery from failed refinement working?
 - check if atoms in restraints are also in structure
 - restraints involved with an atom should also be part of the atoms properties
 ------------------------------------------------------------
