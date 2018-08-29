@@ -112,6 +112,8 @@ class Atoms():
         Atom ID: 73
         """
         if '_' not in atom_name:
+            if atom_name == ">" or atom_name == "<":
+                return None
             atom_name += '_0'
         try:
             at = self.atomsdict[atom_name.upper()]
@@ -119,6 +121,25 @@ class Atoms():
             print("Atom {} not found in atom list.".format(atom_name))
             return None
         return at
+
+    def get_multi_atnames(self, atom_name, residue_class):
+        atoms = []
+        if residue_class:
+            for num in self.shx.residues.residue_classes[residue_class]: 
+                if '_' not in atom_name:
+                    atom_name += '_0'
+                else:
+                    atom_name += '_{}'.format(num)
+                try:
+                    atoms.append(self.atomsdict[atom_name.upper()])
+                except KeyError:
+                    pass
+        else:
+            try:
+                atoms.append(self.atomsdict[atom_name.upper()])
+            except KeyError:
+                return None
+        return atoms
 
     def get_all_atomcoordinates(self) -> dict:
         """

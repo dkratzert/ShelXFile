@@ -103,6 +103,7 @@ class Restraint():
         """
         self.shx = shx
         self.residue_class = ''
+        # TODO: Maybe change this to a list (via property). With _class, a restraint can have multiple residue numbers:
         self.residue_number = 0
         self.textline = ' '.join(spline)
         self.name = None
@@ -388,8 +389,8 @@ class Residues():
 
     def __init__(self):
         self.all_residues = []
-        self.classes = {}
-        self.numbers = {}
+        self.residue_classes = {}  # class: numbers
+        self.residue_numbers = {}  # number: class
 
     def append(self, resi: 'RESI') -> None:
         """
@@ -397,16 +398,16 @@ class Residues():
         """
         self.all_residues.append(resi)
         # Collect dict with class: numbers
-        if resi.residue_class in self.classes:
-            self.classes[resi.residue_class].append(resi.residue_number)
+        if resi.residue_class in self.residue_classes:
+            self.residue_classes[resi.residue_class].append(resi.residue_number)
         else:
-            self.classes[resi.residue_class] = [resi.residue_number]
+            self.residue_classes[resi.residue_class] = [resi.residue_number]
         # Collect dict with number: classes
-        if resi.residue_number in self.numbers:
+        if resi.residue_number in self.residue_numbers:
             if DEBUG:
                 print('*** Duplicate residue number {} found! ***'.format(resi.residue_number))
         else:
-            self.numbers[resi.residue_number] = resi.residue_class
+            self.residue_numbers[resi.residue_number] = resi.residue_class
 
 
 class RESI(Command):
@@ -1043,9 +1044,18 @@ class Restraints():
             return 'No Restraints in file.'
 
     @staticmethod
-    def _resolve_atoms(shx, atoms):
+    def _resolve_atoms(shx, restr: Restraint):
+        atoms = restr.atoms
         for atnum, ap in enumerate(atoms):
+            if not isinstance(ap, (list, tuple)):
+                # ignores all ranges: ['O1', '>', 'F9']
+                try:
+                    atoms[atnum] = shx.atoms.get_atom_by_name(ap)
+                except TypeError:
+                    continue
+                continue
             for num, atname in enumerate(ap):
+                # without range: [['O1', 'C1'], ...]
                 try:
                     atoms[atnum][num] = shx.atoms.get_atom_by_name(atname)
                 except TypeError:
@@ -1203,6 +1213,9 @@ class SADI(Restraint):
     def __init__(self, shx, spline):
         """
         SADI s[0.02] pairs of atoms
+        Instructions with only two atoms are ignored by SHELXL: SADI C3 C4
+        SADI_3 C3 C4 C3_4 C4_4 creates SADI C3_3 C4_3  C3_4 C4_4
+        SADI_CCF3 C3 C4 C3_4 C4_4 creates SADI C3_1 C4_1  C3_2 C4_2  C3_4 C4_4 if there are residues 1, 2 and 4
         """
         super(SADI, self).__init__(shx, spline)
         self.s = 0.02
