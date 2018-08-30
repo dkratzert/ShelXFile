@@ -112,6 +112,8 @@ class Atoms():
         Atom ID: 73
         """
         if '_' not in atom_name:
+            if atom_name == ">" or atom_name == "<":
+                return None
             atom_name += '_0'
         try:
             at = self.atomsdict[atom_name.upper()]
@@ -119,6 +121,25 @@ class Atoms():
             print("Atom {} not found in atom list.".format(atom_name))
             return None
         return at
+
+    def get_multi_atnames(self, atom_name, residue_class):
+        atoms = []
+        if residue_class:
+            for num in self.shx.residues.residue_classes[residue_class]: 
+                if '_' not in atom_name:
+                    atom_name += '_0'
+                else:
+                    atom_name += '_{}'.format(num)
+                try:
+                    atoms.append(self.atomsdict[atom_name.upper()])
+                except KeyError:
+                    pass
+        else:
+            try:
+                atoms.append(self.atomsdict[atom_name.upper()])
+            except KeyError:
+                return None
+        return atoms
 
     def get_all_atomcoordinates(self) -> dict:
         """
@@ -360,7 +381,7 @@ class Atom():
         self.name = name
         self.sfac_num = sfac_num
         self.frac_coords = coords
-        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell.cell_list)
+        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell)
         self.part = part
         self.afix = afix
         self.resi = resi
@@ -422,7 +443,7 @@ class Atom():
         self.x = x
         self.y = y
         self.z = z
-        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell.cell_list)
+        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell)
         if len(self.uvals) == 2:
             self.peak_height = uvals.pop()
             self.qpeak = True
@@ -565,7 +586,7 @@ class Atom():
         """
         found = []
         for at in self.shx.atoms:
-            if atomic_distance([self.x, self.y, self.z], [at.x, at.y, at.z], self.cell.cell_list) < dist:
+            if atomic_distance([self.x, self.y, self.z], [at.x, at.y, at.z], self.cell) < dist:
                 # Not the atom itselv:
                 if not self == at:
                     # only in special part and no q-peaks:

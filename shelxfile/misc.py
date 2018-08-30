@@ -87,7 +87,7 @@ def remove_file(filename, exit_dsr=False):
         return True
 
 
-def find_line(inputlist: list, regex: str, start: int = None):
+def find_line(inputlist: list, regex: str, start: int = None) -> int:
     """
     returns the index number of the line where regex is found in the inputlist
     if stop is true, stop searching with first line found
@@ -98,11 +98,11 @@ def find_line(inputlist: list, regex: str, start: int = None):
     :param start: line number where to start the search
     :param start: start searching at line start
     :type start: string or int
-    >>> input = ['Hallo blub', 'foo bar blub', '123', '1 blub 2 3 4']
-    >>> find_line(input, '.*blub.*')
+    >>> inp = ['Hallo blub', 'foo bar blub', '123', '1 blub 2 3 4']
+    >>> find_line(inp, '.*blub.*')
     0
-    >>> input = [['foo'],['bar']]
-    >>> find_line(input, '.*blub.*') #doctest: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
+    >>> inp = [['foo'],['bar']]
+    >>> find_line(inp, '.*blub.*') #doctest: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
         ...
     TypeError: expected string or ...
@@ -117,7 +117,7 @@ def find_line(inputlist: list, regex: str, start: int = None):
         for i, string in enumerate(inputlist):
             if re.match(regex, string, re.IGNORECASE):
                 return i  # returns the index number if regex found
-    return False  # returns False if no regex found (xt solution has no fvar)
+    return -1  # returns -1 if no regex found
 
 
 def which(name: str, flags=os.X_OK, exts=None) -> list:

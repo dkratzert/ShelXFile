@@ -1,4 +1,5 @@
 import re
+from math import cos, radians, sqrt
 
 from shelxfile.dsrmath import my_isnumeric, SymmetryElement
 from shelxfile.misc import chunks, ParseParamError, ParseNumError, \
@@ -93,7 +94,7 @@ ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
 """
 
 
-class Restraint():
+class Restraint:
 
     def __init__(self, shx, spline: list):
         """
@@ -101,8 +102,7 @@ class Restraint():
         TODO: resolve ranges like SADI_CCF3 O1 > F9
         """
         self.shx = shx
-        self.residue_class = ''
-        self.residue_number = 0
+        self.residue_class = ''  # '' is the default class (with residue number 0)
         self.textline = ' '.join(spline)
         self.name = None
         self.atoms = []
@@ -111,18 +111,33 @@ class Restraint():
     def index(self):
         return self.shx.index_of(self)
 
-    def _parse_line(self, spline, pairs=False):
-        self.spline = spline
-        if '_' in spline[0]:
-            self.name, suffix = spline[0].upper().split('_')
+    @property
+    def residue_number(self):
+        if '_' in self.spline[0]:
+            _, suffix = self.spline[0].upper().split('_')
             if any([x.isalpha() for x in suffix]):
                 self.residue_class = suffix
             else:
                 # TODO: implement _+, _- and _*
                 if '*' in suffix:
-                    self.residue_number = suffix
+                    return list(self.shx.residues.residue_numbers.keys())
                 else:
-                    self.residue_number = int(suffix)
+                    return [int(suffix)]
+        return [0]
+
+    def _parse_line(self, spline, pairs=False):
+        """
+        Residues may be referenced by any instruction that allows atom names; the reference takes
+        the form of the character '_' followed by either the residue class or number without intervening
+        spaces.
+        Individual atom names in an instruction may be followed by '_' and a residue number, but not by '_* ' or '_'
+        and a residue class. If an atom name is not followed by a residue number, the current residue is
+        assumed (unless overridden by a global residue number or class appended to the instruction
+        codeword). 
+        """
+        self.spline = spline
+        if '_' in spline[0]:
+            self.name, suffix = spline[0].upper().split('_')
         else:
             self.name = spline[0].upper()
         # Beware! DEFS changes only the non-defined default values:
@@ -186,9 +201,10 @@ class Command():
     """
 
     def __init__(self, shx, spline: list):
-        self._shx = shx
+        self.shx = shx
+        self.spline = spline
         self.residue_class = ''
-        self.residue_number = 0
+        #self.residue_number = 0
         self.textline = ' '.join(spline)
 
     def _parse_line(self, spline, intnums=False):
@@ -199,11 +215,6 @@ class Command():
         """
         if '_' in spline[0]:
             self.card_name, suffix = spline[0].upper().split('_')
-            if any([x.isalpha() for x in suffix]):
-                self.residue_class = suffix
-            else:
-                # TODO: implement _+, _- and _*
-                self.residue_number = int(suffix)
         else:
             self.card_name = spline[0].upper()
         numparams = []
@@ -219,8 +230,22 @@ class Command():
         return numparams, words
 
     @property
+    def residue_number(self):
+        if '_' in self.spline[0]:
+            _, suffix = self.spline[0].upper().split('_')
+            if any([x.isalpha() for x in suffix]):
+                self.residue_class = suffix
+            else:
+                # TODO: implement _+, _- and _*
+                if '*' in suffix:
+                    return list(self.shx.residues.residue_numbers.keys())
+                else:
+                    return [int(suffix)]
+        return [0]
+
+    @property
     def index(self):
-        return self._shx.index_of(self)
+        return self.shx.index_of(self)
 
     def __iter__(self):
         for x in self.__repr__().split():
@@ -303,19 +328,37 @@ class CELL(Command):
         """
         super(CELL, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
-        self.cell_list = []
-        # TODO: calculate volume here after parse
-        self.volume = None
+        self._cell_list = []
         if len(p) > 0:
             self.wavelen = p[0]
         if len(p) > 6:
-            self.cell_list = p[1:]
+            self._cell_list = p[1:]
             self.a = p[1]
             self.b = p[2]
             self.c = p[3]
             self.al = p[4]
             self.be = p[5]
             self.ga = p[6]
+
+    @property
+    def volume(self) -> float:
+        """
+        calculates the volume of a unit cell
+
+        >>> from shelxfile.shelx import ShelXFile
+        >>> shx = ShelXFile('./tests/p21c.res')
+        >>> round(shx.cell.volume, 4)
+        4493.0474
+        """
+        ca, cb, cg = cos(radians(self.al)), cos(radians(self.be)), cos(radians(self.ga))
+        v = self.a * self.b * self.c * sqrt(1 + 2 * ca * cb * cg - ca ** 2 - cb ** 2 - cg ** 2)
+        return v
+
+    def __iter__(self):
+        return iter(self._cell_list)
+
+    def __getitem__(self, item):
+        return self._cell_list[item]
 
 
 class ZERR(Command):
@@ -367,10 +410,11 @@ class AFIX(Command):
 
 class Residues():
 
-    def __init__(self):
+    def __init__(self, shx):
+        self.shx = shx
         self.all_residues = []
-        self.classes = {}
-        self.numbers = {}
+        self.residue_classes = {}  # class: numbers
+        #self.residue_numbers = {}  # number: class
 
     def append(self, resi: 'RESI') -> None:
         """
@@ -378,29 +422,36 @@ class Residues():
         """
         self.all_residues.append(resi)
         # Collect dict with class: numbers
-        if resi.residue_class in self.classes:
-            self.classes[resi.residue_class].append(resi.residue_number)
+        if resi.residue_class in self.residue_classes:
+            self.residue_classes[resi.residue_class].append(resi.residue_number)
         else:
-            self.classes[resi.residue_class] = [resi.residue_number]
+            self.residue_classes[resi.residue_class] = [resi.residue_number]
+        """
         # Collect dict with number: classes
-        if resi.residue_number in self.numbers:
+        if resi.residue_number in self.residue_numbers:
             if DEBUG:
                 print('*** Duplicate residue number {} found! ***'.format(resi.residue_number))
         else:
-            self.numbers[resi.residue_number] = resi.residue_class
+            self.residue_numbers[resi.residue_number] = resi.residue_class
+        """
+
+    @property
+    def residue_numbers(self):
+        return dict((x.residue_number, x.residue_class) for x in self.shx.residues.all_residues)
 
 
-class RESI(Command):
+class RESI():
 
     def __init__(self, shx, spline: list):
         """
         RESI class[ ] number[0] alias
         """
-        super(RESI, self).__init__(shx, spline)
+        self.shx = shx
         self.residue_class = ''
         self.residue_number = 0
         self.alias = None
         self.chainID = None
+        self.textline = ' '.join(spline)
         if len(spline) < 2:
             if DEBUG:
                 print('*** Wrong RESI definition found! Check your RESI instructions ***')
@@ -455,6 +506,50 @@ class RESI(Command):
                     except ValueError:
                         self.residue_number = 0
         return self.residue_class, self.residue_number, self.chainID, self.alias
+
+    def _parse_line(self, spline, intnums=False):
+        """
+        :param spline: Splitted shelxl line
+        :param intnums: if numerical parameters should be integer
+        :return: numerical parameters and words
+        """
+        if '_' in spline[0]:
+            self.card_name, suffix = spline[0].upper().split('_')
+            if any([x.isalpha() for x in suffix]):
+                self.residue_class = suffix
+            else:
+                # TODO: implement _+, _- and _*
+                self.residue_number = int(suffix)
+        else:
+            self.card_name = spline[0].upper()
+        numparams = []
+        words = []
+        for x in spline[1:]:  # all values after SHELX card
+            if str.isdigit(x[0]) or x[0] in '+-':
+                if intnums:
+                    numparams.append(int(x))
+                else:
+                    numparams.append(float(x))
+            else:
+                words.append(x)
+        return numparams, words
+
+    @property
+    def index(self):
+        return self.shx.index_of(self)
+
+    def __iter__(self):
+        for x in self.__repr__().split():
+            yield x
+
+    def split(self):
+        return self.textline.split()
+
+    def __str__(self):
+        return self.textline
+
+    def __repr__(self):
+        return self.textline
 
     def __bool__(self):
         if self.residue_number > 0:
@@ -1024,9 +1119,18 @@ class Restraints():
             return 'No Restraints in file.'
 
     @staticmethod
-    def _resolve_atoms(shx, atoms):
+    def _resolve_atoms(shx, restr: Restraint):
+        atoms = restr.atoms
         for atnum, ap in enumerate(atoms):
+            if not isinstance(ap, (list, tuple)):
+                # ignores all ranges: ['O1', '>', 'F9']
+                try:
+                    atoms[atnum] = shx.atoms.get_atom_by_name(ap)
+                except TypeError:
+                    continue
+                continue
             for num, atname in enumerate(ap):
+                # without range: [['O1', 'C1'], ...]
                 try:
                     atoms[atnum][num] = shx.atoms.get_atom_by_name(atname)
                 except TypeError:
@@ -1184,6 +1288,9 @@ class SADI(Restraint):
     def __init__(self, shx, spline):
         """
         SADI s[0.02] pairs of atoms
+        Instructions with only two atoms are ignored by SHELXL: SADI C3 C4
+        SADI_3 C3 C4 C3_4 C4_4 creates SADI C3_3 C4_3  C3_4 C4_4
+        SADI_CCF3 C3 C4 C3_4 C4_4 creates SADI C3_1 C4_1  C3_2 C4_2  C3_4 C4_4 if there are residues 1, 2 and 4
         """
         super(SADI, self).__init__(shx, spline)
         self.s = 0.02

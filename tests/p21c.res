@@ -13,7 +13,7 @@ TEMP -173.18
 ACTA 45
 SIZE 0.12 0.23 0.33
 DELU 0.04
-BOND $H
+BOND_* $H
 fmap 2
 REM Restraints for Fragment oc(cf3)3, Nonafluoro-tert-butoxy, [(CF3)3CO]- REM  =
    from: TURBOMOLE V6.0 B-P86/def-SV(P). Please cite
@@ -27,7 +27,7 @@ SADI_CCF3 0.04 F1 F2 F2 F3 F3 F1 F4 F5 F5 F6 F6 F4 F7 F8 F8 F9 F9 F7
 DFIX_CCF3 1.44 0.02 O1 C1
 SADI_CCF3 0.1 F1 C1 F2 C1 F3 C1 F4 C1 F5 C1 F6 C1 F7 C1 F8 C1 F9 C1
 SIMU_CCF3 O1 > F9
-RIGU_CCF3 O1 > F9
+RIGU_* O1 > F9
 SAME_CCF3 O1 > F9
 REM For further cards:
 
