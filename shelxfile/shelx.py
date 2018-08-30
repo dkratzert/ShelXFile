@@ -85,6 +85,7 @@ class ShelXFile():
     _parameters_regex = re.compile(r'^REM\s+\d+\s+parameters\s+refined', re.IGNORECASE)
     _diff_peak_regex = re.compile(r'^REM\sHighest\sdifference', re.IGNORECASE)
 
+    @time_this_method
     def __init__(self: 'ShelXFile', resfile: str):
         """
         Reads the shelx file and extracts information.
@@ -749,7 +750,7 @@ class ShelXFile():
                     self.fvars.set_fvar_usage(y[1])
         for r in self.restraints:
             if r.atoms:
-                print(r.atoms, r.residue_number, r.residue_class)
+                #print(r.atoms, r.residue_number, r.residue_class)
                 Restraints._resolve_atoms(self, r)
             if r.name == "DFIX" or r.name == "DANG":
                 if abs(r.d) > 4:
