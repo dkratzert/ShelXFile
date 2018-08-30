@@ -114,6 +114,15 @@ class Restraint():
         return self.shx.index_of(self)
 
     def _parse_line(self, spline, pairs=False):
+        """
+        Residues may be referenced by any instruction that allows atom names; the reference takes
+        the form of the character '_' followed by either the residue class or number without intervening
+        spaces.
+        Individual atom names in an instruction may be followed by '_' and a residue number, but not by '_* ' or '_'
+        and a residue class. If an atom name is not followed by a residue number, the current residue is
+        assumed (unless overridden by a global residue number or class appended to the instruction
+        codeword). 
+        """
         self.spline = spline
         if '_' in spline[0]:
             self.name, suffix = spline[0].upper().split('_')
