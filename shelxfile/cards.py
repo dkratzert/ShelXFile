@@ -94,7 +94,7 @@ ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
 """
 
 
-class Restraint():
+class Restraint:
 
     def __init__(self, shx, spline: list):
         """
@@ -102,9 +102,7 @@ class Restraint():
         TODO: resolve ranges like SADI_CCF3 O1 > F9
         """
         self.shx = shx
-        self.residue_class = ''
-        # TODO: Maybe change this to a list (via property). With _class, a restraint can have multiple residue numbers:
-        self.residue_number = 0
+        self.residue_class = ''  # '' is the default class (with residue number 0)
         self.textline = ' '.join(spline)
         self.name = None
         self.atoms = []
@@ -112,6 +110,20 @@ class Restraint():
     @property
     def index(self):
         return self.shx.index_of(self)
+
+    @property
+    def residue_number(self):
+        if '_' in self.spline[0]:
+            _, suffix = self.spline[0].upper().split('_')
+            if any([x.isalpha() for x in suffix]):
+                self.residue_class = suffix
+            else:
+                # TODO: implement _+, _- and _*
+                if '*' in suffix:
+                    return list(self.shx.residues.residue_numbers.keys())
+                else:
+                    return [int(suffix)]
+        return [0]
 
     def _parse_line(self, spline, pairs=False):
         """
@@ -126,14 +138,6 @@ class Restraint():
         self.spline = spline
         if '_' in spline[0]:
             self.name, suffix = spline[0].upper().split('_')
-            if any([x.isalpha() for x in suffix]):
-                self.residue_class = suffix
-            else:
-                # TODO: implement _+, _- and _*
-                if '*' in suffix:
-                    self.residue_number = suffix
-                else:
-                    self.residue_number = int(suffix)
         else:
             self.name = spline[0].upper()
         # Beware! DEFS changes only the non-defined default values:
@@ -197,9 +201,10 @@ class Command():
     """
 
     def __init__(self, shx, spline: list):
-        self._shx = shx
+        self.shx = shx
+        self.spline = spline
         self.residue_class = ''
-        self.residue_number = 0
+        #self.residue_number = 0
         self.textline = ' '.join(spline)
 
     def _parse_line(self, spline, intnums=False):
@@ -210,11 +215,6 @@ class Command():
         """
         if '_' in spline[0]:
             self.card_name, suffix = spline[0].upper().split('_')
-            if any([x.isalpha() for x in suffix]):
-                self.residue_class = suffix
-            else:
-                # TODO: implement _+, _- and _*
-                self.residue_number = int(suffix)
         else:
             self.card_name = spline[0].upper()
         numparams = []
@@ -230,8 +230,22 @@ class Command():
         return numparams, words
 
     @property
+    def residue_number(self):
+        if '_' in self.spline[0]:
+            _, suffix = self.spline[0].upper().split('_')
+            if any([x.isalpha() for x in suffix]):
+                self.residue_class = suffix
+            else:
+                # TODO: implement _+, _- and _*
+                if '*' in suffix:
+                    return list(self.shx.residues.residue_numbers.keys())
+                else:
+                    return [int(suffix)]
+        return [0]
+
+    @property
     def index(self):
-        return self._shx.index_of(self)
+        return self.shx.index_of(self)
 
     def __iter__(self):
         for x in self.__repr__().split():
@@ -396,10 +410,11 @@ class AFIX(Command):
 
 class Residues():
 
-    def __init__(self):
+    def __init__(self, shx):
+        self.shx = shx
         self.all_residues = []
         self.residue_classes = {}  # class: numbers
-        self.residue_numbers = {}  # number: class
+        #self.residue_numbers = {}  # number: class
 
     def append(self, resi: 'RESI') -> None:
         """
@@ -411,25 +426,32 @@ class Residues():
             self.residue_classes[resi.residue_class].append(resi.residue_number)
         else:
             self.residue_classes[resi.residue_class] = [resi.residue_number]
+        """
         # Collect dict with number: classes
         if resi.residue_number in self.residue_numbers:
             if DEBUG:
                 print('*** Duplicate residue number {} found! ***'.format(resi.residue_number))
         else:
             self.residue_numbers[resi.residue_number] = resi.residue_class
+        """
+
+    @property
+    def residue_numbers(self):
+        return dict((x.residue_number, x.residue_class) for x in self.shx.residues.all_residues)
 
 
-class RESI(Command):
+class RESI():
 
     def __init__(self, shx, spline: list):
         """
         RESI class[ ] number[0] alias
         """
-        super(RESI, self).__init__(shx, spline)
+        self.shx = shx
         self.residue_class = ''
         self.residue_number = 0
         self.alias = None
         self.chainID = None
+        self.textline = ' '.join(spline)
         if len(spline) < 2:
             if DEBUG:
                 print('*** Wrong RESI definition found! Check your RESI instructions ***')
@@ -484,6 +506,50 @@ class RESI(Command):
                     except ValueError:
                         self.residue_number = 0
         return self.residue_class, self.residue_number, self.chainID, self.alias
+
+    def _parse_line(self, spline, intnums=False):
+        """
+        :param spline: Splitted shelxl line
+        :param intnums: if numerical parameters should be integer
+        :return: numerical parameters and words
+        """
+        if '_' in spline[0]:
+            self.card_name, suffix = spline[0].upper().split('_')
+            if any([x.isalpha() for x in suffix]):
+                self.residue_class = suffix
+            else:
+                # TODO: implement _+, _- and _*
+                self.residue_number = int(suffix)
+        else:
+            self.card_name = spline[0].upper()
+        numparams = []
+        words = []
+        for x in spline[1:]:  # all values after SHELX card
+            if str.isdigit(x[0]) or x[0] in '+-':
+                if intnums:
+                    numparams.append(int(x))
+                else:
+                    numparams.append(float(x))
+            else:
+                words.append(x)
+        return numparams, words
+
+    @property
+    def index(self):
+        return self.shx.index_of(self)
+
+    def __iter__(self):
+        for x in self.__repr__().split():
+            yield x
+
+    def split(self):
+        return self.textline.split()
+
+    def __str__(self):
+        return self.textline
+
+    def __repr__(self):
+        return self.textline
 
     def __bool__(self):
         if self.residue_number > 0:

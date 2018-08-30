@@ -157,7 +157,7 @@ class ShelXFile():
         self.afix = None  # AFIX(self, [''])
         self.part = PART(self, ['PART', '0'])
         self.resi = RESI(self, ['RESI', '0'])
-        self.residues = Residues()
+        self.residues = Residues(self)
         self.dsrlines = []
         self.dsrline_nums = []
         self.symmcards = SymmCards(self)
