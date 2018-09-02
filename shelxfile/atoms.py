@@ -1,5 +1,6 @@
 from math import acos, sqrt, degrees
 
+from shelxfile import elements
 from shelxfile.dsrmath import atomic_distance, frac_to_cart, Array
 from shelxfile.misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
 from shelxfile.cards import AFIX, PART, RESI
@@ -476,6 +477,13 @@ class Atom():
         Sets the element type of an atom.
         """
         self.sfac_num = self.shx.elem2sfac(new_element)
+
+    @property
+    def radius(self) -> float:
+        """
+        Returns the atomic covalence radius in angstrom.
+        """
+        return elements.get_radius_from_element(self.element)
 
     def __iter__(self):
         for x in self.__repr__().split():

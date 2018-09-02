@@ -79,7 +79,6 @@ class ShelXFile():
 
     :type restraints: List[Restraint]
     """
-    atoms = None
     _r1_regex = re.compile(r'^REM\s+R1\s+=', re.IGNORECASE)
     _wr2_regex = re.compile(r'^REM\s+wR2\s+=', re.IGNORECASE)
     _parameters_regex = re.compile(r'^REM\s+\d+\s+parameters\s+refined', re.IGNORECASE)
