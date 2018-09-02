@@ -50,8 +50,9 @@ class SDM():
         self.knots = []
 
     def calc_sdm(self):
+        brauchSymm = []
         for i, at1 in enumerate(self.shx.atoms.all_atoms):
-            kn = []  # list of atom neigbors
+            atneighb = []  # list of atom neigbors
             for j, at2 in enumerate(self.shx.atoms):
                 min = 1000000
                 hma = False
@@ -64,7 +65,7 @@ class SDM():
                     dk = vector_length(dp.x, dp.y, dp.z, self.shx.cell)
                     if n:
                         dk += 0.0001
-                        if ((dk > 0.01) and (min >= dk)):
+                        if (dk > 0.01) and (min >= dk):
                             min = fmin(dk, min)
                             sdmItem.d = min
                             sdmItem.floorD = floorD
@@ -78,10 +79,34 @@ class SDM():
                     dddd = 0.0
                 if sdmItem.d < dddd:
                     if hma:
-                        self.knots.neighbors.append(j)
+                        atneighb.append(j)
                         sdmItem.covalent = True
                 else:
                     sdmItem.covalent = False
                 if hma:
                    self.sdm.append(sdmItem)
-        self.knots.append(kn)
+            self.knots.append(atneighb)
+
+        for k, sdmItem in enumerate(self.sdm):
+            if sdmItem.covalent:
+                for n, at in enumerate(self.shx.atoms):
+                    if (self.shx.atoms[self.sdm[k].a1].part != 0) and (self.shx.atoms[self.sdm[k].a2].part != 0) \
+                            and (self.shx.atoms[self.sdm[k].a1].part != self.shx.atoms[self.sdm[k].a2].part):
+                        continue
+                    if (self.shx.atoms[self.sdm[k].a1].an == self.shx.atoms[self.sdm[k].a2].an) \
+                            and (self.shx.atoms[self.sdm[k].a1].an == 0):
+                        continue
+                    prime = self.shx.symmcards[n].matrix * self.shx.atoms[self.sdm[k].a1].frac_coords + self.shx.symmcards[n].trans
+                    D = prime - self.shx.atoms[self.sdm[k].a2].frac_coords + np.array([0.5, 0.5, 0.5])
+                    floorD = np.array([floor(D.x), floor(D.y), floor(D.z)])
+                    dp = D - floorD - np.array([0.5, 0.5, 0.5])
+                    if (n == 0) and (np.array([0., 0., 0.]) == floorD):
+                        continue
+                    dk = vector_length(dp.x, dp.y, dp.z, self.shx.cell)
+                    dddd = (self.sdm[k].d + 0.2)
+                    bs = ''
+                    if (dk > 0.001) and (dddd >= dk):
+                        bs = "%1_%2%3%4".format(n+1, (5-int(floorD[0])), (5-int(floorD[1])), (5-int(floorD[2])) )
+                    if not bs in brauchSymm:
+                        brauchSymm.append(bs)
+                        print(bs)
