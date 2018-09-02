@@ -284,12 +284,12 @@ class ANIS(Command):
         """
         super(ANIS, self).__init__(shx, spline)
         p, atoms = self._parse_line(spline)
-        self.all_atoms = True
+        self.over_all = True
         if len(p) > 0:
-            self.all_atoms = False
+            self.over_all = False
             self.n = p[0]
         if len(atoms) > 0:
-            self.all_atoms = False
+            self.over_all = False
             self.atoms = atoms
 
     def __bool__(self):
