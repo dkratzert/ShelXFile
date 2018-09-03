@@ -1162,14 +1162,14 @@ class ShelXFile():
 if __name__ == "__main__":
     # get_commands()
     # sys.exit()
-    file = r'tests/p21c.res'
+    file = r'tests/I-43d.res'
     try:
         shx = ShelXFile(file)
     except Exception:
         raise
     print(shx.sum_formula_exact)
     shx.write_shelx_file('tests/complete_run/test.ins')
-
+    print(shx.atoms)
     sys.exit()
     from shelxfile.misc import walkdir
 
