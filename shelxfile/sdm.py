@@ -17,7 +17,7 @@ import numpy as np
 
 class SDMItem(object):
     def __init__(self):
-        self.dist = 0.0
+        self._dist = 0.0
         self.atom1 = 0
         self.atom2 = 0
         self.symmetry_number = 0
@@ -26,11 +26,11 @@ class SDMItem(object):
 
     @property
     def dist(self):
-        return self.dist
+        return self._dist
 
     @dist.setter
     def dist(self, d):
-        self.dist = d
+        self._dist = d
 
     def __lt__(self, a1, a2):
         d1 = a1.d  # a1.a2 * 99999 + a1.d;
@@ -42,10 +42,10 @@ class SDM():
     def __init__(self, shx):
         self.shx = shx
         self.dk, dddd = 0.0, 0.0
-        self.prime = np.array(3, 0)
-        self.dp = np.array(3, 0)
-        self.D = np.array(3, 0)
-        self.floorD = np.array(3, 0)
+        self.prime = None
+        self.dp = None
+        self.D = None
+        self.floorD = None
         # contact.clear()  # sdmitem list for hydrogen contacts (not needed)?
         self.sdm = []  # list of sdmitems
         self.knots = []
@@ -59,9 +59,9 @@ class SDM():
                 hma = False
                 sdmItem = SDMItem()
                 for n, symop in enumerate(self.shx.symmcards):
-                    prime = np.matrix(self.shx.symmcards[n].matrix) * np.array(at1.frac_coords) + np.array(self.shx.symmcards[n].trans)
-                    D = prime - at2.frac_coords + np.array([0.5, 0.5, 0.5])
-                    floorD = np.array([np.floor(D.x), floor(D.y), floor(D.z)])
+                    prime = np.array(at1.frac_coords) * np.matrix(self.shx.symmcards[n].matrix.values) + np.array(self.shx.symmcards[n].trans)
+                    D = prime - np.array(at2.frac_coords) + np.array([0.5, 0.5, 0.5])
+                    floorD = [floor(D[0][0]), floor(D[0][1]), floor(D[0][2])]
                     dp = D - floorD - np.array((0.5, 0.5, 0.5))
                     dk = vector_length(dp.x, dp.y, dp.z, self.shx.cell)
                     if n:
@@ -110,9 +110,11 @@ class SDM():
                         bs = "%1_%2%3%4".format(n+1, (5-int(floorD[0])), (5-int(floorD[1])), (5-int(floorD[2])) )
                     if not bs in brauchSymm:
                         brauchSymm.append(bs)
-                        print(bs)
+                    print(bs)
 
 
 if __name__ == "__main__":
     shx = ShelXFile('tests/p-31c.res')
-    print(shx.atoms)
+    sdm = SDM(shx)
+    sdm.calc_sdm()
+    #print(shx.atoms)

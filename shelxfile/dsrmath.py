@@ -326,7 +326,7 @@ class Matrix(object):
         return self.shape[1]
 
     def __iter__(self) -> list:
-        return [n for n in self]
+        return [n for n in self.values]
 
     def __sub__(self, other):
         """
