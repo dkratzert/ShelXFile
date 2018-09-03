@@ -11,6 +11,7 @@
 #
 from math import floor
 from shelxfile.dsrmath import vector_length, fmin
+from shelxfile.shelx import ShelXFile
 
 import numpy as np
 
@@ -110,3 +111,8 @@ class SDM():
                     if not bs in brauchSymm:
                         brauchSymm.append(bs)
                         print(bs)
+
+
+if __name__ == "__main__":
+    shx = ShelXFile('tests/p-31c.res')
+    print(shx.atoms)

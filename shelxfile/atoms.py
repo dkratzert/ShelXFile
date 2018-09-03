@@ -419,7 +419,7 @@ class Atom():
             else:
                 self.sof = self.part.sof
         elif self.afix and self.afix.sof:
-            if self.part.sof:
+            if self.part.sof != 11.0:
                 if self.part.index > self.afix.index:
                     self.sof = self.part.sof
             else:
