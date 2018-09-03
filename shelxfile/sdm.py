@@ -9,7 +9,7 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
-from math import floor
+from math import floor, sqrt
 from shelxfile.dsrmath import vector_length, fmin
 from shelxfile.shelx import ShelXFile
 
@@ -17,20 +17,12 @@ import numpy as np
 
 class SDMItem(object):
     def __init__(self):
-        self._dist = 0.0
+        self.dist = 0.0
         self.atom1 = 0
         self.atom2 = 0
         self.symmetry_number = 0
         self.floor_dist = None
         self.covalent = True
-
-    @property
-    def dist(self):
-        return self._dist
-
-    @dist.setter
-    def dist(self, d):
-        self._dist = d
 
     def __lt__(self, a1, a2):
         d1 = a1.d  # a1.a2 * 99999 + a1.d;
@@ -59,26 +51,26 @@ class SDM():
                 hma = False
                 sdmItem = SDMItem()
                 for n, symop in enumerate(self.shx.symmcards):
-                    prime = np.array(at1.frac_coords) * np.matrix(self.shx.symmcards[n].matrix.values) + np.array(self.shx.symmcards[n].trans)
+                    prime = np.array([at1.frac_coords]) * np.matrix(self.shx.symmcards[n].matrix.values) + np.array([self.shx.symmcards[n].trans])
                     D = prime - np.array(at2.frac_coords) + np.array([0.5, 0.5, 0.5])
-                    floorD = [floor(D[0][0]), floor(D[0][1]), floor(D[0][2])]
-                    dp = D - floorD - np.array((0.5, 0.5, 0.5))
-                    dk = vector_length(dp.x, dp.y, dp.z, self.shx.cell)
+                    dp = D - np.floor(D) - np.array((0.5, 0.5, 0.5))
+                    dp = dp.reshape(3,1)
+                    dk = self.vector_length(dp[0], dp[1], dp[2])
                     if n:
                         dk += 0.0001
-                        if (dk > 0.01) and (min >= dk):
-                            min = fmin(dk, min)
-                            sdmItem.d = min
-                            sdmItem.floorD = floorD
-                            sdmItem.a1 = at1
-                            sdmItem.a2 = at2
-                            sdmItem.sn = n
-                            hma = True
-                if (sdmItem.a1.part * sdmItem.a2.part == 0) or (sdmItem.a1.part == sdmItem.a2.part):
+                    if (dk > 0.01) and (min >= dk):
+                        min = fmin(dk, min)
+                        sdmItem.dist = min
+                        sdmItem.floorD = np.floor(D)
+                        sdmItem.a1 = at1
+                        sdmItem.a2 = at2
+                        sdmItem.sn = n
+                        hma = True
+                if (sdmItem.a1.part.n * sdmItem.a2.part.n == 0) or (sdmItem.a1.part.n == sdmItem.a2.part.n):
                     dddd = at1.radius + at2.radius * 0.012
                 else:
                     dddd = 0.0
-                if sdmItem.d < dddd:
+                if sdmItem.dist < dddd:
                     if hma:
                         atneighb.append(j)
                         sdmItem.covalent = True
@@ -103,7 +95,7 @@ class SDM():
                     dp = D - floorD - np.array([0.5, 0.5, 0.5])
                     if (n == 0) and (np.array([0., 0., 0.]) == floorD):
                         continue
-                    dk = vector_length(dp.x, dp.y, dp.z, self.shx.cell)
+                    dk = self.vector_length(dp.x, dp.y, dp.z)
                     dddd = (self.sdm[k].d + 0.2)
                     bs = ''
                     if (dk > 0.001) and (dddd >= dk):
@@ -112,7 +104,25 @@ class SDM():
                         brauchSymm.append(bs)
                     print(bs)
 
+    def vector_length(self, x: float, y: float, z: float) -> float:
+        """
+        Calculates the vector length given in fractional coordinates.
 
+        >>> vector_length(1, 0, 0, [1, 1, 1, 90, 90, 90])
+        1.0
+        >>> round(vector_length(1.0, 1.0, 1.0, [5.773501, 5.773501, 5.773501, 90, 90, 90]), 5)
+        10.0
+        >>> round(vector_length(-0.269224, 0.349464, 0.0, [12.5067, 12.5067, 24.5615, 90.0, 90.0, 120.0]), 5)
+        6.71984
+        """
+        cell = self.shx.cell
+        a = 0.0 if (cell[5] == 90.0) else 2.0 * x * y * cell[0] * cell[1] * cell.cosga
+        b = 0.0 if (cell[4] == 90.0) else 2.0 * x * z * cell[0] * cell[2] * cell.cosbe
+        c = 0.0 if (cell[3] == 90.0) else 2.0 * y * z * cell[1] * cell[2] * cell.cosal
+        return sqrt(x ** 2 * cell[0] ** 2 + y ** 2 * cell[1] ** 2 + z ** 2 * cell[2] ** 2 + a + b + c)
+
+
+    
 if __name__ == "__main__":
     shx = ShelXFile('tests/p-31c.res')
     sdm = SDM(shx)

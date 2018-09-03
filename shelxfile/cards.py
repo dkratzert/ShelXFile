@@ -339,6 +339,9 @@ class CELL(Command):
             self.al = p[4]
             self.be = p[5]
             self.ga = p[6]
+            self.cosal = cos(radians(self.al))
+            self.cosbe = cos(radians(self.be))
+            self.cosga = cos(radians(self.ga))
 
     @property
     def volume(self) -> float:
