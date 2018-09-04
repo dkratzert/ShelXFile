@@ -422,6 +422,7 @@ class Atom():
         self.part = part
         self.afix = afix
         self.resi = resi
+        # TODO: test all variants of PART and AFIX sof combinations:
         if self.part.sof != 11.0:
             if self.afix and self.afix.sof:  # handles position of afix and part:
                 if self.afix.index > self.part.index:

@@ -64,15 +64,14 @@ class Array(object):
 
     def __add__(self, other: (list, 'Array')) -> 'Array':
         """
+        This method is optimized for speed.
         >>> a = Array([1, 2, 3])
         >>> b = Array([1, 1, 1])
         >>> a+b
         Array([2, 3, 4])
         """
         if isinstance(other, Array):
-            #if not len(self) == len(other):
-            #    raise ValueError('Arrays are not of equal length.')
-            return Array([i + j for i, j in zip(self, other)])
+            return Array(list(map(operator.add, self.values, other)))
         elif type(other) == float or type(other) == int:
             return Array([i + other for i in self.values])
         else:
@@ -97,7 +96,7 @@ class Array(object):
     def __sub__(self, other):
         """
         Subtracts eiter an Array or a value from the self Array.
-
+        This method is optimized for speed.
         >>> a = Array([1, 2, 3])
         >>> b = Array([1, 1, 1])
         >>> a-b
@@ -106,37 +105,18 @@ class Array(object):
         Array([0, -1, -2])
         """
         if isinstance(other, Array):
-            #if not len(self) == len(other):
-            #    raise ValueError('Arrays are not of equal length.')
-            #return Array([i - j for i, j in zip(self, other)])
             return Array(list(map(operator.sub, self.values, other)))  # slightly faster
         elif isinstance(other, float) or isinstance(other, int):
             return Array([i - other for i in self.values])
         else:
             raise TypeError('Cannot add type Array to type {}.'.format(str(type(other))))
 
-    def norm(self):
-        """
-        The squared lenght of an array
-
-        >>> a = Array([1, 2, 3, 4])
-        >>> a.norm()
-        30
-        """
-        return sum([n ** 2 for n in self.values])
-
-    def normalized(self):
-        """
-        Euclidean norm (straight-line distance) of a vector array.
-        >>> a = Array([2, 2, 1])
-        >>> a.normalized()
-        3.0
-        """
-        return sqrt(self.norm())
-
     def __imul__(self, other):
-        """a = imul(a, b) is equivalent to a *= b."""
-        if isinstance(other, int):
+        """
+        Currently supports multiplication by a number. 
+        __imul__ means a *= b
+        """
+        if isinstance(other, (int, float)):
             self.values = [v * other for v in self.values]
             return self
         else:
@@ -183,6 +163,25 @@ class Array(object):
         Array([0, 5, 0])
         """
         self.values[pos] = val
+
+    def norm(self):
+        """
+        The squared lenght of an array
+
+        >>> a = Array([1, 2, 3, 4])
+        >>> a.norm()
+        30
+        """
+        return sum([n ** 2 for n in self.values])
+
+    def normalized(self):
+        """
+        Euclidean norm (straight-line distance) of a vector array.
+        >>> a = Array([2, 2, 1])
+        >>> a.normalized()
+        3.0
+        """
+        return sqrt(self.norm())
 
     @staticmethod
     def zero(m: int) -> 'Array':
