@@ -10,8 +10,9 @@
 # ----------------------------------------------------------------------------
 #
 import time
-from math import floor, sqrt
-from shelxfile.dsrmath import vector_length, fmin, Matrix, Array
+from math import sqrt
+
+from shelxfile.dsrmath import vector_length, fmin, Array
 from shelxfile.shelx import ShelXFile
 
 

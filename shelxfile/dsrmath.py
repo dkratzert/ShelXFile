@@ -536,11 +536,18 @@ class SymmetryElement(object):
     """
     Class representing a symmetry operation.
     >>> from shelxfile.shelx import ShelXFile
-    >>> shx = ShelXFile('../tests/p21c.res')
+    >>> shx = ShelXFile('./tests/p21c.res')
     >>> shx.symmcards[1]  # __repr__()
     -X, -Y, -Z
     >>> print(shx.symmcards[1])  # __str__()
-    |-1  0  0|   | 0.0|| 0 -1  0| + | 0.0|| 0  0 -1|   | 0.0|
+    |-1  0  0|   | 0.0| 
+    | 0 -1  0| + | 0.0| 
+    | 0  0 -1|   | 0.0| 
+    <BLANKLINE>
+    >>> shx.symmcards[0] == shx.symmcards[1]
+    False
+    >>> shx.symmcards[1] == shx.symmcards[1]
+    True
     """
     symm_ID = 1
 

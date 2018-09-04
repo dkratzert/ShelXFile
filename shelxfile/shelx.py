@@ -24,11 +24,8 @@ e.g. atom C1 with del shx.atoms[shx.atoms.get_atom_by_name('C1_4').position], th
 import os
 import re
 import sys
-from math import radians, cos, sin, sqrt
+from math import cos, sin
 
-from shelxfile.dsrmath import Matrix
-from shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
-    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 from refine.shx_refine import ShelxlRefine
 from shelxfile.atoms import Atoms, Atom
 from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
@@ -36,6 +33,9 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues
+from shelxfile.dsrmath import Matrix
+from shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
+    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 
 __version__ = 3
 """

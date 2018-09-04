@@ -22,13 +22,6 @@ __version__ = '1.2.7'
 import copy
 import numpy as np
 
-# Python 2/3 compatibility
-# Make range a iterator in Python 2
-try:
-    range = xrange
-except NameError:
-    pass
-
 
 def kabsch_rmsd(P, Q):
     """

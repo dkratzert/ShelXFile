@@ -16,6 +16,7 @@ import re
 import subprocess
 import sys
 from shutil import which, disk_usage, copyfile
+
 from shelxfile.cards import ACTA
 from shelxfile.misc import remove_file, sep_line, find_line
 
@@ -101,6 +102,7 @@ class ShelxlRefine():
         Approximates the B array size to ensure refinement.
         """
         number_of_atoms = self.shx.atoms.number
+        # This is a rough aproximation, but it works until you have a really high number of processors:
         barray = number_of_atoms * 8
         if barray <= 3000:
             barray = 3000

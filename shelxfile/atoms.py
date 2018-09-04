@@ -1,9 +1,9 @@
 from math import acos, sqrt, degrees
 
 from shelxfile import elements
+from shelxfile.cards import AFIX, PART, RESI
 from shelxfile.dsrmath import atomic_distance, frac_to_cart, Array
 from shelxfile.misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
-from shelxfile.cards import AFIX, PART, RESI
 
 """
 TODO:
