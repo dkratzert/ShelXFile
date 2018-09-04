@@ -328,33 +328,33 @@ class Atom():
         self._occupancy = 1.0
 
     @property
-    def atomid(self):
+    def atomid(self) -> int:
         return self.shx._reslist.index(self)
 
     @property
-    def fullname(self):
+    def fullname(self) -> str:
         return self.name + '_' + str(self.resinum)  # Name including residue nimber like "C1_2"
 
     @property
-    def resiclass(self):
+    def resiclass(self) -> str:
         return self.resi.residue_class
 
     @property
-    def resinum(self):
+    def resinum(self) -> int:
         return self.resi.residue_number
 
     @property
-    def chain_id(self):
+    def chain_id(self) -> str:
         return self.resi.chainID
 
     @property
-    def fvar(self):
+    def fvar(self) -> int:
         # Be aware: fvar can be negative!
         fvar, _ = split_fvar_and_parameter(self.sof)
         return fvar
 
     @property
-    def occupancy(self):
+    def occupancy(self) -> float:
         # Only the occupancy of the atom like 0.5 (without the free variable)
         _, occ = split_fvar_and_parameter(self.sof)
         # Fractional occupancy:
@@ -373,6 +373,16 @@ class Atom():
     @occupancy.setter
     def occupancy(self, occ: float):
         self._occupancy = occ
+
+    @property
+    def ishydrogen(self) -> bool:
+        """
+        Returns True if the current atom is a hydrogen isotope.
+        """
+        if self.element in ['H', 'D', 'T']:
+            return True
+        else:
+            return False
 
     def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None,
                             afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0, uvals: list = None):

@@ -66,8 +66,9 @@ class SDM():
                         sdmItem.a2 = at2
                         sdmItem.sn = n
                         hma = True
-                if (sdmItem.a1.part.n * sdmItem.a2.part.n == 0) or (sdmItem.a1.part.n == sdmItem.a2.part.n):
-                    dddd = at1.radius + at2.radius * 0.012
+                if (not sdmItem.a1.ishydrogen and not sdmItem.a2.ishydrogen) and \
+                        sdmItem.a1.part.n * sdmItem.a2.part.n == 0 or sdmItem.a1.part.n == sdmItem.a2.part.n:
+                    dddd = (at1.radius + at2.radius) * 1.2
                 else:
                     dddd = 0.0
                 if sdmItem.dist < dddd:
@@ -79,7 +80,8 @@ class SDM():
                 if hma:
                    self.sdm.append(sdmItem)
             self.knots.append(atneighb)
-
+        print(self.knots)
+        return
         for k, sdmItem in enumerate(self.sdm):
             if sdmItem.covalent:
                 for n, at in enumerate(self.shx.atoms):
