@@ -9,10 +9,10 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
-
+import operator
 import random
 import string
-from math import sqrt, radians, cos, sin, acos, degrees
+from math import sqrt, radians, cos, sin, acos, degrees, floor
 
 
 class Array(object):
@@ -63,9 +63,15 @@ class Array(object):
         return len(self.values)
 
     def __add__(self, other: (list, 'Array')) -> 'Array':
+        """
+        >>> a = Array([1, 2, 3])
+        >>> b = Array([1, 1, 1])
+        >>> a+b
+        Array([2, 3, 4])
+        """
         if isinstance(other, Array):
-            if not len(self) == len(other):
-                raise ValueError('Arrays are not of equal length.')
+            #if not len(self) == len(other):
+            #    raise ValueError('Arrays are not of equal length.')
             return Array([i + j for i, j in zip(self, other)])
         elif type(other) == float or type(other) == int:
             return Array([i + other for i in self.values])
@@ -78,12 +84,20 @@ class Array(object):
     def __sub__(self, other):
         """
         Subtracts eiter an Array or a value from the self Array.
+
+        >>> a = Array([1, 2, 3])
+        >>> b = Array([1, 1, 1])
+        >>> a-b
+        Array([0, 1, 2])
+        >>> b-a
+        Array([0, -1, -2])
         """
         if isinstance(other, Array):
-            if not len(self) == len(other):
-                raise ValueError('Arrays are not of equal length.')
-            return Array([i - j for i, j in zip(self, other)])
-        elif type(other) == float or type(other) == int:
+            #if not len(self) == len(other):
+            #    raise ValueError('Arrays are not of equal length.')
+            #return Array([i - j for i, j in zip(self, other)])
+            return Array(list(map(operator.sub, self.values, other)))  # slightly faster
+        elif isinstance(other, float) or isinstance(other, int):
             return Array([i - other for i in self.values])
         else:
             raise TypeError('Cannot add type Array to type {}.'.format(str(type(other))))
@@ -108,22 +122,33 @@ class Array(object):
         return sqrt(self.norm())
 
     def __imul__(self, other):
+        """a = imul(a, b) is equivalent to a *= b."""
         if isinstance(other, int):
             self.values = [v * other for v in self.values]
             return self
         else:
             raise TypeError('Unsupported operation.')
 
-    def __mul__(self, other: 'Array') -> float:
+    def __mul__(self, other: ('Array', 'Matrix')) -> (float, 'Array'):
         """
-        a*b = axbx + ayby + azbz
+        a * b = axbx + ayby + azbz
 
         >>> a1 = Array([1, 2, 3])
         >>> a2 = Array([1, 2, 3])
         >>> a1 * a2
         14
         """
-        return self.dot(other)
+        if isinstance(other, Matrix):
+            # Array() * Matrix()
+            a = other[0]
+            b = other[1]
+            c = other[2]
+            x = self.values[0] * a[0] + self.values[1] * b[0] + self.values[2] * c[0]
+            y = self.values[0] * a[1] + self.values[1] * b[1] + self.values[2] * c[1]
+            z = self.values[0] * a[2] + self.values[1] * b[2] + self.values[2] * c[2]
+            return Array([x, y, z])
+        else:
+            return self.dot(other)
 
     def __repr__(self):
         return 'Array({})'.format(str(self.values))
@@ -165,6 +190,10 @@ class Array(object):
         #Array([1, 4, 6, 4, 8])
         """
         return Array([random.randint(1, 9) for row in range(m)])
+
+    @property
+    def floor(self):
+        return Array([floor(x) for x in self.values])
 
     def dot(self, other: 'Array') -> float:
         """
@@ -312,6 +341,9 @@ class Matrix(object):
         <BLANKLINE>
         >>> m * Array([2, 2, 2])
         Array([6, 6, 6])
+        >>> m = Matrix([(0, 1, 0), (-1, -1, 0), (0, 0, 1)])
+        >>> Array([0.333333, 0.666667, 0.45191]) * m
+        Array([-0.666667, -0.333334, 0.45191])
         """
         if isinstance(other, (int, float)):
             return Matrix([[v * other for v in row] for row in self.values])
@@ -538,10 +570,10 @@ class SymmetryElement(object):
         False
         TODO: Fix his test.
         """
-        m = (self.matrix == other.matrix).all()
+        m = (self.matrix == other.matrix)
         t1 = Array([v % 1 for v in self.trans])
         t2 = Array([v % 1 for v in other.trans])
-        t = (t1 == t2).all()
+        t = (t1 == t2)
         return m and t
 
     def __sub__(self, other):

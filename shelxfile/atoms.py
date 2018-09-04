@@ -481,6 +481,10 @@ class Atom():
         """
         return self.shx.sfac2elem(self.sfac_num).capitalize()
 
+    @property
+    def an(self):
+        return elements.get_atomic_number(self.element)
+
     @element.setter
     def element(self, new_element: str) -> None:
         """
@@ -546,8 +550,11 @@ class Atom():
         return self.shx.index_of(self)
 
     @property
-    def frac_coords(self) -> list:
-        return [round(self.x, 14), round(self.y, 14), round(self.z, 14)]
+    def frac_coords(self, rounded=False) -> list:
+        if rounded:
+            return [round(self.x, 14), round(self.y, 14), round(self.z, 14)]
+        else:
+            return [self.x, self.y, self.z]
 
     @frac_coords.setter
     def frac_coords(self, coords: list):
