@@ -12,7 +12,7 @@
 import time
 from math import sqrt
 
-from shelxfile.dsrmath import vector_length, fmin, Array
+from shelxfile.dsrmath import fmin, Array
 from shelxfile.shelx import ShelXFile
 
 

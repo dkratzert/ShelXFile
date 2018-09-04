@@ -879,27 +879,6 @@ def fmin(x, y):
     return x if x < y else y
 
 
-def vector_length(x: float, y: float, z: float, cell: list) -> float:
-    """
-    Calculates the vector length given in fractional coordinates.
-
-    >>> vector_length(1, 0, 0, [1, 1, 1, 90, 90, 90])
-    1.0
-    >>> round(vector_length(1.0, 1.0, 1.0, [5.773501, 5.773501, 5.773501, 90, 90, 90]), 5)
-    10.0
-    >>> round(vector_length(-0.269224, 0.349464, 0.0, [12.5067, 12.5067, 24.5615, 90.0, 90.0, 120.0]), 5)
-    6.71984
-    """
-    a = 0.0 if (cell[5] == 90.0) else 2.0 * x * y * cell[0] * cell[1] * cos(radians(cell[5]))
-    b = 0.0 if (cell[4] == 90.0) else 2.0 * x * z * cell[0] * cell[2] * cos(radians(cell[4]))
-    c = 0.0 if (cell[3] == 90.0) else 2.0 * y * z * cell[1] * cell[2] * cos(radians(cell[3]))
-    erg = sqrt(x**2 * cell[0]**2 
-              + y**2 * cell[1]**2 
-              + z**2 * cell[2]**2 
-              + a + b + c)
-    return erg
-
-
 def determinante(a):
     """
     return determinant of 3x3 matrix
