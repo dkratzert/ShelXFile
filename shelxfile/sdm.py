@@ -125,18 +125,10 @@ class SDM():
         t6 = time.perf_counter()
         print('Zeit3 sort sdm:', t6 - t5)
         return brauchSymm
-        
 
     def vector_length(self, x: float, y: float, z: float) -> float:
         """
         Calculates the vector length given in fractional coordinates.
-
-        >>> vector_length(1, 0, 0, [1, 1, 1, 90, 90, 90])
-        1.0
-        >>> round(vector_length(1.0, 1.0, 1.0, [5.773501, 5.773501, 5.773501, 90, 90, 90]), 5)
-        10.0
-        >>> round(vector_length(-0.269224, 0.349464, 0.0, [12.5067, 12.5067, 24.5615, 90.0, 90.0, 120.0]), 5)
-        6.71984
         """
         a = 0.0 if (self.shx.cell[5] == 90.0) else 2.0 * x * y * self.aga
         b = 0.0 if (self.shx.cell[4] == 90.0) else 2.0 * x * z * self.bbe
