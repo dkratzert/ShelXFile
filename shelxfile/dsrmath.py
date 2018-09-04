@@ -81,6 +81,19 @@ class Array(object):
     def __iadd__(self, other):
         return self.__add__(other)
 
+    def __eq__(self, other):
+        """
+        >>> a1 = Array([1, 2, 3, 4])
+        >>> a2 = Array([1, 2, 3.0, 4.0])
+        >>> a1 == a2
+        True
+        >>> a1 = Array([1, 2, 3, 4])
+        >>> a2 = Array([2, 2, 3.0, 4.0])
+        >>> a1 == a2
+        False
+        """
+        return all([a == b for (a, b) in zip(self.values, other.values)])
+
     def __sub__(self, other):
         """
         Subtracts eiter an Array or a value from the self Array.
@@ -360,6 +373,19 @@ class Matrix(object):
     def __iter__(self) -> list:
         return [n for n in self.values]
 
+    def __eq__(self, other):
+        """
+        >>> m1 = Matrix([(1., 2., 3.), (1., 2., 3.), (1., 2., 3.)])
+        >>> m2 = Matrix([(1, 2, 3), (1, 2, 3), (1, 2, 3)])
+        >>> m1 == m2
+        True
+        >>> m1 = Matrix([(1, 2, 3), (1, 2, 3), (1, 2, 3)])
+        >>> m2 = Matrix([(1, 2, 3), (3, 2, 3), (1, 2, 3)])
+        >>> m1 == m2
+        False
+        """
+        return all([b == x for (b, x) in zip(other.values, self.values)])
+
     def __sub__(self, other):
         """
         Substract two matrices.
@@ -564,11 +590,18 @@ class SymmetryElement(object):
         Note that differences in lattice translation are ignored.
         :param other: SymmetryElement instance
         :return: True/False
-        >>> m1 = Matrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        >>> m2 = Matrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-        >>> m1 == m2
+        >>> s1 = SymmetryElement(['0.5', '0.5', '0.5'])
+        >>> s2 = SymmetryElement(['0.5', '0.5', '0.5'])
+        >>> s1 == s2
+        True
+        >>> s1 = SymmetryElement(['1.5', '1.5', '1.5'])
+        >>> s2 = SymmetryElement(['0.5', '0.5', '0.5'])
+        >>> s1 == s2
+        True
+        >>> s3 = SymmetryElement(['1', '0.5', '0.5'])
+        >>> s4 = SymmetryElement(['0.5', '0.5', '0.5'])
+        >>> s3 == s4
         False
-        TODO: Fix his test.
         """
         m = (self.matrix == other.matrix)
         t1 = Array([v % 1 for v in self.trans])
