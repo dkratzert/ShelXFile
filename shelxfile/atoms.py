@@ -329,7 +329,10 @@ class Atom():
 
     @property
     def atomid(self) -> int:
-        return self.shx._reslist.index(self)
+        try:
+            return self.shx._reslist.index(self)
+        except ValueError:
+            return 0
 
     @property
     def fullname(self) -> str:
