@@ -10,11 +10,12 @@
 # ----------------------------------------------------------------------------
 #
 import time
+from shelxfile.atoms import Atom
 from math import sqrt
 
 from shelxfile.dsrmath import fmin, Array
 from shelxfile.shelx import ShelXFile
-
+from shelxfile.cards import AFIX, RESI
 
 class SDMItem(object):
     def __init__(self):
@@ -47,7 +48,7 @@ class SDM():
         self.knots = []
 
     def calc_sdm(self):
-        brauchSymm = []
+        need_symm = []
         t1 = time.perf_counter()
         for at1 in self.shx.atoms.all_atoms:
             atneighb = []  # list of atom neigbors
@@ -104,19 +105,19 @@ class SDM():
                     floorD = D.floor
                     dp = D - floorD - Array([0.5, 0.5, 0.5])
                     if n == 0 and Array([0, 0, 0]) == floorD:
-                        #print(floorD)
                         continue
                     dk = self.vector_length(*dp)
-                    dddd = (sdmItem.dist + 0.2)
-                    bs = ''
+                    dddd = sdmItem.dist + 0.2
+                    # TODO: Do I need this?
+                    #if sdmItem.atom1.an == 0 and sdmItem.atom2.an == 0:
+                    #    dddd = 1.8
                     if (dk > 0.001) and (dddd >= dk):
-                        #bs = "{}_{}{}{}".format(n+1, (5-int(floorD[0])), (5-int(floorD[1])), (5-int(floorD[2])) )
                         bs = [n+1, (5-floorD[0]), (5-int(floorD[1])), (5-int(floorD[2]))]
-                        if not bs in brauchSymm:
-                            brauchSymm.append(bs)
+                        if not bs in need_symm:
+                            need_symm.append(bs)
                         #print(symop)
                         #print(bs)
-        for x in brauchSymm:
+        for x in need_symm:
             print(x)
         t4 = time.perf_counter()
         print('Zeit2 brauchsymm:', t4 - t3)
@@ -124,7 +125,26 @@ class SDM():
         self.sdm.sort()
         t6 = time.perf_counter()
         print('Zeit3 sort sdm:', t6 - t5)
-        return brauchSymm
+        # TODO: I might have to add this here:
+        """
+        QList<int> flags;
+        for (int i=0; i<asymm.size(); i++) flags.append((asymm.at(i).an<0)?-1:1);
+        for (int i=0; i<envi_sdm.size(); i++)
+        if ((flags.at(envi_sdm.at(i).a1)*flags.at(envi_sdm.at(i).a2))==-1) {
+        //if ((qbeforehkl)||((flags.at(sdm.at(i).a1)==-1)&&((asymm.at(sdm.at(i).a2).an>-1)))){
+        //   if (((asymm[envi_sdm.at(i).a1].Label=="Q11")||(asymm[envi_sdm.at(i).a2].Label=="Q11"))&&(envi_sdm.at(i).d<2.6))
+        //       qDebug()<<asymm[envi_sdm.at(i).a1].Label<<asymm[envi_sdm.at(i).a2].Label<<envi_sdm.at(i).d<<flags[envi_sdm.at(i).a1]<<flags[envi_sdm.at(i).a2];
+        if (asymm[envi_sdm.at(i).a1].an>-1) continue;
+        if (asymm[envi_sdm.at(i).a1].an==-66) continue;
+        if ((envi_sdm.at(i).sn==0)&&(envi_sdm.at(i).floorD==V3(0,0,0))) {flags[envi_sdm.at(i).a1]=1;continue;}
+        if (envi_sdm.at(i).d>2.4) continue;
+        asymm[envi_sdm.at(i).a1].frac = cell.symmops.at(envi_sdm.at(i).sn) * asymm[envi_sdm.at(i).a1].frac + cell.trans.at(envi_sdm.at(i).sn) - envi_sdm.at(i).floorD;
+        flags[envi_sdm.at(i).a1]=1;
+        frac2kart(asymm[envi_sdm.at(i).a1].frac,asymm[envi_sdm.at(i).a1].pos);
+       
+        """
+
+        return need_symm
 
     def vector_length(self, x: float, y: float, z: float) -> float:
         """
@@ -136,10 +156,66 @@ class SDM():
         return sqrt(x ** 2 * self.shx.cell[0] ** 2 + y ** 2 * self.shx.cell[1] ** 2 
                     + z ** 2 * self.shx.cell[2] ** 2 + a + b + c)
 
-
+    def packer(self, sdm: 'SDM', need_symm: list):
+        """
+        Packs atoms of the asymmetric unit to real molecules.
+        :param need_symm:
+        :return:
+        """
+        #usedSymmetry += (brauchSymm);
+        new_atom = Atom(self.shx)
+        showatoms = []
+        s = 0
+        h = 0
+        k = 0
+        l = 0
+        is_there = False
+        symmgroup = 0
+        pre = ''
+        suff = ''
+        cell = self.shx.cell
+        asymm = self.shx.atoms.all_atoms
+        for at in asymm:
+            showatoms.append(at)
+        for j in need_symm:
+            s, h, k, l = j
+            h -= 5
+            k -= 5
+            l -= 5
+            s = s - 1
+            for atom in asymm:
+                if not atom.ishydrogen:
+                    new_atom.set_atom_parameters(
+                        name=atom.name + ">>" + 'new',
+                        sfac_num=atom.sfac_num,
+                        coords=self.shx.symmcards[s].matrix * Array(atom.frac_coords) \
+                                           + Array(self.shx.symmcards[s].trans) + Array([h, k, l]),
+                        part=atom.part,
+                        afix=AFIX(self.shx, ('AFIX ' + atom.afix).split()) if atom.afix else None,
+                        resi=RESI(self.shx, ('RESI ' + atom.resinum + atom.resiclass).split()) if atom.resi else None,
+                        site_occupation=atom.sof,
+                        uvals=atom.uvals
+                        )
+                    # TODO: I have to transform the Uijs by symmetry here later.
+                    is_there = False
+                    if new_atom.part.n >= 0:
+                        for gbt, atom in enumerate(showatoms):
+                            if atom.ishydrogen:
+                                continue
+                    if atom.part.n != new_atom.part.n:
+                        continue
+                    if sdm.vector_length(new_atom.frac_coords[0] - atom.frac_coords[0],
+                                         new_atom.frac_coords[1] - atom.frac_coords[1],
+                                         new_atom.frac_coords[2] - atom.frac_coords[2]) < 0.2:
+                        is_there = True
+                    if not is_there:
+                        showatoms.append(new_atom)
+                #elif grow_qpeaks:
+                #    ...
+                s = s - 1
+        return showatoms
     
 if __name__ == "__main__":
     shx = ShelXFile('tests/p-31c.res')
     sdm = SDM(shx)
-    sdm.calc_sdm()
-    #print(shx.atoms)
+    needsymm = sdm.calc_sdm()
