@@ -326,6 +326,7 @@ class Atom():
         self.previous_non_h = None  # Find in self.shx.atoms durinf initialization
         self._line_numbers = None
         self._occupancy = 1.0
+        self.molindex = 0
 
     @property
     def atomid(self) -> int:
