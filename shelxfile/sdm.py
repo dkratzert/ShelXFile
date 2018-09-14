@@ -47,6 +47,7 @@ class SDM():
         # contact.clear()  # sdmitem list for hydrogen contacts (not needed)?
         self.sdm = []  # list of sdmitems
         self.knots = []
+        self.maxmol = 1
 
     def calc_sdm(self):
         need_symm = []
@@ -92,37 +93,37 @@ class SDM():
             self.knots.append(atneighb)
         t2 = time.perf_counter()
         print('Zeit:', t2-t1)
-        print('länge:', len(self.knots), self.knots)
+        print('sdm länge:', len(self.knots), self.knots)
         t1a = time.perf_counter()
         someleft = 1
-        nextmol = 0
-        maxmol = 1
+        nextmol = 1
         for at in all_atoms:
             at.molindex = -1
         all_atoms[0].molindex = 1  # Start for George's "bring atoms together algorithm"
-        while someleft:
+        while nextmol:
             nextmol = 0
             while someleft:
                 someleft = 0
                 for sdmItem in self.sdm:
                     if sdmItem.covalent and all_atoms[sdmItem.a1].molindex * all_atoms[sdmItem.a2].molindex < 0:
-                        all_atoms[sdmItem.a1].molindex = maxmol
-                        all_atoms[sdmItem.a2].molindex = maxmol
+                        all_atoms[sdmItem.a1].molindex = self.maxmol
+                        all_atoms[sdmItem.a2].molindex = self.maxmol
                         someleft += 1
-            for n, at in enumerate(all_atoms):
-                if at.ishydrogen and at.molindex < 0:
-                    nextmol = n
-                    break
-            if nextmol:
-                maxmol += 1
-                all_atoms[nextmol].molindex = maxmol
-        print("The asymmetric unit contains {} fragments.".format(maxmol))
+                for n, at in enumerate(all_atoms):
+                    if not at.ishydrogen and at.molindex < 0:
+                        nextmol = n
+                        break
+                if nextmol:
+                    self.maxmol += 1
+                    all_atoms[nextmol].molindex = self.maxmol
         t2a = time.perf_counter()
         print('Zeit nextmol:', t2a - t1a)
         # return
         t3 = time.perf_counter()
         for sdmItem in self.sdm:
             if sdmItem.covalent:
+                if (all_atoms[sdmItem.a1].molindex < 1 or all_atoms[sdmItem.a1].molindex > 6):
+                    continue
                 for n, symop in enumerate(self.shx.symmcards):
                     if sdmItem.atom1.part != 0 and sdmItem.atom2.part != 0 \
                             and sdmItem.atom1.part != sdmItem.atom2.part:
@@ -179,15 +180,16 @@ class SDM():
             flags[sdmItem.a1] = 1
         t8 = time.perf_counter()
         print('Zeit4 Bring atoms together:', t8 - t7)
+        print("The asymmetric unit contains {} fragments.".format(self.maxmol))
         return need_symm
 
     def vector_length(self, x: float, y: float, z: float) -> float:
         """
         Calculates the vector length given in fractional coordinates.
         """
-        a = 0.0 if (self.shx.cell[5] == 90.0) else 2.0 * x * y * self.aga
-        b = 0.0 if (self.shx.cell[4] == 90.0) else 2.0 * x * z * self.bbe
-        c = 0.0 if (self.shx.cell[3] == 90.0) else 2.0 * y * z * self.cal
+        a = 2.0 * x * y * self.aga
+        b = 2.0 * x * z * self.bbe
+        c = 2.0 * y * z * self.cal
         return sqrt(x ** 2 * self.shx.cell[0] ** 2 + y ** 2 * self.shx.cell[1] ** 2 
                     + z ** 2 * self.shx.cell[2] ** 2 + a + b + c)
 
@@ -242,9 +244,9 @@ if __name__ == "__main__":
     sdm = SDM(shx)
     needsymm = sdm.calc_sdm()
     packed_atoms = sdm.packer(sdm, needsymm)
-    print(len(shx.atoms))
-    print(len(packed_atoms))
+    print('n atoms:', len(shx.atoms))
+    print('packed atoms:', len(packed_atoms))
     from shelxfile.misc import wrap_line
     for y in packed_atoms:
         pass
-        print(wrap_line(str(y)))
+        #print(wrap_line(str(y)))
