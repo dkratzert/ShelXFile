@@ -866,18 +866,6 @@ def atomic_distance(p1: list, p2: list, cell=None, shortest_dist=False):
         return sqrt(dx ** 2 + dy ** 2 + dz ** 2)
 
 
-def fmin(x, y):
-    """
-    Retruns the smaller value of x and y
-
-    >>> fmin(5, 4)
-    4
-    >>> fmin(1, 2)
-    1
-    """
-    return x if x < y else y
-
-
 def determinante(a):
     """
     return determinant of 3x3 matrix

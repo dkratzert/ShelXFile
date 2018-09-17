@@ -736,7 +736,7 @@ class ShelXFile():
                     raise
         pass
 
-    @time_this_method
+    #@time_this_method
     def run_after_parse(self):
         """
         Runs all what is left after parsing all lines. E.G. sanity checks.
@@ -886,7 +886,7 @@ class ShelXFile():
                             if DEBUG:
                                 print('*** CANNOT READ INCLUDE FILE {} ***'.format(line))
                             # del reslist[n]
-        except (IOError) as e:
+        except IOError as e:
             print(e)
             print('*** CANNOT READ FILE {} ***'.format(resfile))
         return reslist

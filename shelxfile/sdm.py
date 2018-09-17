@@ -13,9 +13,10 @@ import time
 from shelxfile.atoms import Atom
 from math import sqrt
 
-from shelxfile.dsrmath import fmin, Array
+from shelxfile.dsrmath import Array
 from shelxfile.shelx import ShelXFile
 from shelxfile.cards import AFIX, RESI
+from shelxfile.misc import DEBUG, wrap_line
 
 
 class SDMItem(object):
@@ -33,6 +34,11 @@ class SDMItem(object):
     def __lt__(self, a2):
         return True if self.dist < a2.dist else False
 
+    def __eq__(self, other: 'SDMItem'):
+        if other.a1 == self.a2 and other.a2 == self.a1:
+            return True
+        return False
+
     def __repr__(self):
         return '{} {} {} {} dist: {} coval: {} sn: {} {} {}'.format(self.atom1.name, self.atom2.name, self.a1, self.a2,
                                                                     self.dist, self.covalent,
@@ -40,7 +46,7 @@ class SDMItem(object):
 
 
 class SDM():
-    def __init__(self, shx):
+    def __init__(self, shx: ShelXFile):
         self.shx = shx
         self.aga = self.shx.cell[0] * self.shx.cell[1] * self.shx.cell.cosga
         self.bbe = self.shx.cell[0] * self.shx.cell[2] * self.shx.cell.cosbe
@@ -54,12 +60,12 @@ class SDM():
         self.sdm_list = []  # list of sdmitems
         self.knots = []
         self.maxmol = 1
+        self.sdmtime = 0
 
     def __iter__(self):
         yield self.knots
 
-    def calc_sdm(self):
-        need_symm = []
+    def calc_sdm(self) -> list:
         t1 = time.perf_counter()
         all_atoms = self.shx.atoms.all_atoms
         for i, at1 in enumerate(all_atoms):
@@ -85,6 +91,9 @@ class SDM():
                         sdmItem.a2 = j
                         sdmItem.symmetry_number = n
                         hma = True
+                if not sdmItem.atom1:
+                    # Do not grow grown atoms:
+                    continue
                 if (not sdmItem.atom1.ishydrogen and not sdmItem.atom2.ishydrogen) and \
                         sdmItem.atom1.part.n * sdmItem.atom2.part.n == 0 \
                         or sdmItem.atom1.part.n == sdmItem.atom2.part.n:
@@ -103,37 +112,18 @@ class SDM():
                 # print(sdmItem)
             self.knots.append(atneighb)
         t2 = time.perf_counter()
-        print('Zeit:', t2 - t1)
-        print('sdm länge:', len(self.knots), self.knots)
-        t1a = time.perf_counter()
-        someleft = 1
-        nextmol = 1
-        # Start for George's "bring atoms together algorithm":
-        for at in all_atoms:
-            at.molindex = -1
-        all_atoms[0].molindex = 1
-        while nextmol:
-            someleft = 1
-            nextmol = 0
-            while someleft:
-                someleft = 0
-                for sdmItem in self.sdm_list:
-                    if sdmItem.covalent and sdmItem.atom1.molindex * sdmItem.atom2.molindex < 0:
-                        sdmItem.atom1.molindex = self.maxmol
-                        sdmItem.atom2.molindex = self.maxmol
-                        someleft += 1
-            for ni, at in enumerate(all_atoms):
-                if not at.ishydrogen and at.molindex < 0:
-                    nextmol = ni
-                    break
-            if nextmol:
-                self.maxmol += 1
-                all_atoms[nextmol].molindex = self.maxmol
-        t2a = time.perf_counter()
-        print('Maxmol:', self.maxmol)
-        print('Zeit nextmol:', t2a - t1a)
-        # return
-        t3 = time.perf_counter()
+        self.sdmtime = t2 - t1
+        if DEBUG:
+            print('Zeit sdm_calc:', self.sdmtime)
+        self.sdm_list.sort()
+        self.calc_molindex(all_atoms)
+        need_symm = self.collect_needed_symmetry()
+        if DEBUG:
+            print("The asymmetric unit contains {} fragments.".format(self.maxmol))
+        return need_symm
+
+    def collect_needed_symmetry(self) -> list:
+        need_symm = []
         # Collect needsymm list:
         for sdmItem in self.sdm_list:
             if sdmItem.covalent:
@@ -159,48 +149,36 @@ class SDM():
                     if sdmItem.atom1.ishydrogen and sdmItem.atom2.ishydrogen:
                         dddd = 1.8
                     if (dk > 0.001) and (dddd >= dk):
-                        bs = [n + 1, (5 - floorD[0]), (5 - int(floorD[1])), (5 - int(floorD[2])), 
+                        bs = [n + 1, (5 - floorD[0]), (5 - int(floorD[1])), (5 - int(floorD[2])),
                               sdmItem.atom1.molindex]
                         if bs not in need_symm:
                             need_symm.append(bs)
-                        # print(bs)
-                        # print(symop)
-        print('Brauchsymm:')
-        for x in need_symm:
-            print(x)
-        t4 = time.perf_counter()
-        print('Zeit2 brauchsymm:', t4 - t3)
-        t5 = time.perf_counter()
-        self.sdm_list.sort()
-        t6 = time.perf_counter()
-        print('Zeit3 sort sdm:', t6 - t5)
-        """
-        t7 = time.perf_counter()
-        flags = []
-        for i, atom in enumerate(self.shx.atoms.all_atoms):
-            flags.append(-1 if atom.an == 0 else 1)
-        for i, sdmItem in enumerate(self.sdm):
-            if sdmItem.atom1.ishydrogen or sdmItem.atom2.ishydrogen:
-                continue
-            if flags[sdmItem.a1] * flags[sdmItem.a2] == -1:
-                a = self.shx.atoms.all_atoms[sdmItem.a1]
-                if a.ishydrogen or a.qpeak:
-                    continue
-            if sdmItem.symmetry_number == 0 and sdmItem.floorD == Array([0, 0, 0]):
-                flags[sdmItem.a1] = 1
-                continue
-            if sdmItem.dist > 2.4:
-                continue
-            self.shx.atoms.all_atoms[i].frac_coords = self.shx.symmcards[sdmItem.symmetry_number].matrix * \
-                                               Array(sdmItem.atom1.frac_coords) \
-                                               + Array(self.shx.symmcards[sdmItem.symmetry_number].trans) \
-                                               - Array(sdmItem.floorD)
-            flags[sdmItem.a1] = 1
-        t8 = time.perf_counter()
-        print('Zeit4 Bring atoms together:', t8 - t7)
-        """
-        print("The asymmetric unit contains {} fragments.".format(self.maxmol))
         return need_symm
+
+    def calc_molindex(self, all_atoms):
+        # Start for George's "bring atoms together algorithm":
+        someleft = 1
+        nextmol = 1
+        for at in all_atoms:
+            at.molindex = -1
+        all_atoms[0].molindex = 1
+        while nextmol:
+            someleft = 1
+            nextmol = 0
+            while someleft:
+                someleft = 0
+                for sdmItem in self.sdm_list:
+                    if sdmItem.covalent and sdmItem.atom1.molindex * sdmItem.atom2.molindex < 0:
+                        sdmItem.atom1.molindex = self.maxmol
+                        sdmItem.atom2.molindex = self.maxmol
+                        someleft += 1
+            for ni, at in enumerate(all_atoms):
+                if not at.ishydrogen and at.molindex < 0:
+                    nextmol = ni
+                    break
+            if nextmol:
+                self.maxmol += 1
+                all_atoms[nextmol].molindex = self.maxmol
 
     def vector_length(self, x: float, y: float, z: float) -> float:
         """
@@ -215,10 +193,8 @@ class SDM():
     def packer(self, sdm: 'SDM', need_symm: list):
         """
         Packs atoms of the asymmetric unit to real molecules.
-        :param need_symm:
-        :return:
+        TODO: Support hydrogen atoms!
         """
-        t1 = time.perf_counter()
         asymm = self.shx.atoms.all_atoms
         showatoms = asymm[:]
         for symm in need_symm:
@@ -228,7 +204,10 @@ class SDM():
             l -= 5
             s -= 1
             for atom in asymm:
+                if atom.qpeak:
+                    continue
                 if not atom.ishydrogen and atom.molindex == symmgroup:
+                #if atom.molindex == symmgroup:
                     new_atom = Atom(self.shx)
                     new_atom.set_atom_parameters(
                         name=atom.name + ">" + 'a',
@@ -239,7 +218,8 @@ class SDM():
                         afix=AFIX(self.shx, ('AFIX ' + atom.afix).split()) if atom.afix else None,
                         resi=RESI(self.shx, ('RESI ' + atom.resinum + atom.resiclass).split()) if atom.resi else None,
                         site_occupation=atom.sof,
-                        uvals=atom.uvals
+                        uvals=atom.uvals,
+                        symmgen=True
                     )
                     # TODO: I have to transform the Uijs by symmetry here later.
                     isthere = False
@@ -258,22 +238,22 @@ class SDM():
                         showatoms.append(new_atom)
                 # elif grow_qpeaks:
                 #    add q-peaks here
-        t2 = time.perf_counter()
-        print('Packzeit:', t2 - t1)
         return showatoms
 
 
 if __name__ == "__main__":
-    shx = ShelXFile('tests/p-31c.res')
+    shx = ShelXFile('tests/I-43d.res')
     sdm = SDM(shx)
     needsymm = sdm.calc_sdm()
     packed_atoms = sdm.packer(sdm, needsymm)
-    from shelxfile.misc import wrap_line
+    #print(needsymm)
+    # [[8, 5, 5, 5, 1], [16, 5, 5, 5, 1], [7, 4, 5, 5, 3]]
+    #print(len(shx.atoms))
+    #print(len(packed_atoms))
 
-    for y in packed_atoms:
-        pass
-        print(wrap_line(str(y)))
-    print(max([x.a1 for x in sdm.sdm_list]))
-    print(max([x.a2 for x in sdm.sdm_list]))
-    print('n atoms:', len(shx.atoms))
-    print('packed atoms:', len(packed_atoms))
+    for at in packed_atoms:
+        if at.qpeak:
+            continue
+        print(wrap_line(str(at)))
+
+    print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
