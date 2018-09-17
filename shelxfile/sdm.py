@@ -26,7 +26,6 @@ class SDMItem(object):
         self.atom2 = None
         self.a2 = 0
         self.symmetry_number = 0
-        self.floorD = 0
         self.covalent = True
         self.dddd = 0
 
@@ -39,9 +38,9 @@ class SDMItem(object):
         return False
 
     def __repr__(self):
-        return '{} {} {} {} dist: {} coval: {} sn: {} {} {}'.format(self.atom1.name, self.atom2.name, self.a1, self.a2,
-                                                                    self.dist, self.covalent,
-                                                                    self.symmetry_number, self.floorD, self.dddd)
+        return '{} {} {} {} dist: {} coval: {} sn: {} {}'.format(self.atom1.name, self.atom2.name, self.a1, self.a2,
+                                                                 self.dist, self.covalent,
+                                                                 self.symmetry_number, self.dddd)
 
 
 class SDM():
@@ -50,11 +49,6 @@ class SDM():
         self.aga = self.shx.cell[0] * self.shx.cell[1] * self.shx.cell.cosga
         self.bbe = self.shx.cell[0] * self.shx.cell[2] * self.shx.cell.cosbe
         self.cal = self.shx.cell[1] * self.shx.cell[2] * self.shx.cell.cosal
-        self.dk, dddd = 0.0, 0.0
-        self.prime = None
-        self.dp = None
-        self.D = None
-        self.floorD = None
         # contact.clear()  # sdmitem list for hydrogen contacts (not needed)?
         self.sdm_list = []  # list of sdmitems
         self.knots = []
@@ -69,21 +63,26 @@ class SDM():
         all_atoms = self.shx.atoms.all_atoms
         for i, at1 in enumerate(all_atoms):
             atneighb = []  # list of atom neigbors
+            atom1_array = Array(at1.frac_coords)
             for j, at2 in enumerate(all_atoms):
+                # Does this really work?
+                # It is a lot faster if I don't add non bonding atoms to sdm:
+                if not at1.part.n * at2.part.n == 0 or not at1.part.n == at2.part.n:
+                    continue
                 mind = 1000000
                 hma = False
+                minushalf = Array([v + 0.5 for v in at2.frac_coords])
                 sdmItem = SDMItem()
                 for n, symop in enumerate(self.shx.symmcards):
-                    prime = Array(at1.frac_coords) * symop.matrix + symop.trans
-                    D = prime - Array(at2.frac_coords) + Array([0.5, 0.5, 0.5])
-                    dp = D - D.floor - Array([0.5, 0.5, 0.5])
+                    prime = atom1_array * symop.matrix + symop.trans
+                    D = prime - minushalf
+                    dp = [v - 0.5 for v in D - D.floor]
                     dk = self.vector_length(*dp)
                     if n:
                         dk += 0.0001
                     if (dk > 0.01) and (mind >= dk):
                         mind = min(dk, mind)
                         sdmItem.dist = mind
-                        sdmItem.floorD = D.floor
                         sdmItem.atom1 = at1
                         sdmItem.atom2 = at2
                         sdmItem.a1 = i
@@ -210,13 +209,13 @@ class SDM():
                     if atom.qpeak:
                         continue
                 if not atom.ishydrogen and atom.molindex == symmgroup:
-                #if atom.molindex == symmgroup:
+                    # if atom.molindex == symmgroup:
                     new_atom = Atom(self.shx)
                     new_atom.set_atom_parameters(
                         name=atom.name + ">" + 'a',
                         sfac_num=atom.sfac_num,
                         coords=Array(atom.frac_coords) * self.shx.symmcards[s].matrix
-                                + Array(self.shx.symmcards[s].trans) + Array([h, k, l]),
+                               + Array(self.shx.symmcards[s].trans) + Array([h, k, l]),
                         part=atom.part,
                         afix=AFIX(self.shx, ('AFIX ' + atom.afix).split()) if atom.afix else None,
                         resi=RESI(self.shx, ('RESI ' + atom.resinum + atom.resiclass).split()) if atom.resi else None,
@@ -233,8 +232,8 @@ class SDM():
                             if atom.part.n != new_atom.part.n:
                                 continue
                             length = sdm.vector_length(new_atom.frac_coords[0] - atom.frac_coords[0],
-                                               new_atom.frac_coords[1] - atom.frac_coords[1],
-                                               new_atom.frac_coords[2] - atom.frac_coords[2])
+                                                       new_atom.frac_coords[1] - atom.frac_coords[1],
+                                                       new_atom.frac_coords[2] - atom.frac_coords[2])
                             if length < 0.2:
                                 isthere = True
                     if not isthere:
@@ -246,14 +245,15 @@ class SDM():
 
 if __name__ == "__main__":
     from shelxfile.shelx import ShelXFile
+
     shx = ShelXFile('tests/I-43d.res')
     sdm = SDM(shx)
     needsymm = sdm.calc_sdm()
     packed_atoms = sdm.packer(sdm, needsymm)
-    #print(needsymm)
+    # print(needsymm)
     # [[8, 5, 5, 5, 1], [16, 5, 5, 5, 1], [7, 4, 5, 5, 3]]
-    #print(len(shx.atoms))
-    #print(len(packed_atoms))
+    # print(len(shx.atoms))
+    # print(len(packed_atoms))
 
     for at in packed_atoms:
         if at.qpeak:
