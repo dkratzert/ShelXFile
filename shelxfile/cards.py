@@ -1575,7 +1575,8 @@ class SymmCards():
         self._symmcards.append(newSymm)
         for symm in self.shx.latt.lattOps:
             lattSymm = newSymm.applyLattSymm(symm)
-            self._symmcards.append(lattSymm)
+            if not lattSymm in self._symmcards:
+                self._symmcards.append(lattSymm)
         if self.shx.latt.centric:
             self._symmcards.append(SymmetryElement(symmData, centric=True))
             for symm in self.shx.latt.lattOps:
