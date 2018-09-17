@@ -10,12 +10,11 @@
 # ----------------------------------------------------------------------------
 #
 import time
-from shelxfile.atoms import Atom
 from math import sqrt
 
-from shelxfile.dsrmath import Array
-from shelxfile.shelx import ShelXFile
+from shelxfile.atoms import Atom
 from shelxfile.cards import AFIX, RESI
+from shelxfile.dsrmath import Array
 from shelxfile.misc import DEBUG, wrap_line
 
 
@@ -46,7 +45,7 @@ class SDMItem(object):
 
 
 class SDM():
-    def __init__(self, shx: ShelXFile):
+    def __init__(self, shx: 'ShelXFile'):
         self.shx = shx
         self.aga = self.shx.cell[0] * self.shx.cell[1] * self.shx.cell.cosga
         self.bbe = self.shx.cell[0] * self.shx.cell[2] * self.shx.cell.cosbe
@@ -190,13 +189,16 @@ class SDM():
         return sqrt(x ** 2 * self.shx.cell[0] ** 2 + y ** 2 * self.shx.cell[1] ** 2
                     + z ** 2 * self.shx.cell[2] ** 2 + a + b + c)
 
-    def packer(self, sdm: 'SDM', need_symm: list):
+    def packer(self, sdm: 'SDM', need_symm: list, with_qpeaks=False):
         """
         Packs atoms of the asymmetric unit to real molecules.
         TODO: Support hydrogen atoms!
         """
         asymm = self.shx.atoms.all_atoms
-        showatoms = asymm[:]
+        if with_qpeaks:
+            showatoms = asymm[:]
+        else:
+            showatoms = [at for at in asymm if not at.qpeak]
         for symm in need_symm:
             s, h, k, l, symmgroup = symm
             h -= 5
@@ -204,8 +206,9 @@ class SDM():
             l -= 5
             s -= 1
             for atom in asymm:
-                if atom.qpeak:
-                    continue
+                if not with_qpeaks:
+                    if atom.qpeak:
+                        continue
                 if not atom.ishydrogen and atom.molindex == symmgroup:
                 #if atom.molindex == symmgroup:
                     new_atom = Atom(self.shx)
@@ -242,6 +245,7 @@ class SDM():
 
 
 if __name__ == "__main__":
+    from shelxfile.shelx import ShelXFile
     shx = ShelXFile('tests/I-43d.res')
     sdm = SDM(shx)
     needsymm = sdm.calc_sdm()

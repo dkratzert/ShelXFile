@@ -7,10 +7,9 @@ from shelxfile.misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, P
 
 """
 TODO:
-- position property for every shelx object that automatically
-  handles the position in the resfile (and position changes)
-  maybe also addition/delete
+
 """
+
 
 class Atoms():
     """
@@ -57,7 +56,7 @@ class Atoms():
                     print("deleting atom", at.fullname)
                 del self.all_atoms[n]
                 del self.shx._reslist[self.shx._reslist.index(at)]
-        #if DEBUG:
+        # if DEBUG:
         #    print('Could not delete atom {}'.format(self.get_atom_by_id(key.atomid).fullname))
 
     @property
@@ -126,7 +125,7 @@ class Atoms():
     def get_multi_atnames(self, atom_name, residue_class):
         atoms = []
         if residue_class:
-            for num in self.shx.residues.residue_classes[residue_class]: 
+            for num in self.shx.residues.residue_classes[residue_class]:
                 if '_' not in atom_name:
                     atom_name += '_0'
                 else:
@@ -263,7 +262,7 @@ class Atoms():
         b = v2.cross(v3)
         # If direction > 0, angle is positive, else negative:
         direction = v1[0] * v2[1] * v3[2] - v1[2] * v1[1] * v3[0] + v1[2] * v2[0] * v3[1] - v1[0] \
-            * v2[2] * v3[1] + v1[1] * v2[2] * v3[0] - v1[1] * v2[0] * v3[2]
+                    * v2[2] * v3[1] + v1[1] * v2[2] * v3[0] - v1[1] * v2[0] * v3[2]
         # angle between plane normals:
         ang = acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) /
                    (sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) *
@@ -401,7 +400,7 @@ class Atom():
         self.name = name
         self.sfac_num = sfac_num
         self.frac_coords = coords
-        self.x, self.y, self.z = coords[0], coords[1], coords[2]  
+        self.x, self.y, self.z = coords[0], coords[1], coords[2]
         self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell)
         self.part = part
         self.afix = afix

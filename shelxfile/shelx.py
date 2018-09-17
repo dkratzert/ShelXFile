@@ -9,6 +9,8 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
+from shelxfile.sdm import SDM
+
 __doc__ = """
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
@@ -736,7 +738,7 @@ class ShelXFile():
                     raise
         pass
 
-    #@time_this_method
+    # @time_this_method
     def run_after_parse(self):
         """
         Runs all what is left after parsing all lines. E.G. sanity checks.
@@ -749,7 +751,7 @@ class ShelXFile():
                     self.fvars.set_fvar_usage(y[1])
         for r in self.restraints:
             if r.atoms:
-                #print(r.atoms, r.residue_number, r.residue_class)
+                # print(r.atoms, r.residue_number, r.residue_class)
                 Restraints._resolve_atoms(self, r)
             if r.name == "DFIX" or r.name == "DANG":
                 if abs(r.d) > 4:
@@ -768,7 +770,7 @@ class ShelXFile():
         # for a in self.atoms:
         #    a.resolve_restraints()
 
-    def add_atom(self, name: str = None, coordinates: list = None, element = 'C', uvals: list = None, part: int = 0,
+    def add_atom(self, name: str = None, coordinates: list = None, element='C', uvals: list = None, part: int = 0,
                  sof: float = 11.0):
         """
         Adds an atom to the ShelxFile.atoms list. If no element is given, carbon atoms are assumed.
@@ -780,7 +782,7 @@ class ShelXFile():
         resi = RESI(self, 'RESI 0'.split())
         a = Atom(self)
         sfac_num = self.elem2sfac(element)
-        a.set_atom_parameters(name=name, sfac_num=sfac_num, coords=coordinates, 
+        a.set_atom_parameters(name=name, sfac_num=sfac_num, coords=coordinates,
                               part=part, afix=afix, resi=resi, site_occupation=sof, uvals=uvals)
         self.append_card(self.atoms, a, 0)
 
@@ -830,6 +832,15 @@ class ShelXFile():
             resl.append(line)
         return "\n".join(resl)
 
+    def grow(self, with_qpeaks: bool = False):
+        """
+        Returns a list of atoms that represent the complete molecules of the structure.
+        """
+        sdm = SDM(self)
+        needsymm = sdm.calc_sdm()
+        packed_atoms = sdm.packer(sdm, needsymm, with_qpeaks=with_qpeaks)
+        return packed_atoms
+
     def write_shelx_file(self, filename=None, verbose=False):
         if not filename:
             filename = self.resfile
@@ -878,7 +889,7 @@ class ShelXFile():
                                     #  so I have to delete these lines on write.
                                     # '++filename' copies them to the .res file where appropriate
                                     # I leave this out, because I am not SHELXL:
-                                    #if l.startswith('+') and l[:2] != '++':
+                                    # if l.startswith('+') and l[:2] != '++':
                                     #    self.delete_on_write.update([lnum])
                                     reslist.insert(lnum, l)
                                 continue
@@ -1162,14 +1173,15 @@ class ShelXFile():
 if __name__ == "__main__":
     # get_commands()
     # sys.exit()
-    file = r'tests/p21c.res'
+    file = r'tests/I-43d.res'
     try:
         shx = ShelXFile(file)
     except Exception:
         raise
     print(shx.sum_formula_exact)
     shx.write_shelx_file('tests/complete_run/test.ins')
-
+    for at in shx.grow(with_qpeaks=True):
+        print(wrap_line(str(at)))
     sys.exit()
     from shelxfile.misc import walkdir
 
