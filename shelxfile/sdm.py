@@ -65,10 +65,6 @@ class SDM():
             atneighb = []  # list of atom neigbors
             atom1_array = Array(at1.frac_coords)
             for j, at2 in enumerate(all_atoms):
-                # Does this really work?
-                # It is a lot faster if I don't add non bonding atoms to sdm:
-                if not at1.part.n * at2.part.n == 0 or not at1.part.n == at2.part.n:
-                    continue
                 mind = 1000000
                 hma = False
                 minushalf = Array([v + 0.5 for v in at2.frac_coords])
