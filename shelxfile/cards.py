@@ -342,6 +342,8 @@ class CELL(Command):
             self.cosal = cos(radians(self.al))
             self.cosbe = cos(radians(self.be))
             self.cosga = cos(radians(self.ga))
+        else:
+            raise ParseSyntaxError
 
     @property
     def volume(self) -> float:
@@ -353,8 +355,12 @@ class CELL(Command):
         >>> round(shx.cell.volume, 4)
         4493.0474
         """
-        ca, cb, cg = cos(radians(self.al)), cos(radians(self.be)), cos(radians(self.ga))
-        v = self.a * self.b * self.c * sqrt(1 + 2 * ca * cb * cg - ca ** 2 - cb ** 2 - cg ** 2)
+        try:
+            ca, cb, cg = cos(radians(self.al)), cos(radians(self.be)), cos(radians(self.ga))
+            v = self.a * self.b * self.c * sqrt(1 + 2 * ca * cb * cg - ca ** 2 - cb ** 2 - cg ** 2)
+        except AttributeError:
+            # No valid celll
+            v = 0.0
         return v
 
     def __iter__(self):

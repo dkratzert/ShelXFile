@@ -61,7 +61,8 @@ class ParseUnknownParam(Exception):
 
 class ParseSyntaxError(Exception):
     def __init__(self):
-        print("*** Syntax Error ***")
+        if DEBUG:
+            print("*** Syntax Error ***")
 
 
 try:
