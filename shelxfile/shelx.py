@@ -750,9 +750,9 @@ class ShelXFile():
                 for y in x.fvars:
                     self.fvars.set_fvar_usage(y[1])
         for r in self.restraints:
-            if r.atoms:
+            #if r.atoms:
                 # print(r.atoms, r.residue_number, r.residue_class)
-                Restraints._resolve_atoms(self, r)
+                #Restraints._resolve_atoms(self, r)
             if r.name == "DFIX" or r.name == "DANG":
                 if abs(r.d) > 4:
                     fvar, value = split_fvar_and_parameter(r.d)
