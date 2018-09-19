@@ -242,8 +242,10 @@ class SDM():
 if __name__ == "__main__":
     from shelxfile.shelx import ShelXFile
 
-    shx = ShelXFile('tests/I-43d.res')
+    shx = ShelXFile('tests/p-31c.res')
     sdm = SDM(shx)
+    for s in shx.symmcards:
+        print(s.toShelxl())
     needsymm = sdm.calc_sdm()
     packed_atoms = sdm.packer(sdm, needsymm)
     # print(needsymm)
