@@ -421,10 +421,15 @@ class Atom():
         Sets u values and checks if a free variable was used.
         """
         self.uvals = uvals
-        for n, u in enumerate(uvals):
-            if abs(u) > 4.0:
-                fvar, uval = split_fvar_and_parameter(u)
-                self.uvals[n] = uval
+        if len(uvals) != 2:  # two means Uiso anf q-peak hight
+            for n, u in enumerate(uvals):
+                if abs(u) > 4.0:
+                    fvar, uval = split_fvar_and_parameter(u)
+                    #self.uvals[n] = uval
+                    self.shx.fvars.set_fvar_usage(fvar)
+        else:
+            if abs(uvals[0]) > 4.0:
+                fvar, uval = split_fvar_and_parameter(uvals[0])
                 self.shx.fvars.set_fvar_usage(fvar)
 
     def parse_line(self, atline: list, list_of_lines: list, part: PART, afix: AFIX, resi: RESI):
@@ -473,7 +478,7 @@ class Atom():
         self.y = y
         self.z = z
         self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell)
-        if len(self.uvals) == 2:
+        if len(self.uvals) == 2 and self.shx.hklf:  # qpeaks are always behind hklf
             self.peak_height = uvals.pop()
             self.qpeak = True
         if self.shx.end:  # After 'END' can only be Q-peaks!
