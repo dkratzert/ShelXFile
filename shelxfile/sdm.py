@@ -51,7 +51,6 @@ class SDM():
         self.cal = self.shx.cell[1] * self.shx.cell[2] * self.shx.cell.cosal
         # contact.clear()  # sdmitem list for hydrogen contacts (not needed)?
         self.sdm_list = []  # list of sdmitems
-        self.knots = []
         self.maxmol = 1
         self.sdmtime = 0
 
@@ -62,16 +61,14 @@ class SDM():
         t1 = time.perf_counter()
         all_atoms = self.shx.atoms.all_atoms
         for i, at1 in enumerate(all_atoms):
-            atneighb = []  # list of atom neigbors
-            atom1_array = Array(at1.frac_coords)
+            prime_array = [Array(at1.frac_coords) * symop.matrix + symop.trans for symop in self.shx.symmcards]
             for j, at2 in enumerate(all_atoms):
                 mind = 1000000
                 hma = False
-                minushalf = Array([v + 0.5 for v in at2.frac_coords])
+                at2_plushalf = Array(at2.frac_coords) + 0.5
                 sdmItem = SDMItem()
                 for n, symop in enumerate(self.shx.symmcards):
-                    prime = atom1_array * symop.matrix + symop.trans
-                    D = prime - minushalf
+                    D = prime_array[n] - at2_plushalf
                     dp = [v - 0.5 for v in D - D.floor]
                     dk = self.vector_length(*dp)
                     if n:
@@ -97,14 +94,11 @@ class SDM():
                     dddd = 0.0
                 if sdmItem.dist < dddd:
                     if hma:
-                        atneighb.append(j)
                         sdmItem.covalent = True
                 else:
                     sdmItem.covalent = False
                 if hma:
                     self.sdm_list.append(sdmItem)
-                # print(sdmItem)
-            self.knots.append(atneighb)
         t2 = time.perf_counter()
         self.sdmtime = t2 - t1
         if DEBUG:
@@ -204,16 +198,18 @@ class SDM():
                 if not with_qpeaks:
                     if atom.qpeak:
                         continue
-                if not atom.ishydrogen and atom.molindex == symmgroup:
-                    # if atom.molindex == symmgroup:
+                # Essential to have hydrogen atoms grown:
+                # if not atom.ishydrogen and atom.molindex == symmgroup:
+                if atom.molindex == symmgroup:
                     new_atom = Atom(self.shx)
                     new_atom.set_atom_parameters(
-                        name=atom.name + ">" + 'a',
+                        # TODO: Make proper names here:
+                        name=atom.name[:3] + ">",
                         sfac_num=atom.sfac_num,
                         coords=Array(atom.frac_coords) * self.shx.symmcards[s].matrix
                                + Array(self.shx.symmcards[s].trans) + Array([h, k, l]),
                         part=atom.part,
-                        afix=AFIX(self.shx, ('AFIX ' + atom.afix).split()) if atom.afix else None,
+                        afix=AFIX(self.shx, (atom.afix).split()) if atom.afix else None,
                         resi=RESI(self.shx, ('RESI ' + atom.resinum + atom.resiclass).split()) if atom.resi else None,
                         site_occupation=atom.sof,
                         uvals=atom.uvals,
@@ -223,8 +219,6 @@ class SDM():
                     isthere = False
                     if new_atom.part.n >= 0:
                         for atom in showatoms:
-                            if atom.ishydrogen:
-                                continue
                             if atom.part.n != new_atom.part.n:
                                 continue
                             length = sdm.vector_length(new_atom.frac_coords[0] - atom.frac_coords[0],
