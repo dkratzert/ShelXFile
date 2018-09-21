@@ -158,15 +158,22 @@ shx.symmcards
 | 0 -1  0| + |-0.5|
 | 0  0  1|   |-0.5|
 
+# Complete or "grow" structures with higher symmetry: 
+shx = ShelXFile('./tests/p-31c.res')
+len(shx.atoms)
+88
+p = shx.grow()
+len(p)
+208
 
-#The (bond) angle between three atoms:
+# The (bond) angle between three atoms:
 at1 = shx.atoms.get_atom_by_name('O1_4')
 at2 = shx.atoms.get_atom_by_name('C1_4')
 at3 = shx.atoms.get_atom_by_name('C2_4')
 shx.atoms.angle(at1, at2, at3)
 109.688123
 
-#The torsion angle between four atoms:
+# The torsion angle between four atoms:
 at1 = shx.atoms.get_atom_by_name('O1')
 at2 = shx.atoms.get_atom_by_name('C1')
 at3 = shx.atoms.get_atom_by_name('C2')
