@@ -738,9 +738,7 @@ class ShelXFile():
                 if DEBUG:
                     print(e)
                     raise
-        pass
 
-    # @time_this_method
     def run_after_parse(self):
         """
         Runs all what is left after parsing all lines. E.G. sanity checks.

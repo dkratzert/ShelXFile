@@ -53,13 +53,12 @@ class SDM():
         self.sdm_list = []  # list of sdmitems
         self.maxmol = 1
         self.sdmtime = 0
-
-    def __iter__(self):
-        yield self.knots
+        self.bondlist = []
 
     def calc_sdm(self) -> list:
         t1 = time.perf_counter()
         all_atoms = self.shx.atoms.all_atoms
+        self.bondlist.clear()
         for i, at1 in enumerate(all_atoms):
             prime_array = [Array(at1.frac_coords) * symop.matrix + symop.trans for symop in self.shx.symmcards]
             for j, at2 in enumerate(all_atoms):
@@ -94,6 +93,7 @@ class SDM():
                     dddd = 0.0
                 if sdmItem.dist < dddd:
                     if hma:
+                        self.bondlist.append((i, j, sdmItem.atom1.name, sdmItem.atom2.name, sdmItem.dist))
                         sdmItem.covalent = True
                 else:
                     sdmItem.covalent = False
@@ -253,3 +253,4 @@ if __name__ == "__main__":
         print(wrap_line(str(at)))
 
     print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
+    print(sdm.bondlist)
