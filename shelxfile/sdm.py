@@ -118,11 +118,11 @@ class SDM():
                 if sdmItem.atom1.molindex < 1 or sdmItem.atom1.molindex > 6:
                     continue
                 for n, symop in enumerate(self.shx.symmcards):
-                    if sdmItem.atom1.part != 0 and sdmItem.atom2.part != 0 \
-                            and sdmItem.atom1.part != sdmItem.atom2.part:
+                    if sdmItem.atom1.part.n != 0 and sdmItem.atom2.part.n != 0 \
+                            and sdmItem.atom1.part.n != sdmItem.atom2.part.n:
                         # both not part 0 and different part numbers
                         continue
-                    # Both the same atomic number and number 0 (hydrogen)
+                    # Both the same atomic number and number hydrogen:
                     if sdmItem.atom1.an == sdmItem.atom2.an and sdmItem.atom1.ishydrogen:
                         continue
                     prime = Array(sdmItem.atom1.frac_coords) * symop.matrix + symop.trans
@@ -133,12 +133,13 @@ class SDM():
                         continue
                     dk = self.vector_length(*dp)
                     dddd = sdmItem.dist + 0.2
-                    # TODO: Do I need this?
                     if sdmItem.atom1.ishydrogen and sdmItem.atom2.ishydrogen:
                         dddd = 1.8
                     if (dk > 0.001) and (dddd >= dk):
-                        bs = [n + 1, (5 - floorD[0]), (5 - int(floorD[1])), (5 - int(floorD[2])),
-                              sdmItem.atom1.molindex]
+                        bs = [n + 1, (5 - floorD[0]), (5 - floorD[1]), (5 - floorD[2]), sdmItem.atom1.molindex]
+                        # Does not work:
+                        #self.bondlist.append((sdmItem.a1, sdmItem.a2, sdmItem.atom1.name+'<',
+                        #                      sdmItem.atom2.name+'<', sdmItem.dist))
                         if bs not in need_symm:
                             need_symm.append(bs)
         return need_symm
@@ -254,3 +255,4 @@ if __name__ == "__main__":
 
     print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
     print(sdm.bondlist)
+    print(len(sdm.bondlist))
