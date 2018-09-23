@@ -9,7 +9,7 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
-import operator
+from operator import sub, add
 import random
 import string
 from math import sqrt, radians, cos, sin, acos, degrees, floor
@@ -71,8 +71,9 @@ class Array(object):
         Array([2, 3, 4])
         """
         if isinstance(other, Array):
-            return Array(list(map(operator.add, self.values, other)))
+            return Array(list(map(add, self.values, other)))
         elif type(other) == float or type(other) == int:
+            #return Array( list(map(lambda x: x - other, self.values)) )
             return Array([i + other for i in self.values])
         else:
             raise TypeError('Cannot add type Array to type {}.'.format(str(type(other))))
@@ -105,7 +106,7 @@ class Array(object):
         Array([0, -1, -2])
         """
         if isinstance(other, Array):
-            return Array(list(map(operator.sub, self.values, other)))  # slightly faster
+            return Array(list(map(sub, self.values, other)))  # slightly faster
         elif isinstance(other, float) or isinstance(other, int):
             return Array([i - other for i in self.values])
         else:
@@ -205,7 +206,7 @@ class Array(object):
 
     @property
     def floor(self):
-        return Array([floor(x) for x in self.values])
+        return Array(list(map(floor, self.values)))
 
     def dot(self, other: 'Array') -> float:
         """

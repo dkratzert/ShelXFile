@@ -54,6 +54,9 @@ class SDM():
         self.maxmol = 1
         self.sdmtime = 0
         self.bondlist = []
+        self.asq = self.shx.cell[0]**2
+        self.bsq = self.shx.cell[1]**2
+        self.csq = self.shx.cell[2]**2
 
     def calc_sdm(self) -> list:
         t1 = time.perf_counter()
@@ -70,6 +73,8 @@ class SDM():
                     D = prime_array[n] - at2_plushalf
                     dp = [v - 0.5 for v in D - D.floor]
                     dk = self.vector_length(*dp)
+                    if dk > 5:
+                        continue
                     if n:
                         dk += 0.0001
                     if (dk > 0.01) and (mind >= dk):
@@ -173,17 +178,15 @@ class SDM():
         """
         Calculates the vector length given in fractional coordinates.
         """
-        a = 2.0 * x * y * self.aga
-        b = 2.0 * x * z * self.bbe
-        c = 2.0 * y * z * self.cal
-        return sqrt(x ** 2 * self.shx.cell[0] ** 2 + y ** 2 * self.shx.cell[1] ** 2
-                    + z ** 2 * self.shx.cell[2] ** 2 + a + b + c)
+        A = 2.0 * (x * y * self.aga + x * z * self.bbe + y * z * self.cal)
+        return sqrt(x ** 2 * self.asq + y ** 2 * self.bsq + z ** 2 * self.csq + A)
 
     def packer(self, sdm: 'SDM', need_symm: list, with_qpeaks=False):
         """
         Packs atoms of the asymmetric unit to real molecules.
         TODO: Support hydrogen atoms!
         """
+        #t1 = time.perf_counter()
         asymm = self.shx.atoms.all_atoms
         if with_qpeaks:
             showatoms = asymm[:]
@@ -231,6 +234,8 @@ class SDM():
                         showatoms.append(new_atom)
                 # elif grow_qpeaks:
                 #    add q-peaks here
+        #t2 = time.perf_counter()
+        #print('packzeit:', t2-t1) # 0.04s
         return showatoms
 
 
@@ -239,8 +244,8 @@ if __name__ == "__main__":
 
     shx = ShelXFile('tests/p-31c.res')
     sdm = SDM(shx)
-    for s in shx.symmcards:
-        print(s.toShelxl())
+    #for s in shx.symmcards:
+    #    print(s.toShelxl())
     needsymm = sdm.calc_sdm()
     packed_atoms = sdm.packer(sdm, needsymm)
     # print(needsymm)
@@ -251,7 +256,7 @@ if __name__ == "__main__":
     for at in packed_atoms:
         if at.qpeak:
             continue
-        print(wrap_line(str(at)))
+        #print(wrap_line(str(at)))
 
     print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
     print(sdm.bondlist)

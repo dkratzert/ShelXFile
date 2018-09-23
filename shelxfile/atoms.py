@@ -573,11 +573,11 @@ class Atom():
         return self.shx.index_of(self)
 
     @property
-    def frac_coords(self, rounded=False) -> list:
+    def frac_coords(self, rounded=False) -> tuple:
         if rounded:
-            return [round(self.x, 14), round(self.y, 14), round(self.z, 14)]
+            return (round(self.x, 14), round(self.y, 14), round(self.z, 14))
         else:
-            return [self.x, self.y, self.z]
+            return (self.x, self.y, self.z)
 
     @frac_coords.setter
     def frac_coords(self, coords: list):
