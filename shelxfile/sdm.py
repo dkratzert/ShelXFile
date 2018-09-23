@@ -44,6 +44,9 @@ class SDMItem(object):
 
 
 class SDM():
+    """
+    This class calculates the shortest distance matrix and creates a completed (grown) structure by crystal symmetry.
+    """
     def __init__(self, shx: 'ShelXFile'):
         self.shx = shx
         self.aga = self.shx.cell[0] * self.shx.cell[1] * self.shx.cell.cosga
