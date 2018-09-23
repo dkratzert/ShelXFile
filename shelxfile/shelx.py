@@ -791,17 +791,13 @@ class ShelXFile():
         Converts von fractional to cartesian by .
         Invert the matrix to do the opposite.
 
-        Old tests:
-        TODO: port these to current implementation:
-        #>>> import mpmath as mpm
-        #>>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
-        #>>> coord = (-0.186843,   0.282708,   0.526803)
-        #>>> print(mpm.nstr(A*mpm.matrix(coord)))
+        TODO: Add inverse variant.
+
+        #>>> cart = A * Matrix(coord)))
         [-2.74151]
         [ 5.90959]
         [ 10.7752]
-        #>>> cartcoord = mpm.matrix([['-2.74150542399906'], ['5.909586678'], ['10.7752007008937']])
-        #>>> print(mpm.nstr(A**-1*cartcoord))
+        #>>> frac =  A **-1 * Matrix([['-2.74150542399906'], ['5.909586678'], ['10.7752007008937']])
         [-0.186843]
         [ 0.282708]
         [ 0.526803]

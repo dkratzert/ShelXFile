@@ -318,8 +318,8 @@ class Atom():
         self.zc = None
         self.qpeak = False
         self.peak_height = 0.0
-        self.uvals = [0.04]  # [U] or [u11 u12 u13 u21 u22 u23]
-        self.uvals_orig = [0.04]
+        self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0]  # [U] or [u11 u12 u13 u21 u22 u23]
+        self.uvals_orig = [0.04, 0.0, 0.0, 0.0, 0.0]
         self.frag_atom = False
         self.restraints = []
         self.previous_non_h = None  # Find in self.shx.atoms durinf initialization
@@ -399,7 +399,7 @@ class Atom():
             return False
 
     def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None,
-                            afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0, uvals: list = None,
+                            afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0, uvals: (list, tuple) = None,
                             symmgen: bool = True):
         """
         Sets atom properties manually if not parsed from a SHELXL file.
@@ -421,7 +421,7 @@ class Atom():
         Sets u values and checks if a free variable was used.
         """
         self.uvals = uvals
-        if len(uvals) != 2:  # two means Uiso anf q-peak hight
+        if uvals[2] == 0.0:  # 0 is Uiso and 1 q-peak hight
             for n, u in enumerate(uvals):
                 if abs(u) > 4.0:
                     fvar, uval = split_fvar_and_parameter(u)
@@ -436,8 +436,10 @@ class Atom():
         """
         Parsers the text line of an atom from SHELXL to initialize the atom parameters.
         """
+        uvals = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.name = atline[0][:4]  # Atom names are limited to 4 characters
-        uvals = [float(x) for x in atline[6:12]]
+        for n, u in enumerate(atline[6:12]):
+            uvals[n] = float(u)
         self.uvals_orig = uvals[:]
         self.set_uvals(uvals)
         self._line_numbers = list_of_lines
@@ -478,7 +480,7 @@ class Atom():
         self.y = y
         self.z = z
         self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, self.cell)
-        if len(self.uvals) == 2 and self.shx.hklf:  # qpeaks are always behind hklf
+        if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
             self.peak_height = uvals.pop()
             self.qpeak = True
         if self.shx.end:  # After 'END' can only be Q-peaks!
@@ -538,7 +540,8 @@ class Atom():
             # An atom from a FRAG/FEND instruction
             return Atom._fragatomstr.format(self.name, self.x, self.y, self.z)
         else:
-            if len(self.uvals) > 2:
+            if self.uvals[0] > 0 and self.uvals[1] != 0.0 and self.uvals[2] != 0.0 and self.uvals[3] != 0.0 \
+                    and self.uvals[4] != 0.0:
                 # anisotropic atom
                 try:
                     return Atom._anisatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof,

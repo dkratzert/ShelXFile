@@ -1270,7 +1270,7 @@ def almost_equal(a, b, places=3):
     return round(abs(a - b), places) == 0
 
 
-def frac_to_cart(frac_coord: list, cell: list) -> list:
+def frac_to_cart(frac_coord: (list, tuple), cell: list) -> list:
     """
     Converts fractional coordinates to cartesian coodinates
     :param frac_coord: [float, float, float]

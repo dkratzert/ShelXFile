@@ -14,7 +14,7 @@ from math import sqrt
 
 from shelxfile.atoms import Atom
 from shelxfile.cards import AFIX, RESI
-from shelxfile.dsrmath import Array
+from shelxfile.dsrmath import Array, Matrix
 from shelxfile.misc import DEBUG, wrap_line
 
 
@@ -222,7 +222,20 @@ class SDM():
                         uvals=atom.uvals,
                         symmgen=True
                     )
-                    # TODO: I have to transform the Uijs by symmetry here later.
+                    # transforms the Uijs by symmetry:
+                    if atom.uvals[1] == atom.uvals[4] == atom.uvals[2] == 0:
+                        continue
+                    else:
+                        pass
+                        # This does not work currently:
+                        # [u11 u12 u13 u22 u23, u33]
+                        #u11, u12, u13, u22, u23, u33 = atom.uvals
+                        #Uij = Matrix([[u11, u12, u13], [u12, u22, u13], [u13, u23, u33]])
+                        #umatrix = ((self.shx.orthogonal_matrix() * Uij) *
+                        #              self.shx.symmcards[s].matrix) * self.shx.symmcards[s].matrix.transpose()
+                        #umatrix = self.shx.orthogonal_matrix().transpose() * umatrix
+                        #atom.uvals = umatrix.values[0][0], umatrix.values[0][1], umatrix.values[0][2], \
+                        #             umatrix.values[1][1], umatrix.values[1][2], umatrix.values[2][2]
                     isthere = False
                     if new_atom.part.n >= 0:
                         for atom in showatoms:
@@ -259,8 +272,8 @@ if __name__ == "__main__":
     for at in packed_atoms:
         if at.qpeak:
             continue
-        #print(wrap_line(str(at)))
+        print(wrap_line(str(at)))
 
     print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
-    print(sdm.bondlist)
-    print(len(sdm.bondlist))
+    #print(sdm.bondlist)
+    print(len(sdm.bondlist), '(170) Atome in p-31c.res')
