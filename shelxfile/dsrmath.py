@@ -51,6 +51,7 @@ class Array(object):
     >>> a * a
     30.81
     """
+    __slots__ = ['values']
 
     def __init__(self, values: list):
         self.values = values
@@ -277,6 +278,7 @@ class Matrix(object):
     | 15.000  18.000  21.000|
     <BLANKLINE>
     """
+    __slots__ = ['values', 'shape']
 
     def __init__(self, values):
         self.shape = (len(values[0]), len(values))
@@ -550,6 +552,7 @@ class SymmetryElement(object):
     True
     """
     symm_ID = 1
+    __slots__ = ['centric', 'symms', 'ID', 'matrix', 'trans']
 
     def __init__(self, symms, centric=False):
         """

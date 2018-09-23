@@ -19,6 +19,8 @@ from shelxfile.misc import DEBUG, wrap_line
 
 
 class SDMItem(object):
+    __slots__ = ['dist', 'atom1', 'atom2', 'a1', 'a2', 'symmetry_number', 'covalent', 'dddd']
+
     def __init__(self):
         self.dist = 0.0
         self.atom1 = None
