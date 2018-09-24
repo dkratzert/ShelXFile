@@ -10,7 +10,9 @@
 # ----------------------------------------------------------------------------
 #
 import time
+from copy import deepcopy
 from math import sqrt
+from pathlib import Path
 
 from shelxfile.atoms import Atom
 from shelxfile.cards import AFIX, RESI
@@ -209,6 +211,12 @@ class SDM():
                 # if not atom.ishydrogen and atom.molindex == symmgroup:
                 if atom.molindex == symmgroup:
                     new_atom = Atom(self.shx)
+                    if atom.ishydrogen or atom.qpeak:
+                        continue
+                    else:
+                        pass
+                        uvals = atom.uvals
+                        #uvals = self.transform_uvalues(uvals, symm_num)
                     new_atom.set_atom_parameters(
                         # TODO: Make proper names here:
                         name=atom.name[:3] + ">",
@@ -219,16 +227,9 @@ class SDM():
                         afix=AFIX(self.shx, (atom.afix).split()) if atom.afix else None,
                         resi=RESI(self.shx, ('RESI ' + atom.resinum + atom.resiclass).split()) if atom.resi else None,
                         site_occupation=atom.sof,
-                        uvals=atom.uvals,
+                        uvals=uvals,
                         symmgen=True
                     )
-                    # transforms the Uijs by symmetry:
-                    if atom.uvals[1] == atom.uvals[4] == atom.uvals[2] == 0:
-                        continue
-                    else:
-                        pass
-                        #uvals = self.transform_uvalues(atom.uvals, symm_num)
-                        #atom.uvals = uvals
                     isthere = False
                     if new_atom.part.n >= 0:
                         for atom in showatoms:
@@ -252,28 +253,32 @@ class SDM():
         Transforms the Uij values according to local symmetry.
 
         U(cart) = A * U * 􏰊A.transposed
-        U(fract) = A^1 * U(cart) * (A^1).t
+        U(frac) = A^1 * U(cart) * (A^1).t
+        U(frac) = R * U(frac) * R^t
+
+        [ [U11, U12, U13]
+          [U12, U22, U23]
+          [U13, U23, U33]
+        ]
+
+        atomname sfac x y z sof[11] U[0.05] or U11 U22 U33 U23 U13 U12
         """
         # [u11 u12 u13 u22 u23, u33]
-        u11, u12, u13, u22, u23, u33 = uvals
-        ortt = (self.shx.orthogonal_matrix).transposed
-        Uij = Matrix([[u11, u12, u13], [u12, u22, u13], [u13, u23, u33]])
-        Ucart = (self.shx.orthogonal_matrix * Uij * ortt * self.shx.symmcards[symm_num].matrix) * \
-                self.shx.symmcards[symm_num].matrix.transposed
-        Ufrac = self.shx.orthogonal_matrix.inverted * Ucart * self.shx.orthogonal_matrix.inverted.transposed
-        #uvals = umatrix.values[0][0], umatrix.values[0][1], umatrix.values[0][2], \
-        #             umatrix.values[1][1], umatrix.values[1][2], umatrix.values[2][2]
-        #print(Ufrac)
-        return uvals
+        u11, u22, u33, u23, u13, u12 = uvals[:]
+        Uij = self.shx.orthogonal_matrix * Matrix([[u11, u12, u13], [u12, u22, u23], [u13, u23, u33]])
+        #Uij = Matrix([[u11, u12, u13], [u12, u22, u23], [u13, u23, u33]])
+        uvals = self.shx.symmcards[symm_num+1].matrix * Uij * self.shx.symmcards[symm_num+1].matrix.transposed
+        uvals = self.shx.orthogonal_matrix.inverted * uvals
+        upper_diagonal = uvals.values[0][0], uvals.values[0][1], uvals.values[0][2], \
+                         uvals.values[1][1], uvals.values[1][2], uvals.values[2][2]
+        return upper_diagonal
 
 
 if __name__ == "__main__":
     from shelxfile.shelx import ShelXFile
 
-    shx = ShelXFile('tests/I-43d.res')
+    shx = ShelXFile('tests/p-31c.res')
     sdm = SDM(shx)
-    #for s in shx.symmcards:
-    #    print(s.toShelxl())
     needsymm = sdm.calc_sdm()
     packed_atoms = sdm.packer(sdm, needsymm)
     # print(needsymm)
@@ -281,11 +286,48 @@ if __name__ == "__main__":
     # print(len(shx.atoms))
     # print(len(packed_atoms))
 
+    head = """
+REM Solution 1  R1  0.081,  Alpha = 0.0146  in P31c
+REM Flack x = -0.072 ( 0.041 ) from Parsons' quotients
+REM C19.667 N2.667 P4
+TITL p-31c-neu in P-31c
+CELL  0.71073  12.5067  12.5067  24.5615   90.000   90.000  120.000
+ZERR   2   0.0043   0.0043   0.0085   0.000   0.000   0.000
+LATT -1
+SFAC C H N P Cl
+UNIT 120 186 14 12 12
+TEMP -173.000
+OMIT 0   0   2
+L.S. 10
+BOND $H
+ACTA
+CONF
+
+LIST 4
+FMAP 2
+PLAN 40
+WGHT    0.034600    0.643600
+FVAR       0.22604   0.76052   0.85152\n"""
+
+    tail = """\n
+HKLF 4
+ 
+REM  p-31c-neu in P-31c
+REM R1 =  0.0308 for    4999 Fo > 4sig(Fo)  and  0.0343 for all    5352 data
+REM    287 parameters refined using    365 restraints
+ 
+END 
+ 
+WGHT      0.0348      0.6278 
+"""
     for at in packed_atoms:
         if at.qpeak:
             continue
-        #print(wrap_line(str(at)))
-
+        print(wrap_line(str(at)))
+        head += wrap_line(str(at)) + '\n'
+    head += tail
+    p = Path('./test.res')
+    p.write_text(head)
     print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
     #print(sdm.bondlist)
     print(len(sdm.bondlist), '(170) Atome in p-31c.res, (208) in I-43d.res')
