@@ -54,7 +54,6 @@ class SDM():
         self.aga = self.shx.cell[0] * self.shx.cell[1] * self.shx.cell.cosga
         self.bbe = self.shx.cell[0] * self.shx.cell[2] * self.shx.cell.cosbe
         self.cal = self.shx.cell[1] * self.shx.cell[2] * self.shx.cell.cosal
-        # contact.clear()  # sdmitem list for hydrogen contacts (not needed)?
         self.sdm_list = []  # list of sdmitems
         self.maxmol = 1
         self.sdmtime = 0
@@ -189,7 +188,6 @@ class SDM():
     def packer(self, sdm: 'SDM', need_symm: list, with_qpeaks=False):
         """
         Packs atoms of the asymmetric unit to real molecules.
-        TODO: Support hydrogen atoms!
         """
         #t1 = time.perf_counter()
         asymm = self.shx.atoms.all_atoms
@@ -198,11 +196,11 @@ class SDM():
         else:
             showatoms = [at for at in asymm if not at.qpeak]
         for symm in need_symm:
-            s, h, k, l, symmgroup = symm
+            symm_num, h, k, l, symmgroup = symm
             h -= 5
             k -= 5
             l -= 5
-            s -= 1
+            symm_num -= 1
             for atom in asymm:
                 if not with_qpeaks:
                     if atom.qpeak:
@@ -215,8 +213,8 @@ class SDM():
                         # TODO: Make proper names here:
                         name=atom.name[:3] + ">",
                         sfac_num=atom.sfac_num,
-                        coords=Array(atom.frac_coords) * self.shx.symmcards[s].matrix
-                               + Array(self.shx.symmcards[s].trans) + Array([h, k, l]),
+                        coords=Array(atom.frac_coords) * self.shx.symmcards[symm_num].matrix
+                               + Array(self.shx.symmcards[symm_num].trans) + Array([h, k, l]),
                         part=atom.part,
                         afix=AFIX(self.shx, (atom.afix).split()) if atom.afix else None,
                         resi=RESI(self.shx, ('RESI ' + atom.resinum + atom.resiclass).split()) if atom.resi else None,
@@ -229,15 +227,8 @@ class SDM():
                         continue
                     else:
                         pass
-                        # This does not work currently:
-                        # [u11 u12 u13 u22 u23, u33]
-                        #u11, u12, u13, u22, u23, u33 = atom.uvals
-                        #Uij = Matrix([[u11, u12, u13], [u12, u22, u13], [u13, u23, u33]])
-                        #umatrix = ((self.shx.orthogonal_matrix() * Uij) *
-                        #              self.shx.symmcards[s].matrix) * self.shx.symmcards[s].matrix.transpose()
-                        #umatrix = self.shx.orthogonal_matrix().transpose() * umatrix
-                        #atom.uvals = umatrix.values[0][0], umatrix.values[0][1], umatrix.values[0][2], \
-                        #             umatrix.values[1][1], umatrix.values[1][2], umatrix.values[2][2]
+                        #uvals = self.transform_uvalues(atom.uvals, symm_num)
+                        #atom.uvals = uvals
                     isthere = False
                     if new_atom.part.n >= 0:
                         for atom in showatoms:
@@ -256,11 +247,30 @@ class SDM():
         #print('packzeit:', t2-t1) # 0.04s
         return showatoms
 
+    def transform_uvalues(self, uvals: (list, tuple), symm_num: int):
+        """
+        Transforms the Uij values according to local symmetry.
+
+        U(cart) = A * U * 􏰊A.transposed
+        U(fract) = A^1 * U(cart) * (A^1).t
+        """
+        # [u11 u12 u13 u22 u23, u33]
+        u11, u12, u13, u22, u23, u33 = uvals
+        ortt = (self.shx.orthogonal_matrix).transposed
+        Uij = Matrix([[u11, u12, u13], [u12, u22, u13], [u13, u23, u33]])
+        Ucart = (self.shx.orthogonal_matrix * Uij * ortt * self.shx.symmcards[symm_num].matrix) * \
+                self.shx.symmcards[symm_num].matrix.transposed
+        Ufrac = self.shx.orthogonal_matrix.inverted * Ucart * self.shx.orthogonal_matrix.inverted.transposed
+        #uvals = umatrix.values[0][0], umatrix.values[0][1], umatrix.values[0][2], \
+        #             umatrix.values[1][1], umatrix.values[1][2], umatrix.values[2][2]
+        #print(Ufrac)
+        return uvals
+
 
 if __name__ == "__main__":
     from shelxfile.shelx import ShelXFile
 
-    shx = ShelXFile('tests/p-31c.res')
+    shx = ShelXFile('tests/I-43d.res')
     sdm = SDM(shx)
     #for s in shx.symmcards:
     #    print(s.toShelxl())
@@ -274,8 +284,8 @@ if __name__ == "__main__":
     for at in packed_atoms:
         if at.qpeak:
             continue
-        print(wrap_line(str(at)))
+        #print(wrap_line(str(at)))
 
     print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
     #print(sdm.bondlist)
-    print(len(sdm.bondlist), '(170) Atome in p-31c.res')
+    print(len(sdm.bondlist), '(170) Atome in p-31c.res, (208) in I-43d.res')

@@ -12,7 +12,7 @@
 from operator import sub, add
 import random
 import string
-from math import sqrt, radians, cos, sin, acos, degrees, floor
+from math import sqrt, radians, cos, sin, acos, degrees, floor, tan
 
 
 class Array(object):
@@ -62,6 +62,9 @@ class Array(object):
 
     def __len__(self) -> int:
         return len(self.values)
+
+    def __hash__(self):
+        return hash(self.values)
 
     def __add__(self, other: (list, 'Array')) -> 'Array':
         """
@@ -415,14 +418,15 @@ class Matrix(object):
 
     @property
     def T(self):
-        return self.transpose()
+        return self.transposed
 
-    def transpose(self) -> 'Matrix':
+    @property
+    def transposed(self) -> 'Matrix':
         """
         transposes a matrix
 
         >>> m = Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
-        >>> m.transpose().values
+        >>> m.transposed.values
         [(1, 1, 1), (2, 2, 2), (3, 3, 3)]
         """
         return Matrix(list(zip(*self.values)))
@@ -568,7 +572,7 @@ class SymmetryElement(object):
             line, t = self._parse_line(symm)
             lines.append(line)
             trans.append(t)
-        self.matrix = Matrix(lines).transpose()
+        self.matrix = Matrix(lines).transposed
         self.trans = Array(trans)
         if centric:
             self.matrix *= -1
@@ -1078,42 +1082,57 @@ def vol_unitcell(a, b, c, al, be, ga):
     return v
 
 
-class A(object):
-    """
-    orthogonalization matrix
-    e.g. converts fractional coordinates to cartesian coodinates
-    #>>> import mpmath as mpm
-    #>>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
-    #>>> coord = (-0.186843,   0.282708,   0.526803)
-    #>>> A = A(cell).orthogonal_matrix
-    #>>> print(mpm.nstr(A*mpm.matrix(coord)))
-    [-2.74151]
-    [ 5.90959]
-    [ 10.7752]
-    #>>> cartcoord = mpm.matrix([['-2.74150542399906'], ['5.909586678'], ['10.7752007008937']])
-    #>>> print(mpm.nstr(A**-1*cartcoord))
-    [-0.186843]
-    [ 0.282708]
-    [ 0.526803]
-    """
+class OrthogonalMatrix():
 
-    def __init__(self, cell):
-        self.a, self.b, self.c, alpha, beta, gamma = cell
-        self.V = vol_unitcell(self.a, self.b, self.c, alpha, beta, gamma)
+    def __init__(self, a, b, c, alpha, beta, gamma):
+        """
+        Converts von fractional to cartesian and vice versa.
+
+        >>> cell = [10.5086, 20.9035, 20.5072, 90, 94.13, 90]
+        >>> coord = [-0.186843,   0.282708,   0.526803]
+        >>> ort = OrthogonalMatrix(*cell)
+        >>> [ round(x, 6) for x in (ort * Array(coord)).values ]
+        [-2.741505, 5.909587, 10.775201]
+        >>> c_coord = [-2.741505423999065, 5.909586678000002, 10.775200700893732]
+        >>> [ round(x, 6) for x in (ort.inverted * Array(c_coord)).values]
+        [-0.186843, 0.282708, 0.526803]
+        """
+        self.a, self.b, self.c = a, b, c
+        self.V = vol_unitcell(a, b, c, alpha, beta, gamma)
         self.alpha = radians(alpha)
         self.beta = radians(beta)
         self.gamma = radians(gamma)
+        phi = sqrt(1 - cos(self.alpha) ** 2 - cos(self.beta) ** 2 - cos(self.gamma) ** 2 +
+                   2 * cos(self.alpha) * cos(self.beta) * cos(self.gamma))
+        self.m = Matrix([[self.a, self.b * cos(self.gamma), self.c * cos(self.beta)],
+                    [0, self.b * sin(self.gamma),
+                     (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))],
+                    [0, 0, self.V / (self.a * self.b * sin(self.gamma))]])
+
+        # The inverted matrix:
+        self.mi = \
+            Matrix([[ 1.0 / self.a, -1.0 / (self.a * tan(self.gamma)),
+                            (cos(self.alpha) * cos(self.gamma) - cos(self.beta)) / (self.a * phi * sin(self.gamma))],
+                    [0.0, 1 / (self.b * sin(self.gamma)), (cos(self.beta) * cos(self.gamma) - cos(self.alpha)) /
+                     self.b * phi * sin(self.gamma)],
+                    [0.0, 0.0, sin(self.gamma) / (self.c * phi) ]])
+
+    def __mul__(self, other: Array) -> Array:
+        """
+        To convert from fractional to cartesian.
+        """
+        return self.m * other
 
     @property
-    def orthogonal_matrix(self):
+    def inverted(self):
         """
-        Converts von fractional to cartesian.
-        Invert the matrix to do the opposite.
+        To convert from cartesian to fractional.
         """
-        return Matrix([[self.a, self.b * cos(self.gamma), self.c * cos(self.beta)],
-                       [0, self.b * sin(self.gamma),
-                        (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))],
-                       [0, 0, self.V / (self.a * self.b * sin(self.gamma))]])
+        return self.mi
+
+    @property
+    def transposed(self):
+        return self.m.transposed
 
 
 def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: float = 0.5, longest: bool = True):

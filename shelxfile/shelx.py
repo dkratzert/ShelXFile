@@ -35,7 +35,7 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues
-from shelxfile.dsrmath import Matrix
+from shelxfile.dsrmath import Matrix, Array, OrthogonalMatrix
 from shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 
@@ -326,9 +326,9 @@ class ShelXFile():
                             print('TITL is missing.')
                         # raise ParseOrderError
                     self.cell = CELL(self, spline)
+                    self.orthogonal_matrix = OrthogonalMatrix(*self.cell)
                     self.assign_card(self.cell, line_num)
                     self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell
-                    # self.A = self.orthogonal_matrix()
                     self.wavelen = self.cell.wavelen
                     lastcard = 'CELL'
                     continue
@@ -786,26 +786,11 @@ class ShelXFile():
                               part=part, afix=afix, resi=resi, site_occupation=sof, uvals=uvals)
         self.append_card(self.atoms, a, 0)
 
-    def orthogonal_matrix(self):
+    def frac_to_cart(self, coordinates: list) -> Array:
         """
-        Converts von fractional to cartesian by .
-        Invert the matrix to do the opposite.
-
-        TODO: Add inverse variant.
-
-        #>>> cart = A * Matrix(coord)))
-        [-2.74151]
-        [ 5.90959]
-        [ 10.7752]
-        #>>> frac =  A **-1 * Matrix([['-2.74150542399906'], ['5.909586678'], ['10.7752007008937']])
-        [-0.186843]
-        [ 0.282708]
-        [ 0.526803]
+        fractional to cartesian coordinates by applying the orthogonal matrix.
         """
-        return Matrix([[self._a, self._b * cos(self._gamma), self._c * cos(self._beta)],
-                       [0, self._b * sin(self._gamma),
-                        (self._c * (cos(self._alpha) - cos(self._beta) * cos(self._gamma)) / sin(self._gamma))],
-                       [0, 0, self.cell.volume / (self._a * self._b * sin(self._gamma))]])
+        return self.orthogonal_matrix * Array(coordinates)
 
     def __repr__(self):
         """
