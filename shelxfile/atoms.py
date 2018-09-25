@@ -289,8 +289,10 @@ class Atom():
     """
     An object holding all Properties of a shelxl atom plus some extra information like
     kartesian coordinates and element type.
+
+    atomname sfac x y z sof[11] U[0.05] or U11 U22 U33 U23 U13 U12
     """
-    #                name    sfac     x         y        z       occ      u11      u12 ...
+    #                name    sfac     x         y        z       occ      u11      u22 ...
     _anisatomstr = '{:<4.4s}{:>3}{:>12.6f}{:>12.6f}{:>12.6f}{:>12.5f}{:>11.5f}{:>11.5f}' \
                    ' {:>12.5f}{:>11.5f}{:>11.5f}{:>11.5f}'  # Line wrap is handled during file write.
     #               name    sfac     x         y         z         occ      u11
@@ -318,7 +320,7 @@ class Atom():
         self.zc = None
         self.qpeak = False
         self.peak_height = 0.0
-        self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0]  # [U] or [u11 u12 u13 u21 u22 u23]
+        self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0]  # [U] or [U11 U22 U33 U23 U13 U12]
         self.uvals_orig = [0.04, 0.0, 0.0, 0.0, 0.0]
         self.frag_atom = False
         self.restraints = []
@@ -609,7 +611,7 @@ class Atom():
         """
         Makes the current atom isotropic.
         """
-        self.uvals = [0.04]
+        self.uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
 
     '''
     def __eq__(self, other) -> bool:

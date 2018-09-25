@@ -448,7 +448,7 @@ class Matrix(object):
         Dot product of two matrices.
         """
         newA = []
-        for i, col in enumerate(self.transpose().values):
+        for i, col in enumerate(self.transposed.values):
             s = sum([v * o for v, o in zip(col, other)])
             newA.append(s)
         return Matrix(newA)
@@ -1105,16 +1105,16 @@ class OrthogonalMatrix():
         phi = sqrt(1 - cos(self.alpha) ** 2 - cos(self.beta) ** 2 - cos(self.gamma) ** 2 +
                    2 * cos(self.alpha) * cos(self.beta) * cos(self.gamma))
         self.m = Matrix([[self.a, self.b * cos(self.gamma), self.c * cos(self.beta)],
-                    [0, self.b * sin(self.gamma),
-                     (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))],
-                    [0, 0, self.V / (self.a * self.b * sin(self.gamma))]])
+                         [0, self.b * sin(self.gamma),
+                                (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))],
+                         [0, 0, self.V / (self.a * self.b * sin(self.gamma))]])
 
         # The inverted matrix:
         self.mi = \
-            Matrix([[ 1.0 / self.a, -1.0 / (self.a * tan(self.gamma)),
+            Matrix([[1.0 / self.a, -1.0 / (self.a * tan(self.gamma)),
                             (cos(self.alpha) * cos(self.gamma) - cos(self.beta)) / (self.a * phi * sin(self.gamma))],
                     [0.0, 1 / (self.b * sin(self.gamma)), (cos(self.beta) * cos(self.gamma) - cos(self.alpha)) /
-                     self.b * phi * sin(self.gamma)],
+                        self.b * phi * sin(self.gamma)],
                     [0.0, 0.0, sin(self.gamma) / (self.c * phi) ]])
 
     def __mul__(self, other: Array) -> Array:

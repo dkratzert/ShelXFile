@@ -260,17 +260,17 @@ class SDM():
           [U12, U22, U23]
           [U13, U23, U33]
         ]
-
+        y=(sym*x)*transponse(sym)
         atomname sfac x y z sof[11] U[0.05] or U11 U22 U33 U23 U13 U12
         """
-        # [u11 u12 u13 u22 u23, u33]
-        u11, u22, u33, u23, u13, u12 = uvals[:]
-        Uij = self.shx.orthogonal_matrix * Matrix([[u11, u12, u13], [u12, u22, u23], [u13, u23, u33]])
-        #Uij = Matrix([[u11, u12, u13], [u12, u22, u23], [u13, u23, u33]])
-        uvals = self.shx.symmcards[symm_num+1].matrix * Uij * self.shx.symmcards[symm_num+1].matrix.transposed
-        uvals = self.shx.orthogonal_matrix.inverted * uvals
-        upper_diagonal = uvals.values[0][0], uvals.values[0][1], uvals.values[0][2], \
-                         uvals.values[1][1], uvals.values[1][2], uvals.values[2][2]
+        u11, u22, u33, u23, u13, u12 = uvals
+        Uij = Matrix([[u11, u12, u13], [u12, u22, u23], [u13, u23, u33]])
+        sym = self.shx.symmcards[symm_num].matrix
+        sym_t = self.shx.symmcards[symm_num].matrix.transposed
+        uvals = (Uij * sym) * sym_t
+        upper_diagonal = uvals.values[0][0], uvals.values[1][1], uvals.values[2][2], \
+                                             uvals.values[1][2], uvals.values[0][2], \
+                                                                 uvals.values[0][1]
         return upper_diagonal
 
 
