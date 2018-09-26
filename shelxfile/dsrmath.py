@@ -503,6 +503,22 @@ class Matrix(object):
         return self.det
 
     @property
+    def inversed(self):
+        """
+        Inversion of 3 × 3 matrices
+        """
+        if self.shape != (3, 3):
+            raise ValueError('Inversion is only valid for 3x3 Matrix.')
+        d = self.det
+        a = self.values
+        Matrix(
+            [[ d * (a[1][1] * a[2][2] - a[1][2] * a[2][1]), d * -(a[0][1] * a[2][2] - a[0][2] * a[2][1]), bf-ce ],
+             [],
+             []
+            ]
+        )
+
+    @property
     def det(self):
         """
         Return determinant of 3x3 matrix.
@@ -1134,6 +1150,9 @@ class OrthogonalMatrix():
     def transposed(self):
         return self.m.transposed
 
+    @property
+    def T(self):
+        return self.m.transposed
 
 def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: float = 0.5, longest: bool = True):
     """

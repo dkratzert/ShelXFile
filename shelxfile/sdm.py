@@ -11,7 +11,7 @@
 #
 import time
 from copy import deepcopy
-from math import sqrt
+from math import sqrt, radians, sin
 from pathlib import Path
 
 from shelxfile.atoms import Atom
@@ -53,9 +53,9 @@ class SDM():
     """
     def __init__(self, shx: 'ShelXFile'):
         self.shx = shx
-        self.aga = self.shx.cell[0] * self.shx.cell[1] * self.shx.cell.cosga
-        self.bbe = self.shx.cell[0] * self.shx.cell[2] * self.shx.cell.cosbe
-        self.cal = self.shx.cell[1] * self.shx.cell[2] * self.shx.cell.cosal
+        self.aga = self.shx.cell.a * self.shx.cell.b * self.shx.cell.cosga
+        self.bbe = self.shx.cell.a * self.shx.cell.c * self.shx.cell.cosbe
+        self.cal = self.shx.cell.b * self.shx.cell.c * self.shx.cell.cosal
         self.sdm_list = []  # list of sdmitems
         self.maxmol = 1
         self.sdmtime = 0
@@ -63,6 +63,10 @@ class SDM():
         self.asq = self.shx.cell[0]**2
         self.bsq = self.shx.cell[1]**2
         self.csq = self.shx.cell[2]**2
+        # calculate reciprocal lattice vectors:
+        self.astar = (self.shx.cell.b * self.shx.cell.c * sin(radians(self.shx.cell.al))) / self.shx.cell.V
+        self.bstar = (self.shx.cell.c * self.shx.cell.a * sin(radians(self.shx.cell.be))) / self.shx.cell.V
+        self.cstar = (self.shx.cell.a * self.shx.cell.b * sin(radians(self.shx.cell.ga))) / self.shx.cell.V
 
     def calc_sdm(self) -> list:
         t1 = time.perf_counter()
@@ -216,7 +220,7 @@ class SDM():
                     else:
                         pass
                         uvals = atom.uvals
-                        #uvals = self.transform_uvalues(uvals, symm_num)
+                        uvals = self.transform_uvalues(uvals, symm_num)
                     new_atom.set_atom_parameters(
                         # TODO: Make proper names here:
                         name=atom.name[:3] + ">",
@@ -252,22 +256,38 @@ class SDM():
         """
         Transforms the Uij values according to local symmetry.
 
-        U(cart) = A * U * 􏰊A.transposed
+        U(star) = N * U(cif) * N.T
+        U(star) = R * U(star) * R^t
+        U(cif) = N^-1 * U(star) * (N^-1).T
+
+        U(cart) = A * U(star) * 􏰊A.T
         U(frac) = A^1 * U(cart) * (A^1).t
-        U(frac) = R * U(frac) * R^t
+
 
         [ [U11, U12, U13]
           [U12, U22, U23]
           [U13, U23, U33]
         ]
         y=(sym*x)*transponse(sym)
+        # Shelxl uses U* with a*,b*c*-parameterization
         atomname sfac x y z sof[11] U[0.05] or U11 U22 U33 U23 U13 U12
         """
-        u11, u22, u33, u23, u13, u12 = uvals
-        Uij = Matrix([[u11, u12, u13], [u12, u22, u23], [u13, u23, u33]])
-        sym = self.shx.symmcards[symm_num].matrix
-        sym_t = self.shx.symmcards[symm_num].matrix.transposed
-        uvals = (Uij * sym) * sym_t
+        U11, U22, U33, U23, U13, U12 = uvals
+        U21 = U12
+        U32 = U23
+        U31 = U13
+        Uij = Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
+        # matrix with the reciprocal lattice vectors:
+        N = Matrix([[self.astar, 0, 0],
+                    [0, self.bstar, 0],
+                    [0, 0, self.cstar]])
+        R = self.shx.symmcards[symm_num].matrix
+        R_t = self.shx.symmcards[symm_num].matrix.transposed
+        A = self.shx.orthogonal_matrix
+        Ustar = N * Uij *  N.T
+        Ustar = R * Ustar * R_t
+        Ucif = N.inversed * Ustar * N.T.inversed
+        uvals = Ucif
         upper_diagonal = uvals.values[0][0], uvals.values[1][1], uvals.values[2][2], \
                                              uvals.values[1][2], uvals.values[0][2], \
                                                                  uvals.values[0][1]

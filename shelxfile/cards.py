@@ -363,6 +363,10 @@ class CELL(Command):
             v = 0.0
         return v
 
+    @property
+    def V(self) -> float:
+        return self.volume
+
     def __iter__(self):
         return iter(self._cell_list)
 
