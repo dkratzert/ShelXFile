@@ -219,7 +219,7 @@ class SDM():
                     else:
                         pass
                         uvals = atom.uvals
-                        uvals = self.transform_uvalues(uvals, symm_num)
+                        #uvals = self.transform_uvalues(uvals, symm_num)
                     new_atom.set_atom_parameters(
                         # TODO: Make proper names here:
                         name=atom.name[:3] + ">",
@@ -259,8 +259,9 @@ class SDM():
         U(star) = R * U(star) * R^t
         U(cif) = N^-1 * U(star) * (N^-1).T
 
-        U(cart) = A * U(star) * 􏰊A.T
+        U(cart) = A * U(star) * A.T
         U(frac) = A^1 * U(cart) * (A^1).t
+        U(star) = A^-1 * U(cart) * A^-1.t
 
         R is the rotation part of a given symmetry operation
 
@@ -284,9 +285,11 @@ class SDM():
         R = self.shx.symmcards[symm_num].matrix
         R_t = self.shx.symmcards[symm_num].matrix.transposed
         A = self.shx.orthogonal_matrix
-        #U(star) = N * U(cif) * N.T
-        #U(star) = R * U(star) * R^t
-        #U(cif) = N^-1 * U(star) * (N^-1).T
+        # U(star) = N * U(cif) * N.T
+        # U(cart) = A * U(star) * A.T
+        # U(star) = R * U(star) * R^t
+        # U(cif) = N^-1 * U(star) * (N^-1).T
+        # U(star) = A^-1 * U(cart) * A^-1.T
         Ustar = N * Ucif * N.T
         Ustar = R * Ustar * R_t
         Ucif = N.inversed * Ustar * N.inversed.T

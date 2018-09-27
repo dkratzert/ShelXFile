@@ -365,7 +365,7 @@ class Matrix(object):
         """
         if isinstance(other, (int, float)):
             return Matrix([[v * other for v in row] for row in self.values])
-        elif isinstance(other, Matrix):
+        elif isinstance(other, (Matrix, OrthogonalMatrix)):
             return Matrix([[sum(ea * eb for ea, eb in zip(a, b)) for b in other.values] for a in self.values])
         elif isinstance(other, Array):
             return Array([sum([b * x for (b, x) in zip(other.values, row)]) for row in self.values])
@@ -1132,7 +1132,7 @@ class OrthogonalMatrix():
         >>> [ round(x, 6) for x in (ort * Array(coord)).values ]
         [-2.741505, 5.909587, 10.775201]
         >>> c_coord = [-2.741505423999065, 5.909586678000002, 10.775200700893732]
-        >>> [ round(x, 6) for x in (ort.inverted * Array(c_coord)).values]
+        >>> [ round(x, 6) for x in (ort.inversed * Array(c_coord)).values]
         [-0.186843, 0.282708, 0.526803]
         """
         self.a, self.b, self.c = a, b, c
@@ -1162,7 +1162,7 @@ class OrthogonalMatrix():
         return self.m * other
 
     @property
-    def inverted(self):
+    def inversed(self):
         """
         To convert from cartesian to fractional.
         """
