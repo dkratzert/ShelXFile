@@ -276,9 +276,9 @@ class Matrix(object):
     #Array([5, 6, 7, 8.1])
     >>> m*=3
     >>> m
-    |  3.000   6.000 900.000|
-    | 12.300  12.600  12.900|
-    | 15.000  18.000  21.000|
+    | 3.0000  6.0000 900.0000|
+    |12.3000 12.6000 12.9000|
+    |15.0000 18.0000 21.0000|
     <BLANKLINE>
     """
     __slots__ = ['values', 'shape']
@@ -305,7 +305,7 @@ class Matrix(object):
     def __repr__(self):
         rows = ''
         for row in self.values:
-            rows += '|' + ' '.join(['{:>7.3f}'.format(float(x)) for x in row]) + '|' + '\n'
+            rows += '|' + ' '.join(['{:>7.4f}'.format(float(x)) for x in row]) + '|' + '\n'
         return rows
 
     def __add__(self, other: (list, 'Matrix')) -> 'Matrix':
@@ -315,14 +315,14 @@ class Matrix(object):
         >>> m1 = Matrix([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
         >>> m2 = Matrix([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
         >>> m1 + m2
-        |  2.000   2.000   2.000|
-        |  2.000   2.000   2.000|
-        |  2.000   2.000   2.000|
+        | 2.0000  2.0000  2.0000|
+        | 2.0000  2.0000  2.0000|
+        | 2.0000  2.0000  2.0000|
         <BLANKLINE>
         >>> m1 + 0.5
-        |  1.500   1.500   1.500|
-        |  1.500   1.500   1.500|
-        |  1.500   1.500   1.500|
+        | 1.5000  1.5000  1.5000|
+        | 1.5000  1.5000  1.5000|
+        | 1.5000  1.5000  1.5000|
         <BLANKLINE>
         """
         if isinstance(other, Array):
@@ -342,20 +342,20 @@ class Matrix(object):
         a * b operation
         >>> m = Matrix([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
         >>> m * 2
-        |  2.000   2.000   2.000|
-        |  2.000   2.000   2.000|
-        |  2.000   2.000   2.000|
+        | 2.0000  2.0000  2.0000|
+        | 2.0000  2.0000  2.0000|
+        | 2.0000  2.0000  2.0000|
         <BLANKLINE>
         >>> m2 = Matrix([[2, 2, 2], [0.5, 0.5, 0.5], [2, 2, 1]])
         >>> m * m2
-        |  6.000   1.500   5.000|
-        |  6.000   1.500   5.000|
-        |  6.000   1.500   5.000|
+        | 6.0000  1.5000  5.0000|
+        | 6.0000  1.5000  5.0000|
+        | 6.0000  1.5000  5.0000|
         <BLANKLINE>
         >>> m
-        |  1.000   1.000   1.000|
-        |  1.000   1.000   1.000|
-        |  1.000   1.000   1.000|
+        | 1.0000  1.0000  1.0000|
+        | 1.0000  1.0000  1.0000|
+        | 1.0000  1.0000  1.0000|
         <BLANKLINE>
         >>> m * Array([2, 2, 2])
         Array([6, 6, 6])
@@ -410,7 +410,7 @@ class Matrix(object):
         #>>> Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]]) / Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
         A / B = A * A^-1
         """
-        return 'foo'
+        raise NotImplementedError
 
     def __setitem__(self, key, value):
         # TODO: Implement setitem
@@ -459,11 +459,11 @@ class Matrix(object):
         Create zero matrix of dimension m,n
 
         >>> Matrix.zero(5, 3)
-        |  0.000   0.000   0.000|
-        |  0.000   0.000   0.000|
-        |  0.000   0.000   0.000|
-        |  0.000   0.000   0.000|
-        |  0.000   0.000   0.000|
+        | 0.0000  0.0000  0.0000|
+        | 0.0000  0.0000  0.0000|
+        | 0.0000  0.0000  0.0000|
+        | 0.0000  0.0000  0.0000|
+        | 0.0000  0.0000  0.0000|
         <BLANKLINE>
         """
         return Matrix([[0.0 for row in range(n)] for col in range(m)])
@@ -487,9 +487,9 @@ class Matrix(object):
         """
         >>> m = Matrix([[25, 15, -5], [15, 18,  0], [-5,  0, 11]])
         >>> m.cholesky()
-        |  5.000   0.000   0.000|
-        |  3.000   3.000   0.000|
-        | -1.000   1.000   3.000|
+        | 5.0000  0.0000  0.0000|
+        | 3.0000  3.0000  0.0000|
+        |-1.0000  1.0000  3.0000|
         <BLANKLINE>
         """
         L = Matrix.zero(*self.shape)
@@ -503,20 +503,27 @@ class Matrix(object):
         return self.det
 
     @property
-    def inversed(self):
+    def inversed(self) -> 'Matrix':
         """
         Inversion of 3 × 3 matrices
+         -0.812500    0.125000    0.187500
+          0.125000   -0.250000    0.125000
+          0.520833    0.125000   -0.145833
+
+        >>> Matrix([ [1, 2, 3], [4, 1, 6], [7, 8, 9] ]).inversed
+        |-0.8125  0.1250  0.1875|
+        | 0.1250 -0.2500  0.1250|
+        | 0.5208  0.1250 -0.1458|
+        <BLANKLINE>
         """
         if self.shape != (3, 3):
             raise ValueError('Inversion is only valid for 3x3 Matrix.')
         d = self.det
-        a = self.values
-        Matrix(
-            [[ d * (a[1][1] * a[2][2] - a[1][2] * a[2][1]), d * -(a[0][1] * a[2][2] - a[0][2] * a[2][1]), bf-ce ],
-             [],
-             []
-            ]
-        )
+        m1, m2, m3, m4, m5, m6, m7, m8, m9 = flatten(self.values)
+        inv = Matrix([[(m5 * m9 - m6 * m8)/d, (m3 * m8 - m2 * m9)/d, (m2 * m6 - m3 * m5)/d],
+                        [(m6 * m7 - m4 * m9)/d, (m1 * m9 - m3 * m7)/d, (m3 * m4 - m1 * m6)/d],
+                        [(m4 * m8 - m5 * m7)/d, (m2 * m7 - m1 * m8)/d, (m1 * m5 - m2 * m4)/d]])
+        return inv
 
     @property
     def det(self):
@@ -836,6 +843,21 @@ def nalimov_test(data):
             outliers.append(num)
     return outliers
 
+def flatten(lis):
+    """
+    Given a list, possibly nested to any level, return it flattened.
+    From: http://code.activestate.com/recipes/578948-flattening-an-arbitrarily-nested-list-in-python/
+
+    >>> flatten([['wer', 234, 'brdt5'], ['dfg'], [[21, 34,5], ['fhg', 4]]])
+    ['wer', 234, 'brdt5', 'dfg', 21, 34, 5, 'fhg', 4]
+    """
+    new_lis = []
+    for item in lis:
+        if isinstance(item, list):
+            new_lis.extend(flatten(item))
+        else:
+            new_lis.append(item)
+    return new_lis
 
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     """

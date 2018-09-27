@@ -10,13 +10,12 @@
 # ----------------------------------------------------------------------------
 #
 import time
-from copy import deepcopy
 from math import sqrt, radians, sin
 from pathlib import Path
 
 from shelxfile.atoms import Atom
 from shelxfile.cards import AFIX, RESI
-from shelxfile.dsrmath import Array, Matrix
+from shelxfile.dsrmath import Array, Matrix, vol_unitcell
 from shelxfile.misc import DEBUG, wrap_line
 
 
@@ -263,20 +262,21 @@ class SDM():
         U(cart) = A * U(star) * 􏰊A.T
         U(frac) = A^1 * U(cart) * (A^1).t
 
+        R is the rotation part of a given symmetry operation
 
         [ [U11, U12, U13]
           [U12, U22, U23]
           [U13, U23, U33]
         ]
-        y=(sym*x)*transponse(sym)
         # Shelxl uses U* with a*,b*c*-parameterization
         atomname sfac x y z sof[11] U[0.05] or U11 U22 U33 U23 U13 U12
+
         """
         U11, U22, U33, U23, U13, U12 = uvals
         U21 = U12
         U32 = U23
         U31 = U13
-        Uij = Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
+        Ucif = Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
         # matrix with the reciprocal lattice vectors:
         N = Matrix([[self.astar, 0, 0],
                     [0, self.bstar, 0],
@@ -284,14 +284,47 @@ class SDM():
         R = self.shx.symmcards[symm_num].matrix
         R_t = self.shx.symmcards[symm_num].matrix.transposed
         A = self.shx.orthogonal_matrix
-        Ustar = N * Uij *  N.T
+        #U(star) = N * U(cif) * N.T
+        #U(star) = R * U(star) * R^t
+        #U(cif) = N^-1 * U(star) * (N^-1).T
+        Ustar = N * Ucif * N.T
         Ustar = R * Ustar * R_t
-        Ucif = N.inversed * Ustar * N.T.inversed
+        Ucif = N.inversed * Ustar * N.inversed.T
         uvals = Ucif
         upper_diagonal = uvals.values[0][0], uvals.values[1][1], uvals.values[2][2], \
                                              uvals.values[1][2], uvals.values[0][2], \
                                                                  uvals.values[0][1]
         return upper_diagonal
+
+
+def ufrac_to_ucart(A, cell, uvals):
+    """
+    >>> uvals = [0.07243, 0.03058, 0.03216, -0.01057, -0.01708, 0.03014]
+    >>> Ucart = Matrix([[ 0.0754483395556807,  0.030981701122469,  -0.0194466522033868], [  0.030981701122469,  0.03058, -0.01057], [-0.0194466522033868, -0.01057, 0.03216] ])
+    >>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
+    >>> from shelxfile.dsrmath import OrthogonalMatrix
+    >>> A = OrthogonalMatrix(*cell)
+    >>> print(ufrac_to_ucart(A, cell, uvals))
+    >>> print(Ucart)
+    """
+    U11, U22, U33, U23, U13, U12 = uvals
+    U21 = U12
+    U32 = U23
+    U31 = U13
+    Uij = Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
+    a, b, c, alpha, beta, gamma = cell
+    V = vol_unitcell(*cell)
+    # calculate reciprocal lattice vectors:
+    astar = (b * c * sin(radians(alpha))) / V
+    bstar = (c * a * sin(radians(beta))) / V
+    cstar = (a * b * sin(radians(gamma))) / V
+    # matrix with the reciprocal lattice vectors:
+    N = Matrix([[astar, 0, 0],
+                    [0, bstar, 0],
+                    [0, 0, cstar]])
+    # Finally transform Uij values from fractional to cartesian axis system:
+    Ucart = A * N * Uij * N.T * A.T
+    return Ucart
 
 
 if __name__ == "__main__":
