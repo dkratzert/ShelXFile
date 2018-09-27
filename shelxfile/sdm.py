@@ -216,7 +216,7 @@ class SDM():
                 # if not atom.ishydrogen and atom.molindex == symmgroup:
                 if atom.molindex == symmgroup:
                     new_atom = Atom(self.shx)
-                    if atom.ishydrogen or atom.qpeak:
+                    if atom.qpeak:
                         continue
                     else:
                         pass

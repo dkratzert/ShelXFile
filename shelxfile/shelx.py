@@ -38,6 +38,7 @@ from shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownPa
 __version__ = 3
 """
 TODO:
+- Write out parts and afix in grow mode
 - Delete atoms (H) in AFIX -> delete entire afix group
 - Is backup file and reccovery from failed refinement working?
 - check if atoms in restraints are also in structure
