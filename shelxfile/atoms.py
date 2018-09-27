@@ -147,7 +147,7 @@ class Atoms():
         >>> from shelxfile.shelx import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.get_all_atomcoordinates() # doctest: +ELLIPSIS
-        {'O1_4': [0.074835, 0.238436, 0.402457], 'C1_4': [0.028576, 0.234542, 0.337234], ...}
+        {'O1_4': (0.074835, 0.238436, 0.402457), 'C1_4': (0.028576, 0.234542, 0.337234), 'C2_4': ...}
         """
         atdict = {}
         for at in self.all_atoms:
@@ -293,12 +293,12 @@ class Atom():
     atomname sfac x y z sof[11] U[0.05] or U11 U22 U33 U23 U13 U12
     """
     #                name    sfac     x         y        z       occ      u11      u22 ...
-    _anisatomstr = '{:<4.4s}{:>3}{:>12.6f}{:>12.6f}{:>12.6f}{:>12.5f}{:>11.5f}{:>11.5f}' \
+    _anisatomstr = '{:<5s} {:>2}{:>12.6f}{:>12.6f}{:>12.6f}{:>12.5f}{:>11.5f}{:>11.5f}' \
                    ' {:>12.5f}{:>11.5f}{:>11.5f}{:>11.5f}'  # Line wrap is handled during file write.
     #               name    sfac     x         y         z         occ      u11
-    _isoatomstr = '{:<5.5s} {:<3}{:>10.6f}  {:>10.6f}  {:>9.6f}  {:>9.5f}  {:>9.5f}'
-    _qpeakstr = '{:<5.5s} {:<3}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
-    _fragatomstr = '{:<5.5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
+    _isoatomstr = '{:<5s} {:<2}{:>10.6f}  {:>10.6f}  {:>9.6f}  {:>9.5f}  {:>9.5f}'
+    _qpeakstr = '{:<5s} {:<2}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
+    _fragatomstr = '{:<5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
 
     def __init__(self, shx) -> None:
         self.shx = shx
@@ -401,7 +401,8 @@ class Atom():
             return False
 
     def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None,
-                            afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0, uvals: (list, tuple) = None,
+                            afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0,
+                            uvals: (list, tuple) = None,
                             symmgen: bool = True):
         """
         Sets atom properties manually if not parsed from a SHELXL file.
@@ -427,7 +428,7 @@ class Atom():
             for n, u in enumerate(uvals):
                 if abs(u) > 4.0:
                     fvar, uval = split_fvar_and_parameter(u)
-                    #self.uvals[n] = uval
+                    # self.uvals[n] = uval
                     self.shx.fvars.set_fvar_usage(fvar)
         else:
             if abs(uvals[0]) > 4.0:

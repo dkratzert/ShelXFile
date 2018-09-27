@@ -12,6 +12,7 @@
 import time
 from math import sqrt, radians, sin
 from pathlib import Path
+from string import ascii_letters
 
 from shelxfile.atoms import Atom
 from shelxfile.cards import AFIX, RESI
@@ -50,6 +51,7 @@ class SDM():
     """
     This class calculates the shortest distance matrix and creates a completed (grown) structure by crystal symmetry.
     """
+
     def __init__(self, shx: 'ShelXFile'):
         self.shx = shx
         self.aga = self.shx.cell.a * self.shx.cell.b * self.shx.cell.cosga
@@ -59,9 +61,9 @@ class SDM():
         self.maxmol = 1
         self.sdmtime = 0
         self.bondlist = []
-        self.asq = self.shx.cell[0]**2
-        self.bsq = self.shx.cell[1]**2
-        self.csq = self.shx.cell[2]**2
+        self.asq = self.shx.cell[0] ** 2
+        self.bsq = self.shx.cell[1] ** 2
+        self.csq = self.shx.cell[2] ** 2
         # calculate reciprocal lattice vectors:
         self.astar = (self.shx.cell.b * self.shx.cell.c * sin(radians(self.shx.cell.al))) / self.shx.cell.V
         self.bstar = (self.shx.cell.c * self.shx.cell.a * sin(radians(self.shx.cell.be))) / self.shx.cell.V
@@ -152,7 +154,7 @@ class SDM():
                     if (dk > 0.001) and (dddd >= dk):
                         bs = [n + 1, (5 - floorD[0]), (5 - floorD[1]), (5 - floorD[2]), sdmItem.atom1.molindex]
                         # Does not work:
-                        #self.bondlist.append((sdmItem.a1, sdmItem.a2, sdmItem.atom1.name+'<',
+                        # self.bondlist.append((sdmItem.a1, sdmItem.a2, sdmItem.atom1.name+'<',
                         #                      sdmItem.atom2.name+'<', sdmItem.dist))
                         if bs not in need_symm:
                             need_symm.append(bs)
@@ -194,7 +196,7 @@ class SDM():
         """
         Packs atoms of the asymmetric unit to real molecules.
         """
-        #t1 = time.perf_counter()
+        # t1 = time.perf_counter()
         asymm = self.shx.atoms.all_atoms
         if with_qpeaks:
             showatoms = asymm[:]
@@ -219,10 +221,9 @@ class SDM():
                     else:
                         pass
                         uvals = atom.uvals
-                        #uvals = self.transform_uvalues(uvals, symm_num)
+                        # uvals = self.transform_uvalues(uvals, symm_num)
                     new_atom.set_atom_parameters(
-                        # TODO: Make proper names here:
-                        name=atom.name[:3] + ">",
+                        name=atom.name[:3] + ">>" + str(symm_num) + '_' + ascii_letters[atom.part.n],
                         sfac_num=atom.sfac_num,
                         coords=Array(atom.frac_coords) * self.shx.symmcards[symm_num].matrix
                                + Array(self.shx.symmcards[symm_num].trans) + Array([h, k, l]),
@@ -247,8 +248,8 @@ class SDM():
                         showatoms.append(new_atom)
                 # elif grow_qpeaks:
                 #    add q-peaks here
-        #t2 = time.perf_counter()
-        #print('packzeit:', t2-t1) # 0.04s
+        # t2 = time.perf_counter()
+        # print('packzeit:', t2-t1) # 0.04s
         return showatoms
 
     def transform_uvalues(self, uvals: (list, tuple), symm_num: int):
@@ -295,8 +296,8 @@ class SDM():
         Ucif = N.inversed * Ustar * N.inversed.T
         uvals = Ucif
         upper_diagonal = uvals.values[0][0], uvals.values[1][1], uvals.values[2][2], \
-                                             uvals.values[1][2], uvals.values[0][2], \
-                                                                 uvals.values[0][1]
+                         uvals.values[1][2], uvals.values[0][2], \
+                         uvals.values[0][1]
         return upper_diagonal
 
 
@@ -307,8 +308,12 @@ def ufrac_to_ucart(A, cell, uvals):
     >>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
     >>> from shelxfile.dsrmath import OrthogonalMatrix
     >>> A = OrthogonalMatrix(*cell)
-    >>> print(ufrac_to_ucart(A, cell, uvals))
-    >>> print(Ucart)
+    >>> ufrac_to_ucart(A, cell, uvals)
+    TODO: test if this is right:
+    | 0.0740  0.0310 -0.0299|
+    | 0.0302  0.0306 -0.0148|
+    |-0.0171 -0.0106  0.0346|
+    <BLANKLINE>
     """
     U11, U22, U33, U23, U13, U12 = uvals
     U21 = U12
@@ -323,8 +328,8 @@ def ufrac_to_ucart(A, cell, uvals):
     cstar = (a * b * sin(radians(gamma))) / V
     # matrix with the reciprocal lattice vectors:
     N = Matrix([[astar, 0, 0],
-                    [0, bstar, 0],
-                    [0, 0, cstar]])
+                [0, bstar, 0],
+                [0, 0, cstar]])
     # Finally transform Uij values from fractional to cartesian axis system:
     Ucart = A * N * Uij * N.T * A.T
     return Ucart
@@ -385,5 +390,5 @@ WGHT      0.0348      0.6278
     p = Path('./test.res')
     p.write_text(head)
     print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
-    #print(sdm.bondlist)
+    # print(sdm.bondlist)
     print(len(sdm.bondlist), '(170) Atome in p-31c.res, (208) in I-43d.res')

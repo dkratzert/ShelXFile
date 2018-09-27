@@ -204,7 +204,7 @@ class Command():
         self.shx = shx
         self.spline = spline
         self.residue_class = ''
-        #self.residue_number = 0
+        # self.residue_number = 0
         self.textline = ' '.join(spline)
 
     def _parse_line(self, spline, intnums=False):
@@ -427,7 +427,7 @@ class Residues():
         self.shx = shx
         self.all_residues = []
         self.residue_classes = {}  # class: numbers
-        #self.residue_numbers = {}  # number: class
+        # self.residue_numbers = {}  # number: class
 
     def append(self, resi: 'RESI') -> None:
         """
@@ -805,6 +805,7 @@ class FMAP(Command):
     >>> shx.fmap.code
     2.0
     """
+
     def __init__(self, shx, spline: list):
         super(FMAP, self).__init__(shx, spline)
         params, _ = self._parse_line(spline)
@@ -1502,16 +1503,16 @@ class SUMP(Command):
 
 
 class LATT(Command):
-    lattdict = {1: [],                # Primitive
-                2: [SymmetryElement(['0.5', '0.5', '0.5'])],   # I-centered
+    lattdict = {1: [],  # Primitive
+                2: [SymmetryElement(['0.5', '0.5', '0.5'])],  # I-centered
                 3: [SymmetryElement(['1/3', '2/3', '2/3']),  # Rhombohedral
                     SymmetryElement(['2/3', '1/3', '1/3'])],
                 4: [SymmetryElement(['0.0', '0.5', '0.5']),  # F-centered
                     SymmetryElement(['0.5', '0.0', '0.5']),
                     SymmetryElement(['0.5', '0.5', '0.0'])],
-                5: [SymmetryElement(['0.0', '0.5', '0.5'])],   # A-centered
-                6: [SymmetryElement(['0.5', '0.0', '0.5'])],   # B-centered
-                7: [SymmetryElement(['0.5', '0.5', '0.0'])]}   # C-centered
+                5: [SymmetryElement(['0.0', '0.5', '0.5'])],  # A-centered
+                6: [SymmetryElement(['0.5', '0.0', '0.5'])],  # B-centered
+                7: [SymmetryElement(['0.5', '0.5', '0.0'])]}  # C-centered
 
     def __init__(self, shx, spline: list):
         """

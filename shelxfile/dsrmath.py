@@ -9,10 +9,10 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
-from operator import sub, add
 import random
 import string
 from math import sqrt, radians, cos, sin, acos, degrees, floor, tan
+from operator import sub, add
 
 
 class Array(object):
@@ -77,7 +77,7 @@ class Array(object):
         if isinstance(other, Array):
             return Array(list(map(add, self.values, other)))
         elif type(other) == float or type(other) == int:
-            #return Array( list(map(lambda x: x - other, self.values)) )
+            # return Array( list(map(lambda x: x - other, self.values)) )
             return Array([i + other for i in self.values])
         else:
             raise TypeError('Cannot add type Array to type {}.'.format(str(type(other))))
@@ -520,9 +520,9 @@ class Matrix(object):
             raise ValueError('Inversion is only valid for 3x3 Matrix.')
         d = self.det
         m1, m2, m3, m4, m5, m6, m7, m8, m9 = flatten(self.values)
-        inv = Matrix([[(m5 * m9 - m6 * m8)/d, (m3 * m8 - m2 * m9)/d, (m2 * m6 - m3 * m5)/d],
-                        [(m6 * m7 - m4 * m9)/d, (m1 * m9 - m3 * m7)/d, (m3 * m4 - m1 * m6)/d],
-                        [(m4 * m8 - m5 * m7)/d, (m2 * m7 - m1 * m8)/d, (m1 * m5 - m2 * m4)/d]])
+        inv = Matrix([[(m5 * m9 - m6 * m8) / d, (m3 * m8 - m2 * m9) / d, (m2 * m6 - m3 * m5) / d],
+                      [(m6 * m7 - m4 * m9) / d, (m1 * m9 - m3 * m7) / d, (m3 * m4 - m1 * m6) / d],
+                      [(m4 * m8 - m5 * m7) / d, (m2 * m7 - m1 * m8) / d, (m1 * m5 - m2 * m4) / d]])
         return inv
 
     @property
@@ -605,17 +605,17 @@ class SymmetryElement(object):
         string = "|{aa:2} {ab:2} {ac:2}|   |{v:>4.2}| \n" \
                  "|{ba:2} {bb:2} {bc:2}| + |{vv:>4.2}| \n" \
                  "|{ca:2} {cb:2} {cc:2}|   |{vvv:>4.2}| \n".format(aa=self.matrix[0, 0],
-                                                ab=self.matrix[0, 1],
-                                                ac=self.matrix[0, 2],
-                                                ba=self.matrix[1, 0],
-                                                bb=self.matrix[1, 1],
-                                                bc=self.matrix[1, 2],
-                                                ca=self.matrix[2, 0],
-                                                cb=self.matrix[2, 1],
-                                                cc=self.matrix[2, 2],
-                                                v=float(self.trans[0]),
-                                                vv=float(self.trans[1]),
-                                                vvv=float(self.trans[2]))
+                                                                   ab=self.matrix[0, 1],
+                                                                   ac=self.matrix[0, 2],
+                                                                   ba=self.matrix[1, 0],
+                                                                   bb=self.matrix[1, 1],
+                                                                   bc=self.matrix[1, 2],
+                                                                   ca=self.matrix[2, 0],
+                                                                   cb=self.matrix[2, 1],
+                                                                   cc=self.matrix[2, 2],
+                                                                   v=float(self.trans[0]),
+                                                                   vv=float(self.trans[1]),
+                                                                   vvv=float(self.trans[2]))
         return string
 
     def __repr__(self):
@@ -843,6 +843,7 @@ def nalimov_test(data):
             outliers.append(num)
     return outliers
 
+
 def flatten(lis):
     """
     Given a list, possibly nested to any level, return it flattened.
@@ -858,6 +859,7 @@ def flatten(lis):
         else:
             new_lis.append(item)
     return new_lis
+
 
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     """
@@ -1144,16 +1146,16 @@ class OrthogonalMatrix():
                    2 * cos(self.alpha) * cos(self.beta) * cos(self.gamma))
         self.m = Matrix([[self.a, self.b * cos(self.gamma), self.c * cos(self.beta)],
                          [0, self.b * sin(self.gamma),
-                                (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))],
+                          (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))],
                          [0, 0, self.V / (self.a * self.b * sin(self.gamma))]])
 
         # The inverted matrix:
         self.mi = \
             Matrix([[1.0 / self.a, -1.0 / (self.a * tan(self.gamma)),
-                            (cos(self.alpha) * cos(self.gamma) - cos(self.beta)) / (self.a * phi * sin(self.gamma))],
+                     (cos(self.alpha) * cos(self.gamma) - cos(self.beta)) / (self.a * phi * sin(self.gamma))],
                     [0.0, 1 / (self.b * sin(self.gamma)), (cos(self.beta) * cos(self.gamma) - cos(self.alpha)) /
-                        self.b * phi * sin(self.gamma)],
-                    [0.0, 0.0, sin(self.gamma) / (self.c * phi) ]])
+                     self.b * phi * sin(self.gamma)],
+                    [0.0, 0.0, sin(self.gamma) / (self.c * phi)]])
 
     def __mul__(self, other: Array) -> Array:
         """
@@ -1175,6 +1177,7 @@ class OrthogonalMatrix():
     @property
     def T(self):
         return self.m.transposed
+
 
 def calc_ellipsoid_axes(coords: list, uvals: list, cell: list, probability: float = 0.5, longest: bool = True):
     """

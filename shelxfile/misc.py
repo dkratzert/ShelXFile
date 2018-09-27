@@ -69,7 +69,7 @@ try:
     width, height = get_terminal_size()  # @UnusedVariable
 except():
     width = 80
-sep_line = (width-1)*'-'
+sep_line = (width - 1) * '-'
 
 
 def remove_file(filename, exit_dsr=False):
@@ -315,6 +315,7 @@ class ResList():
     """
     Contains the lines of the res file as unordered linked list.
     """
+
     def __init__(self):
         """
         >>> res = ResList()
@@ -358,7 +359,7 @@ class ResList():
         self.head = temp
         self.size += 1
 
-    def search(self,item):
+    def search(self, item):
         current = self.head
         found = False
         while current is not None and not found:

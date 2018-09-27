@@ -17,16 +17,12 @@ The implementation is Python3-only and supports SHELXL after 2017 (You should no
 
 The parser is quiet about the most errors unless you enable DEBUG in misc.py. The parser will try to read the 
 SHELX file even if it has syntax errors, but if for example, the SFAC and UNIT instruction is not consistent 
-it will fail.
-
-All objects (SHELX cards) from the resfile are stored in the ShelxFile._reslist list. If you delete one item,
-e.g. atom C1 with del shx.atoms[shx.atoms.get_atom_by_name('C1_4').position], the atom ids change, because 
+it will fail. 
 """
 
 import os
 import re
 import sys
-from math import cos, sin
 
 from refine.shx_refine import ShelxlRefine
 from shelxfile.atoms import Atoms, Atom
@@ -35,7 +31,7 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues
-from shelxfile.dsrmath import Matrix, Array, OrthogonalMatrix
+from shelxfile.dsrmath import Array, OrthogonalMatrix
 from shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 
@@ -750,9 +746,9 @@ class ShelXFile():
                 for y in x.fvars:
                     self.fvars.set_fvar_usage(y[1])
         for r in self.restraints:
-            #if r.atoms:
-                # print(r.atoms, r.residue_number, r.residue_class)
-                #Restraints._resolve_atoms(self, r)
+            # if r.atoms:
+            # print(r.atoms, r.residue_number, r.residue_class)
+            # Restraints._resolve_atoms(self, r)
             if r.name == "DFIX" or r.name == "DANG":
                 if abs(r.d) > 4:
                     fvar, value = split_fvar_and_parameter(r.d)

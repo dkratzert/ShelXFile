@@ -347,7 +347,7 @@ def get_radius(atomic_number: int) -> float:
     Get the covalent radius in pm for the element.
 
     >>> get_radius(6)
-    0.75
+    0.77
     """
     return num2covradius[atomic_number]
 
@@ -357,7 +357,7 @@ def get_radius_from_element(element: str) -> float:
     Returns the radius of an atom by its element name.
 
     >>> get_radius_from_element('F')
-    0.71
+    0.72
     """
     return get_radius(element2num[element])
 
