@@ -404,7 +404,11 @@ def wrap_line(line: str) -> str:
     >>> wrap_line("This is a really long line with over 79 characters. Shelxl wants it to be wrapped.")
     'This is a really long line with over 79 characters. Shelxl wants it to be  =\\n   wrapped.'
     """
-    line = textwrap.wrap(line, 79, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
+    maxlen = 79
+    if len(line) < maxlen:
+        line = ''.join(line)
+        return line
+    line = textwrap.wrap(line, maxlen, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
     if len(line) > 1:
         newline = []
         for n, ln in enumerate(line):
