@@ -38,6 +38,8 @@ from shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownPa
 __version__ = 3
 """
 TODO:
+- kallall.Q, killall.C 
+- Q-peak printing is wrong: Q1    1   0.9828    1.1159    0.3148   11.00000  0.04      0.00  
 - Write out parts and afix in grow mode
 - Delete atoms (H) in AFIX -> delete entire afix group
 - Is backup file and reccovery from failed refinement working?
