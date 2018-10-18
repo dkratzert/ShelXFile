@@ -1514,6 +1514,8 @@ class LATT(Command):
                 6: [SymmetryElement(['0.5', '0.0', '0.5'])],  # B-centered
                 7: [SymmetryElement(['0.5', '0.5', '0.0'])]}  # C-centered
 
+    lattint_to_str = {1: 'P', 2: 'I', 3: 'R', 4: 'F', 5: 'A', 6: 'B', 7: 'C'}
+
     def __init__(self, shx, spline: list):
         """
         LATT N[1]
@@ -1521,7 +1523,11 @@ class LATT(Command):
         super(LATT, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
         self.centric = False
-        self.N = p[0]
+        try:
+            self.N = int(p[0])
+        except ValueError:
+            self.N = -1
+        self.N_str = self.lattint_to_str[abs(self.N)]
         if self.N > 0:  # centrosymmetric space group:
             self.centric = True
         self.lattOps = LATT.lattdict[abs(self.N)]
