@@ -109,7 +109,7 @@ class SDM():
                     dddd = 0.0
                 if sdmItem.dist < dddd:
                     if hma:
-                        self.bondlist.append((i, j, sdmItem.atom1.name, sdmItem.atom2.name, sdmItem.dist))
+                        #self.bondlist.append((i, j, sdmItem.atom1.name, sdmItem.atom2.name, sdmItem.dist))
                         sdmItem.covalent = True
                 else:
                     sdmItem.covalent = False
