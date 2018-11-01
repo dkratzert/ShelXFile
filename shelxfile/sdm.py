@@ -221,6 +221,8 @@ class SDM():
                     else:
                         pass
                         uvals = atom.uvals
+                        # TODO: Transform u values according to symmetry:
+                        # currently, the adps are directed in wrong directions after after applying symmetry to atoms.
                         # uvals = self.transform_uvalues(uvals, symm_num)
                     new_atom.set_atom_parameters(
                         name=atom.name[:3] + ">>" + str(symm_num) + '_' + ascii_letters[atom.part.n],
