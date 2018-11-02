@@ -85,7 +85,7 @@ class ShelXFile():
     _parameters_regex = re.compile(r'^REM\s+\d+\s+parameters\s+refined', re.IGNORECASE)
     _diff_peak_regex = re.compile(r'^REM\sHighest\sdifference', re.IGNORECASE)
     _goof_regex = re.compile(r'^REM\swR2\s=\s.*,\sGooF', re.IGNORECASE)
-    _spgrp_regex = re.compile(r'^REM \S+ in \S+', re.IGNORECASE)
+    _spgrp_regex = re.compile(r'^REM\s+\S+\s+in\s+\S+', re.IGNORECASE)
 
     @time_this_method
     def __init__(self: 'ShelXFile', resfile: str):
@@ -131,6 +131,7 @@ class ShelXFile():
         self.wR2 = None
         self.goof = None
         self.rgoof = None
+        self.space_group = None
         self.data = None
         self.parameters = None
         self.dat_to_param = None
