@@ -257,6 +257,8 @@ class SDM():
     def transform_uvalues(self, uvals: (list, tuple), symm_num: int):
         """
         Transforms the Uij values according to local symmetry.
+        R. W. Grosse-Kunstleve, P. D. Adams (2002). J. Appl. Cryst. 35, 477–480.
+        http://dx.doi.org/10.1107/S0021889802008580
 
         U(star) = N * U(cif) * N.T
         U(star) = R * U(star) * R^t
@@ -274,6 +276,9 @@ class SDM():
         ]
         # Shelxl uses U* with a*,b*c*-parameterization
         atomname sfac x y z sof[11] U[0.05] or U11 U22 U33 U23 U13 U12
+
+        Read:
+        X-Ray Analysis and the Structure of Organic Molecules Second Edition, Dunitz, P240
 
         """
         U11, U22, U33, U23, U13, U12 = uvals
