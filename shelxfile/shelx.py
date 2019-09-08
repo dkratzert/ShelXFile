@@ -1054,7 +1054,7 @@ class ShelXFile():
         formstring = ''
         sumdict = self.sum_formula_ex_dict()
         for el in sumdict:
-            formstring += "{}{:,g} ".format(el, round(sumdict[el], 2))
+            formstring += "{}{:,g} ".format(el.capitalize(), round(sumdict[el], 2))
         return formstring.strip()
 
     def sum_formula_ex_dict(self) -> dict:
@@ -1160,6 +1160,8 @@ if __name__ == "__main__":
         raise
     print(shx.atoms)
     print(shx.sum_formula_exact)
+    print(shx.sum_formula)
+    print(shx.sum_formula_ex_dict())
     #shx.write_shelx_file('tests/complete_run/test.ins')
     #for at in shx.grow(with_qpeaks=True):
     #    print(wrap_line(str(at)))
