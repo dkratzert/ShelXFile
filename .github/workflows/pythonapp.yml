@@ -27,4 +27,4 @@ jobs:
     - name: Test with pytest
       run: |
         pip install pytest
-        pytest --doctest-modules
+        pytest --path /home/runner/work/ShelXFile -- --doctest-modules
