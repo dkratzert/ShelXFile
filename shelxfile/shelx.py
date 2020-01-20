@@ -33,7 +33,7 @@ from shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY
     RESI, ABIN, ANIS, Residues
 from shelxfile.dsrmath import Array, OrthogonalMatrix
 from shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
-    split_fvar_and_parameter, flatten, time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
+    time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 
 __version__ = 3
 """
@@ -218,7 +218,7 @@ class ShelXFile():
                 return
         else:
             try:
-                #self.run_after_parse()
+                # self.run_after_parse()
                 pass
             except Exception as e:
                 # print('File not parsed!:', self.resfile)
@@ -406,7 +406,7 @@ class ShelXFile():
                         print("*** LATT instruction is missing! ***")
                         raise ParseSyntaxError
                 # Have to do this after parsing, because P-1 has no SYMM!
-                #if self.latt.centric:
+                # if self.latt.centric:
                 #    self.symmcards.set_centric(True)
                 self.symmcards.append(s.symmcard)
                 if s not in self._reslist:
@@ -1162,8 +1162,8 @@ if __name__ == "__main__":
     print(shx.sum_formula_exact)
     print(shx.sum_formula)
     print(shx.sum_formula_ex_dict())
-    #shx.write_shelx_file('tests/complete_run/test.ins')
-    #for at in shx.grow(with_qpeaks=True):
+    # shx.write_shelx_file('tests/complete_run/test.ins')
+    # for at in shx.grow(with_qpeaks=True):
     #    print(wrap_line(str(at)))
     sys.exit()
     from shelxfile.misc import walkdir

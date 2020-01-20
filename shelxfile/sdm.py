@@ -310,13 +310,13 @@ class SDM():
 
 def ufrac_to_ucart(A, cell, uvals):
     """
-    >>> uvals = [0.07243, 0.03058, 0.03216, -0.01057, -0.01708, 0.03014]
-    >>> Ucart = Matrix([[ 0.0754483395556807,  0.030981701122469,  -0.0194466522033868], [  0.030981701122469,  0.03058, -0.01057], [-0.0194466522033868, -0.01057, 0.03216] ])
-    >>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
-    >>> from shelxfile.dsrmath import OrthogonalMatrix
-    >>> A = OrthogonalMatrix(*cell)
-    >>> ufrac_to_ucart(A, cell, uvals)
-    TODO: test if this is right:
+    #>>> uvals = [0.07243, 0.03058, 0.03216, -0.01057, -0.01708, 0.03014]
+    #>>> Ucart = Matrix([[ 0.0754483395556807,  0.030981701122469,  -0.0194466522033868], [  0.030981701122469,  0.03058, -0.01057], [-0.0194466522033868, -0.01057, 0.03216] ])
+    #>>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
+    #>>> from shelxfile.dsrmath import OrthogonalMatrix
+    #>>> A = OrthogonalMatrix(*cell)
+    #>>> ufrac_to_ucart(A, cell, uvals)
+    #TODO: test if this is right:
     | 0.0740  0.0310 -0.0299|
     | 0.0302  0.0306 -0.0148|
     |-0.0171 -0.0106  0.0346|
