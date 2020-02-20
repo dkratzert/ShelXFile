@@ -38,6 +38,8 @@ from shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownPa
 __version__ = 3
 """
 TODO:
+- Handle BEDE & LONE plus their results
+- Rotate ellipsoids with kabsch
 - kallall.Q, killall.C 
 - Q-peak printing is wrong: Q1    1   0.9828    1.1159    0.3148   11.00000  0.04      0.00  
 - Write out parts and afix in grow mode
@@ -296,7 +298,7 @@ class ShelXFile():
                 self.afix = AFIX(self, spline)
                 self.assign_card(self.afix, line_num)
                 continue
-            elif self.is_atom(line):
+            elif self.is_atom(line) and not self.hklf.n:
                 # A SHELXL atom:
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
                 #            0.03649  -0.00522  -0.01212   0.00157 )
