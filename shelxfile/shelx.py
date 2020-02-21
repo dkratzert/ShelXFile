@@ -298,7 +298,7 @@ class ShelXFile():
                 self.afix = AFIX(self, spline)
                 self.assign_card(self.afix, line_num)
                 continue
-            elif self.is_atom(line) and not self.hklf.n:
+            elif self.is_atom(line):
                 # A SHELXL atom:
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
                 #            0.03649  -0.00522  -0.01212   0.00157 )
@@ -748,8 +748,10 @@ class ShelXFile():
             elif line[:1] == '+':
                 pass
             else:
+                if not line.strip():
+                    continue
                 if DEBUG:
-                    print(line)
+                    print("Error in line: {} -> {}".format(line_num, line))
                     raise ParseUnknownParam
 
     def add_atom(self, name: str = None, coordinates: list = None, element='C', uvals: list = None, part: int = 0,
@@ -954,11 +956,15 @@ class ShelXFile():
         """
         # no empty line, not in cards and not space at start:
         if atomline[:4].upper() not in SHX_CARDS:  # exclude all non-atom cards
+            spline = atomline.split()
             # Too few parameter for an atom:
-            if len(atomline.split()) < 5:
+            if len(spline) < 5:
                 return False
             # means sfac number is missing:
-            if '.' in atomline.split()[1]:
+            if '.' in spline[1]:
+                return False
+            # Exclude lone pairs:
+            if spline[5] == '!':
                 return False
             return True
         else:
@@ -1155,7 +1161,7 @@ class ShelXFile():
 if __name__ == "__main__":
     # get_commands()
     # sys.exit()
-    file = r'tests/P21c.res'
+    file = r'C:\frames\guest\DK_ML7-66\work\p-1_a_a.res'
     try:
         shx = ShelXFile(file)
     except Exception:
