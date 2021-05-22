@@ -564,7 +564,7 @@ class Matrix(object):
 class SymmetryElement(object):
     """
     Class representing a symmetry operation.
-    >>> from shelxfile.shelx import ShelXFile
+    >>> from src.shelxfile import ShelXFile
     >>> shx = ShelXFile('./tests/p21c.res')
     >>> shx.symmcards[-1]  # __repr__()
     -X, -Y, -Z
@@ -933,9 +933,6 @@ def subtract_vect(a, b):
     Deprecated, use mpmath instead!!!
     :param a: [float, float, float]
     :param b: [float, float, float]
-
-    >>> subtract_vect([1, 2, 3], [3, 2, 2])
-    (-2, 0, 1)
     """
     return (a[0] - b[0],
             a[1] - b[1],
@@ -949,18 +946,6 @@ def dice_coefficient(a, b, case_insens=True):
     :type case_insens: bool
     dice coefficient 2nt/na + nb.
     https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Dice%27s_coefficient#Python
-    >>> dice_coefficient('hallo', 'holla')
-    0.25
-    >>> dice_coefficient('Banze', 'Benzene')
-    0.444444
-    >>> dice_coefficient('halo', 'Haaallo')
-    0.75
-    >>> dice_coefficient('hallo', 'Haaallo')
-    0.888889
-    >>> dice_coefficient('hallo', 'Hallo')
-    1.0
-    >>> dice_coefficient('aaa', 'BBBBB')
-    0.0
     """
     if case_insens:
         a = a.lower()
@@ -995,20 +980,6 @@ def dice_coefficient2(a, b, case_insens=True):
     https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Dice%27s_coefficient#Python
 
     This implementation is reverse. 1 means not hit, 0 means best match
-    >>> dice_coefficient2('hallo', 'holla')
-    0.75
-    >>> dice_coefficient2('Banze', 'Benzene')
-    0.6
-    >>> dice_coefficient2('halo', 'Haaallo')
-    0.333333
-    >>> dice_coefficient2('hallo', 'Haaallo')
-    0.2
-    >>> dice_coefficient2('hallo', 'Hallo')
-    0.0
-    >>> dice_coefficient2('aaa', 'BBBBB')
-    1.0
-    >>> dice_coefficient2('', '')
-    1.0
     """
     if case_insens:
         a = a.lower()
@@ -1045,35 +1016,9 @@ def dice_coefficient2(a, b, case_insens=True):
     return round(score, 6)
 
 
-def fft(x):
-    """
-    fft implementation from rosettacode.
-    The purpose of this task is to calculate the FFT (Fast Fourier Transform) of an input sequence.
-    The most general case allows for complex numbers at the input and results in a sequence of
-    equal length, again of complex numbers. If you need to restrict yourself to real numbers,
-    the output should be the magnitude (i.e. sqrt(re²+im²)) of the complex result.
-    :param x:
-    :type x:
-
-    >>> print( ' '.join("%5.3f" % abs(f) for f in fft([1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0])) )
-    4.000 2.613 0.000 1.082 0.000 1.082 0.000 2.613
-    """
-    from cmath import exp, pi
-    N = len(x)
-    if N <= 1: return x
-    even = fft(x[0::2])
-    odd = fft(x[1::2])
-    T = [exp(-2j * pi * k / N) * odd[k] for k in range(int(N / 2))]
-    return [even[k] + T[k] for k in range(int(N / 2))] + \
-           [even[k] - T[k] for k in range(int(N / 2))]
-
-
 def levenshtein(s1, s2):
     """
-    >>> levenshtein('hallo', 'holla')
-    2
-    >>> dice_coefficient('hallo', 'holla')
-    0.25
+    The levensteins distance of two strings.
     """
     s1 = s1.lower()
     s2 = s2.lower()
@@ -1097,10 +1042,6 @@ def levenshtein(s1, s2):
 def distance(x1, y1, z1, x2, y2, z2, round_out=False):
     """
     distance between two points in space for orthogonal axes.
-    >>> distance(1, 1, 1, 2, 2, 2, 4)
-    1.7321
-    >>> distance(1, 0, 0, 2, 0, 0, 4)
-    1.0
     """
     import math as m
     d = m.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2)
@@ -1113,9 +1054,6 @@ def distance(x1, y1, z1, x2, y2, z2, round_out=False):
 def vol_unitcell(a, b, c, al, be, ga):
     """
     calculates the volume of a unit cell
-    >>> v = vol_unitcell(2, 2, 2, 90, 90, 90)
-    >>> print(v)
-    8.0
     """
     ca, cb, cg = cos(radians(al)), cos(radians(be)), cos(radians(ga))
     v = a * b * c * sqrt(1 + 2 * ca * cb * cg - ca ** 2 - cb ** 2 - cg ** 2)

@@ -1,8 +1,9 @@
 import re
 from math import cos, radians, sqrt
+from typing import List
 
-from shelxfile.dsrmath import my_isnumeric, SymmetryElement
-from shelxfile.misc import chunks, ParseParamError, ParseNumError, \
+from src.shelxfile.dsrmath import my_isnumeric, SymmetryElement
+from src.shelxfile.misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, DEBUG, ParseSyntaxError
 
 """
@@ -175,11 +176,10 @@ class Restraint:
     def _paircheck(self):
         if not self.atoms:
             return
-        if len(self.atoms[-1]) != 2:
-            if DEBUG:
-                print('*** Wrong number of numerical parameters ***')
-                print('Instruction: {}'.format(self.textline))
-                raise ParseNumError
+        if len(self.atoms[-1]) != 2 and DEBUG:
+            print('*** Wrong number of numerical parameters ***')
+            print('Instruction: {}'.format(self.textline))
+            raise ParseNumError
 
     def __iter__(self):
         for x in self.textline.split():
@@ -350,7 +350,7 @@ class CELL(Command):
         """
         calculates the volume of a unit cell
 
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> round(shx.cell.volume, 4)
         4493.0474
@@ -800,7 +800,7 @@ class FREE(Command):
 class FMAP(Command):
     """
     FMAP code[2] axis[#] nl[53]
-    >>> from shelxfile.shelx import ShelXFile
+    >>> from src.shelxfile import ShelXFile
     >>> shx = ShelXFile('./tests/p21c.res')
     >>> shx.fmap.code
     2.0
@@ -885,8 +885,8 @@ class GRID(Command):
 
 class ACTA(Command):
     """
-    >>> from shelxfile.shelx import ShelXFile
-    >>> from refine import ShelxlRefine
+    >>> from src.shelxfile import ShelXFile
+    >>> from src.shelxfile.refine import ShelxlRefine
     >>> shx = ShelXFile('./tests/p21c.res')
     >>> ref = ShelxlRefine(shx, './tests/p21c.res')
     >>> shx._reslist[12]
@@ -1658,7 +1658,7 @@ class LSCycles(Command):
     def set_refine_cycles(self, number: int):
         """
         Sets the number of refinement cycles for the current res file.
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.cycles.set_refine_cycles(44)
         >>> shx._reslist[shx.cycles.index]
@@ -1735,7 +1735,7 @@ class SFACTable():
     def parse_element_line(self, spline: list):
         """
         Adds a new SFAC card to the list of cards.
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.sfac_table
         SFAC C  H  O  F  Al  Ga
@@ -1897,7 +1897,7 @@ class WGHT(Command):
             wght += ' {} {} {} {}'.format(self.c, self.d, self.e, self.f)
         return wght
 
-    def difference(self) -> list:
+    def difference(self) -> List[float]:
         """
         Returns a list with the weight differences of the parameters a and b. 
         """

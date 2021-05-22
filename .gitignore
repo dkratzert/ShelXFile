@@ -111,9 +111,9 @@ venv.bak/
 .idea/vcs.xml
 
 test.ins
-tests/shxsaves/
+src/tests/shxsaves/
 *.shx-bak
-tests/p21c.ins
-tests/p21c.lst
+src/tests/p21c.ins
+src/tests/p21c.lst
 *.fcf
-tests/p21c.cif
+src/tests/p21c.cif

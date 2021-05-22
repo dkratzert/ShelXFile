@@ -14,10 +14,10 @@ from math import sqrt, radians, sin
 from pathlib import Path
 from string import ascii_letters
 
-from shelxfile.atoms import Atom
-from shelxfile.cards import AFIX, RESI
-from shelxfile.dsrmath import Array, Matrix, vol_unitcell
-from shelxfile.misc import DEBUG, wrap_line
+from src.shelxfile.atoms import Atom
+from src.shelxfile.cards import AFIX, RESI
+from src.shelxfile.dsrmath import Array, Matrix, vol_unitcell
+from src.shelxfile.misc import DEBUG, wrap_line
 
 
 class SDMItem(object):
@@ -52,7 +52,7 @@ class SDM():
     This class calculates the shortest distance matrix and creates a completed (grown) structure by crystal symmetry.
     """
 
-    def __init__(self, shx: 'ShelXFile'):
+    def __init__(self, shx: 'Shelxfile'):
         self.shx = shx
         self.aga = self.shx.cell.a * self.shx.cell.b * self.shx.cell.cosga
         self.bbe = self.shx.cell.a * self.shx.cell.c * self.shx.cell.cosbe
@@ -343,9 +343,9 @@ def ufrac_to_ucart(A, cell, uvals):
 
 
 if __name__ == "__main__":
-    from shelxfile.shelx import ShelXFile
+    from src.shelxfile.shelx import Shelxfile
 
-    shx = ShelXFile('tests/p-31c.res')
+    shx = Shelxfile('tests/p-31c.res')
     sdm = SDM(shx)
     needsymm = sdm.calc_sdm()
     packed_atoms = sdm.packer(sdm, needsymm)

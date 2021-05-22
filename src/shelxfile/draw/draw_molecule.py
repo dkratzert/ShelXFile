@@ -1,6 +1,6 @@
 from __future__ import division
-from shelxfile.atoms import Atoms
-from shelxfile.shelx import ShelXFile
+from src.shelxfile.atoms import Atoms
+from src.shelxfile.shelx import Shelxfile
 import sys
 import time
 from math import sin, cos, pi, sqrt
@@ -182,7 +182,7 @@ class Screen(list):
 
 if __name__ == "__main__":
     #filename = sys.argv[1]
-    shx = ShelXFile('./tests/p21c.res')
+    shx = Shelxfile('./tests/p21c.res')
     try:
         width = sys.argv[2]
         height = sys.argv[3]

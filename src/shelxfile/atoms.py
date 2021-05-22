@@ -1,9 +1,10 @@
 from math import acos, sqrt, degrees
+from typing import Union, List
 
-from shelxfile import elements
-from shelxfile.cards import AFIX, PART, RESI
-from shelxfile.dsrmath import atomic_distance, frac_to_cart, Array
-from shelxfile.misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
+from src.shelxfile import elements
+from src.shelxfile.cards import AFIX, PART, RESI
+from src.shelxfile.dsrmath import atomic_distance, frac_to_cart, Array
+from src.shelxfile.misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
 
 """
 TODO:
@@ -18,7 +19,7 @@ class Atoms():
 
     def __init__(self, shx):
         self.shx = shx
-        self.all_atoms = []
+        self.all_atoms: List[Atom] = []
 
     def append(self, atom: 'Atom') -> None:
         """
@@ -30,7 +31,7 @@ class Atoms():
     def nameslist(self):
         return [at.fullname.upper() for at in self.all_atoms]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.all_atoms:
             return '\n'.join([str(x) for x in self.all_atoms])
         else:
@@ -67,14 +68,10 @@ class Atoms():
     def number(self) -> int:
         """
         The number of atoms in the current SHELX file.
-        >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXFile('./tests/p21c.res')
-        >>> shx.atoms.number
-        148
         """
         return len(self.all_atoms)
 
-    def get_atom_by_id(self, aid: int) -> 'Atom':
+    def get_atom_by_id(self, aid: int) -> Union['Atom', None]:
         """
         Returns the atom objext with atomId id.
         """
@@ -85,15 +82,6 @@ class Atoms():
     def has_atom(self, atom_name: str) -> bool:
         """
         Returns true if shelx file has atom.
-
-        >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXFile('./tests/p21c.res')
-        >>> shx.atoms.has_atom('Al1')
-        True
-        >>> shx.atoms.has_atom('Al1_0')
-        True
-        >>> shx.atoms.has_atom('Al2_0')
-        False
         """
         if '_' not in atom_name:
             atom_name += '_0'
@@ -102,14 +90,10 @@ class Atoms():
         else:
             return False
 
-    def get_atom_by_name(self, atom_name: str) -> 'Atom' or None:
+    def get_atom_by_name(self, atom_name: str) -> Union['Atom', None]:
         """
         Returns an Atom object using an atom name with residue number like C1, C1_0, F2_4, etc.
         C1 means atom C1 in residue 0.
-        >>> from shelxfile.shelx import ShelXFile
-        >>> shx = ShelXFile('./tests/p21c.res')
-        >>> shx.atoms.get_atom_by_name('Al1')
-        Atom ID: 73
         """
         if '_' not in atom_name:
             if atom_name == ">" or atom_name == "<":
@@ -144,7 +128,7 @@ class Atoms():
     def get_all_atomcoordinates(self) -> dict:
         """
         Returns a dictionary {'C1': ['1.123', '0.7456', '3.245'], 'C2_2': ...}
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.get_all_atomcoordinates() # doctest: +ELLIPSIS
         {'O1_4': (0.074835, 0.238436, 0.402457), 'C1_4': (0.028576, 0.234542, 0.337234), 'C2_4': ...}
@@ -173,7 +157,7 @@ class Atoms():
     def residues(self) -> list:
         """
         Returns a list of the residue numbers in the shelx file.
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.residues
         [0, 1, 2, 3, 4]
@@ -184,7 +168,7 @@ class Atoms():
     def q_peaks(self) -> list:
         r"""
         Returns a list of q-peaks in the file.
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.q_peaks[:5] # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
         [Atom ID: 328, Atom ID: 329, Atom ID: 330, Atom ID: 331, Atom ID: 332]
@@ -194,7 +178,7 @@ class Atoms():
     def distance(self, atom1: str, atom2: str) -> float:
         """
         Calculates the (shortest) distance of two atoms given as text names e.g. C1_3.
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> round(shx.atoms.distance('F1_2', 'F2_2'), 6)
         2.154399
@@ -212,7 +196,7 @@ class Atoms():
         """
         Calculates the angle between three atoms.
 
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> at1 = shx.atoms.get_atom_by_name('O1_4')
         >>> at2 = shx.atoms.get_atom_by_name('C1_4')
@@ -237,7 +221,7 @@ class Atoms():
         By convention w is positive if the sense of rotation from BA to
         CD, viewed down BC, is clockwise, otherwise it is negative.
 
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> at1 = shx.atoms.get_atom_by_name('O1')
         >>> at2 = shx.atoms.get_atom_by_name('C1')
@@ -272,7 +256,7 @@ class Atoms():
     def atoms_in_class(self, name: str) -> list:
         """
         Returns a list of atoms in residue class 'name'
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> shx.atoms.atoms_in_class('CCF3')
         ['O1', 'C1', 'C2', 'F1', 'F2', 'F3', 'C3', 'F4', 'F5', 'F6', 'C4', 'F7', 'F8', 'F9']
@@ -494,7 +478,7 @@ class Atom():
     @property
     def element(self) -> str:
         """
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('tests/p21c.res')
         >>> at = shx.atoms.get_atom_by_name('C1_4')
         >>> at.sfac_num
@@ -532,7 +516,7 @@ class Atom():
             yield x
 
     def __repr__(self) -> str:
-        return 'Atom ID: ' + str(self.atomid)
+        return 'Atom ID: {}'.format(self.atomid)
 
     def __str__(self) -> str:
         """
@@ -595,7 +579,7 @@ class Atom():
 
     def delete(self):
         """
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> at = shx.atoms.get_atom_by_id(40)
         >>> shx.atoms.all_atoms[:3]
@@ -630,7 +614,7 @@ class Atom():
     def find_atoms_around(self, dist=1.2, only_part=0) -> list:
         """
         Finds atoms around the current atom.
-        >>> from shelxfile.shelx import ShelXFile
+        >>> from src.shelxfile import ShelXFile
         >>> shx = ShelXFile('./tests/p21c.res')
         >>> at = shx.atoms.get_atom_by_name('C1_4')
         >>> at.find_atoms_around(dist=2, only_part=2)

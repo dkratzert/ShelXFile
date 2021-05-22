@@ -17,10 +17,11 @@ import subprocess
 import sys
 from shutil import which, disk_usage, copyfile
 
-from shelxfile.cards import ACTA
-from shelxfile.misc import remove_file, sep_line, find_line
+from src.shelxfile.cards import ACTA
 
 __metaclass__ = type  # use new-style classes
+
+from src.shelxfile.misc import remove_file, sep_line, find_line
 
 
 def get_xl_version_string(exe: str) -> str:
@@ -123,7 +124,6 @@ class ShelxlRefine():
         acta = ACTA(self.shx, self._acta_card.split())
         self.shx._reslist.insert(self.shx.unit.index + 1, ' ')
         self.shx.acta = self.shx.assign_card(acta, self.shx.unit.index + 1)
-        pass
 
     def backup_shx_file(self):
         """
@@ -172,9 +172,6 @@ class ShelxlRefine():
         """
         selectively prints the output from shelx
         """
-        wr2 = False
-        r1 = False
-        gof = False
         for out in output:
             if out.startswith(' +  Copyright(C)'):
                 print(' SHELXL {}'.format(' '.join(out.split()[6:8])))
