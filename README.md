@@ -181,7 +181,10 @@ len(p)
 >>> at4 = shx.atoms.get_atom_by_name('F1')
 >>> shx.atoms.torsion_angle(at1, at2, at3, at4)
 74.095731
+
 ```
+
+and many more...
 
 ## References
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.

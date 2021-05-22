@@ -298,7 +298,7 @@ class Atom():
 
     @property
     def chain_id(self) -> str:
-        return self.resi.chainID
+        return self.resi.chain_id
 
     @property
     def fvar(self) -> int:

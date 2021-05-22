@@ -349,11 +349,6 @@ class CELL(Command):
     def volume(self) -> float:
         """
         calculates the volume of a unit cell
-
-        >>> from src.shelxfile import ShelXFile
-        >>> shx = ShelXFile('./tests/p21c.res')
-        >>> round(shx.cell.volume, 4)
-        4493.0474
         """
         try:
             ca, cb, cg = cos(radians(self.al)), cos(radians(self.be)), cos(radians(self.ga))
@@ -463,12 +458,11 @@ class RESI():
         self.residue_class = ''
         self.residue_number = 0
         self.alias = None
-        self.chainID = None
+        self.chain_id = None
         self.textline = ' '.join(spline)
-        if len(spline) < 2:
-            if DEBUG:
-                print('*** Wrong RESI definition found! Check your RESI instructions ***')
-                raise ParseParamError
+        if len(spline) < 2 and DEBUG:
+            print('*** Wrong RESI definition found! Check your RESI instructions ***')
+            raise ParseParamError
         self.get_resi_definition(spline)
         if self.residue_number < -999 or self.residue_number > 9999:
             print('*** Invalid residue number given. ****')
@@ -485,27 +479,12 @@ class RESI():
         They must however contain at least one letter
 
         Allowed residue numbers is now from -999 to 9999 (2017/1)
-        >>> r = RESI(None, 'RESI 1 TOL'.split())
-        >>> r.residue_class, r.residue_number, r.chainID, r.alias
-        ('TOL', 1, None, None)
-        >>> r = RESI(None, 'RESI TOL 1'.split())
-        >>> r.residue_class, r.residue_number, r.chainID, r.alias
-        ('TOL', 1, None, None)
-        >>> r = RESI(None, 'RESI A:100 TOL'.split())
-        >>> r.residue_class, r.residue_number, r.chainID, r.alias
-        ('TOL', 100, 'A', None)
-        >>> r = RESI(None, 'RESI -10 TOL'.split())
-        >>> r.residue_class, r.residue_number, r.chainID, r.alias
-        ('TOL', -10, None, None)
-        >>> r = RESI(None, 'RESI b:-10 TOL'.split())
-        >>> r.residue_class, r.residue_number, r.chainID, r.alias
-        ('TOL', -10, 'b', None)
         """
         for x in resi:
             if re.search('[a-zA-Z]', x):
                 if ':' in x:
                     # contains ":" thus must be a chain-id+number
-                    self.chainID, self.residue_number = x.split(':')[0], int(x.split(':')[1])
+                    self.chain_id, self.residue_number = x.split(':')[0], int(x.split(':')[1])
                 else:
                     # contains letters, must be a name (class)
                     self.residue_class = x
@@ -518,7 +497,7 @@ class RESI():
                         self.residue_number = int(x)
                     except ValueError:
                         self.residue_number = 0
-        return self.residue_class, self.residue_number, self.chainID, self.alias
+        return self.residue_class, self.residue_number, self.chain_id, self.alias
 
     def _parse_line(self, spline, intnums=False):
         """
