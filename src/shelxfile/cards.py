@@ -779,10 +779,6 @@ class FREE(Command):
 class FMAP(Command):
     """
     FMAP code[2] axis[#] nl[53]
-    >>> from src.shelxfile import ShelXFile
-    >>> shx = ShelXFile('./tests/p21c.res')
-    >>> shx.fmap.code
-    2.0
     """
 
     def __init__(self, shx, spline: list):
@@ -863,24 +859,6 @@ class GRID(Command):
 
 
 class ACTA(Command):
-    """
-    >>> from src.shelxfile import ShelXFile
-    >>> from src.shelxfile.refine import ShelxlRefine
-    >>> shx = ShelXFile('./tests/p21c.res')
-    >>> ref = ShelxlRefine(shx, './tests/p21c.res')
-    >>> shx._reslist[12]
-    ACTA 45
-    >>> shx.acta
-    ACTA 45
-    >>> ref.remove_acta_card(shx.acta)
-    >>> shx._reslist[12]
-    SIZE 0.12 0.23 0.33
-    >>> ref.restore_acta_card()
-    >>> shx.index_of(shx.acta)
-    8
-    >>> shx._reslist[7:10]
-    [UNIT 1  2  3  4  5  6, ACTA 45, 'LIST 4 ! automatically inserted. Change 6 to 4 for CHECKCIF!!']
-    """
 
     def __init__(self, shx, spline: list):
         """
@@ -1637,11 +1615,6 @@ class LSCycles(Command):
     def set_refine_cycles(self, number: int):
         """
         Sets the number of refinement cycles for the current res file.
-        >>> from src.shelxfile import ShelXFile
-        >>> shx = ShelXFile('./tests/p21c.res')
-        >>> shx.cycles.set_refine_cycles(44)
-        >>> shx._reslist[shx.cycles.index]
-        L.S. 44
         """
         self.cycles = number
 
@@ -1714,17 +1687,6 @@ class SFACTable():
     def parse_element_line(self, spline: list):
         """
         Adds a new SFAC card to the list of cards.
-        >>> from src.shelxfile import ShelXFile
-        >>> shx = ShelXFile('./tests/p21c.res')
-        >>> shx.sfac_table
-        SFAC C  H  O  F  Al  Ga
-        >>> shx.unit
-        UNIT 1  2  3  4  5  6
-        >>> shx.sfac_table.add_element('Au')
-        >>> shx.sfac_table
-        SFAC C  H  O  F  Al  Ga  Au
-        >>> shx.unit
-        UNIT 1  2  3  4  5  6  1
         """
         if not ''.join(spline[1:]).isalpha():  # joining, because space is not alphabetical
             # Excplicit with all values
