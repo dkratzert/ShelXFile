@@ -202,10 +202,10 @@ class Command():
 
     def __init__(self, shx, spline: list):
         self.shx = shx
-        self.spline = spline
+        self._spline = spline
         self.residue_class = ''
         # self.residue_number = 0
-        self.textline = ' '.join(spline)
+        self._textline = ' '.join(spline)
 
     def _parse_line(self, spline, intnums=False):
         """
@@ -214,9 +214,9 @@ class Command():
         :return: numerical parameters and words
         """
         if '_' in spline[0]:
-            self.card_name, suffix = spline[0].upper().split('_')
+            self._card_name, suffix = spline[0].upper().split('_')
         else:
-            self.card_name = spline[0].upper()
+            self._card_name = spline[0].upper()
         numparams = []
         words = []
         for x in spline[1:]:  # all values after SHELX card
@@ -231,8 +231,8 @@ class Command():
 
     @property
     def residue_number(self):
-        if '_' in self.spline[0]:
-            _, suffix = self.spline[0].upper().split('_')
+        if '_' in self._spline[0]:
+            _, suffix = self._spline[0].upper().split('_')
             if any([x.isalpha() for x in suffix]):
                 self.residue_class = suffix
             else:
@@ -252,13 +252,13 @@ class Command():
             yield x
 
     def split(self):
-        return self.textline.split()
+        return self._textline.split()
 
     def __str__(self):
-        return self.textline
+        return self._textline
 
     def __repr__(self):
-        return self.textline
+        return self._textline
 
 
 class ABIN(Command):

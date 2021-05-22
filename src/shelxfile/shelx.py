@@ -817,7 +817,7 @@ class Shelxfile():
         self.__init__(self.resfile.resolve())
 
     def refine(self, cycles: int = 0) -> bool:
-        cycl = self.cycles.cycles.textline[:]
+        cycl = self.cycles.cycles._textline[:]
         filen, _ = os.path.splitext(self.resfile)
         self.write_shelx_file(filen + '.ins')
         # shutil.copyfile(filen+'.res', filen+'.ins')
