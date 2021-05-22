@@ -13,9 +13,7 @@ Not every part of Shelxfile is complete, for example it will not recognize if yo
 Examples:
 
 
-
-
-```
+```python
 >>> from src.shelxfile.shelx import Shelxfile
 >>> shx = Shelxfile('src/tests/resources/p21c.res')
 >>> shx.cell
