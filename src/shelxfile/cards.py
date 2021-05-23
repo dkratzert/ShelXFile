@@ -975,10 +975,8 @@ class FVARs():
         fvarnum = abs(fvarnum)
         if len(self.fvars) >= abs(fvarnum):
             self.fvars[fvarnum - 1].usage += times
-        elif fvarnum > 1:
-            if DEBUG:
-                print('*** Free variable {} is not defined but used! ***'.format(fvarnum))
-            # raise Exception
+        elif fvarnum > 1 and DEBUG:
+            print('*** Free variable {} is not defined but used! ***'.format(fvarnum))
 
     def get_fvar_usage(self, fvarnum):
         """

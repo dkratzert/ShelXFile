@@ -564,19 +564,6 @@ class Matrix(object):
 class SymmetryElement(object):
     """
     Class representing a symmetry operation.
-    >>> from src.shelxfile import ShelXFile
-    >>> shx = ShelXFile('./tests/p21c.res')
-    >>> shx.symmcards[-1]  # __repr__()
-    -X, -Y, -Z
-    >>> print(shx.symmcards[1])  # __str__()
-    |-1  0  0|   | 0.0| 
-    | 0  1  0| + | 0.5| 
-    | 0  0 -1|   | 0.5| 
-    <BLANKLINE>
-    >>> shx.symmcards[0] == shx.symmcards[1]
-    False
-    >>> shx.symmcards[1] == shx.symmcards[1]
-    True
     """
     symm_ID = 1
     __slots__ = ['centric', 'symms', 'ID', 'matrix', 'trans']
@@ -602,9 +589,9 @@ class SymmetryElement(object):
             self.trans *= -1
 
     def __str__(self):
-        string = "|{aa:2} {ab:2} {ac:2}|   |{v:>4.2}| \n" \
-                 "|{ba:2} {bb:2} {bc:2}| + |{vv:>4.2}| \n" \
-                 "|{ca:2} {cb:2} {cc:2}|   |{vvv:>4.2}| \n".format(aa=self.matrix[0, 0],
+        string = "|{aa:2} {ab:2} {ac:2}|   |{v:>4.2}|\n" \
+                 "|{ba:2} {bb:2} {bc:2}| + |{vv:>4.2}|\n" \
+                 "|{ca:2} {cb:2} {cc:2}|   |{vvv:>4.2}|\n".format(aa=self.matrix[0, 0],
                                                                    ab=self.matrix[0, 1],
                                                                    ac=self.matrix[0, 2],
                                                                    ba=self.matrix[1, 0],
@@ -619,7 +606,7 @@ class SymmetryElement(object):
         return string
 
     def __repr__(self):
-        return self.toShelxl()
+        return self.to_shelxl()
 
     def __eq__(self, other):
         """
@@ -627,18 +614,6 @@ class SymmetryElement(object):
         Note that differences in lattice translation are ignored.
         :param other: SymmetryElement instance
         :return: True/False
-        >>> s1 = SymmetryElement(['0.5', '0.5', '0.5'])
-        >>> s2 = SymmetryElement(['0.5', '0.5', '0.5'])
-        >>> s1 == s2
-        True
-        >>> s1 = SymmetryElement(['1.5', '1.5', '1.5'])
-        >>> s2 = SymmetryElement(['0.5', '0.5', '0.5'])
-        >>> s1 == s2
-        True
-        >>> s3 = SymmetryElement(['1', '0.5', '0.5'])
-        >>> s4 = SymmetryElement(['0.5', '0.5', '0.5'])
-        >>> s3 == s4
-        False
         """
         m = (self.matrix == other.matrix)
         t1 = Array([v % 1 for v in self.trans])
@@ -664,14 +639,14 @@ class SymmetryElement(object):
         :return: SymmetryElement.
         """
         # newSymm = deepcopy(self)
-        newSymm = SymmetryElement(self.toShelxl().split(','))
+        newSymm = SymmetryElement(self.to_shelxl().split(','))
         newSymm.trans = Array([(self.trans[0] + lattSymm.trans[0]) / 1,
                                (self.trans[1] + lattSymm.trans[1]) / 1,
                                (self.trans[2] + lattSymm.trans[2]) / 1])
         newSymm.centric = self.centric
         return newSymm
 
-    def toShelxl(self):
+    def to_shelxl(self):
         """
         Generate and return string representation of Symmetry Operation in Shelxl syntax.
         :return: string.

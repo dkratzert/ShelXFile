@@ -1,7 +1,8 @@
 from unittest import TestCase
 
 from src.shelxfile.dsrmath import vol_unitcell, distance, dice_coefficient, levenshtein, dice_coefficient2, \
-    subtract_vect
+    subtract_vect, SymmetryElement
+from src.shelxfile.shelx import Shelxfile
 
 
 class Testdsrmath(TestCase):
@@ -48,3 +49,42 @@ class Testdsrmath(TestCase):
 
     def test_subtract_vect(self):
         self.assertEqual((-2, 0, 1), subtract_vect([1, 2, 3], [3, 2, 2]))
+
+
+class TestSymmetryElement(TestCase):
+    def setUp(self) -> None:
+        self.shx = Shelxfile('resources/p21c.res')
+
+    def test_to_shelxl(self):
+        self.assertEqual('[+X, +Y, +Z, -X, 0.5+Y, 0.5-Z, +X, -0.5-Y, -0.5+Z, -X, -Y, -Z]',
+                         self.shx.symmcards._symmcards.__repr__())
+
+    def test_repr(self):
+        self.assertEqual(SymmetryElement(['-X', '-Y', '-Z']), self.shx.symmcards[3])
+
+    def test_string(self):
+        self.assertEqual("|-1  0  0|   | 0.0|\n"
+                         "| 0  1  0| + | 0.5|\n"
+                         "| 0  0 -1|   | 0.5|\n", self.shx.symmcards[1].__str__())
+
+    def test_equals_false(self):
+        self.assertEqual(False, self.shx.symmcards[0] == self.shx.symmcards[1])
+
+    def test_equals_True(self):
+        self.assertEqual(True, self.shx.symmcards[1] == self.shx.symmcards[1])
+
+
+    def test_s12_equals(self):
+        s1 = SymmetryElement(['0.5', '0.5', '0.5'])
+        s2 = SymmetryElement(['0.5', '0.5', '0.5'])
+        self.assertEqual(True, s1 == s2)
+
+    def test_s12_equals2(self):
+        s1 = SymmetryElement(['1.5', '1.5', '1.5'])
+        s2 = SymmetryElement(['0.5', '0.5', '0.5'])
+        self.assertEqual(True, s1 == s2)
+
+    def test_s34_not_equals(self):
+        s3 = SymmetryElement(['1', '0.5', '0.5'])
+        s4 = SymmetryElement(['0.5', '0.5', '0.5'])
+        self.assertEqual(False, s3 == s4)
