@@ -1546,13 +1546,13 @@ class SymmCards():
         new_symm = SymmetryElement(symm_data)
         self._symmcards.append(new_symm)
         for symm in self.shx.latt.lattOps:
-            latt_symm = new_symm.applyLattSymm(symm)
+            latt_symm = new_symm.apply_latt_symm(symm)
             if not latt_symm in self._symmcards:
                 self._symmcards.append(latt_symm)
         if self.shx.latt.centric:
             self._symmcards.append(SymmetryElement(symm_data, centric=True))
             for symm in self.shx.latt.lattOps:
-                latt_symm = new_symm.applyLattSymm(symm)
+                latt_symm = new_symm.apply_latt_symm(symm)
                 latt_symm.centric = True
                 self._symmcards.append(latt_symm)
 

@@ -632,17 +632,16 @@ class SymmetryElement(object):
             return 999.
         return self.trans - other.trans
 
-    def applyLattSymm(self, lattSymm):
+    def apply_latt_symm(self, latt_symm):
         """
         Copies SymmetryElement instance and returns the copy after applying the translational part of 'lattSymm'.
-        :param lattSymm: SymmetryElement.
+        :param latt_symm: SymmetryElement.
         :return: SymmetryElement.
         """
-        # newSymm = deepcopy(self)
         newSymm = SymmetryElement(self.to_shelxl().split(','))
-        newSymm.trans = Array([(self.trans[0] + lattSymm.trans[0]) / 1,
-                               (self.trans[1] + lattSymm.trans[1]) / 1,
-                               (self.trans[2] + lattSymm.trans[2]) / 1])
+        newSymm.trans = Array([(self.trans[0] + latt_symm.trans[0]) / 1,
+                               (self.trans[1] + latt_symm.trans[1]) / 1,
+                               (self.trans[2] + latt_symm.trans[2]) / 1])
         newSymm.centric = self.centric
         return newSymm
 
