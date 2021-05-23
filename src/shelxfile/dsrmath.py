@@ -529,10 +529,6 @@ class Matrix(object):
     def det(self):
         """
         Return determinant of 3x3 matrix.
-
-        >>> m1 = Matrix([[2, 0, 0], [0, 2, 0], [0, 0, 2]])
-        >>> m1.det
-        8
         """
         a = self.values
         return (a[0][0] * (a[1][1] * a[2][2] - a[2][1] * a[1][2])
@@ -565,7 +561,7 @@ class SymmetryElement(object):
     """
     Class representing a symmetry operation.
     """
-    symm_ID = 1
+    symm_id = 1
     __slots__ = ['centric', 'symms', 'ID', 'matrix', 'trans']
 
     def __init__(self, symms, centric=False):
@@ -574,8 +570,8 @@ class SymmetryElement(object):
         """
         self.centric = centric
         self.symms = symms
-        self.ID = SymmetryElement.symm_ID
-        SymmetryElement.symm_ID += 1
+        self.ID = SymmetryElement.symm_id
+        SymmetryElement.symm_id += 1
         lines = []
         trans = []
         for symm in self.symms:

@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from src.shelxfile.dsrmath import vol_unitcell, distance, dice_coefficient, levenshtein, dice_coefficient2, \
-    subtract_vect, SymmetryElement
+    subtract_vect, SymmetryElement, Matrix
 from src.shelxfile.shelx import Shelxfile
 
 
@@ -73,7 +73,6 @@ class TestSymmetryElement(TestCase):
     def test_equals_True(self):
         self.assertEqual(True, self.shx.symmcards[1] == self.shx.symmcards[1])
 
-
     def test_s12_equals(self):
         s1 = SymmetryElement(['0.5', '0.5', '0.5'])
         s2 = SymmetryElement(['0.5', '0.5', '0.5'])
@@ -88,3 +87,9 @@ class TestSymmetryElement(TestCase):
         s3 = SymmetryElement(['1', '0.5', '0.5'])
         s4 = SymmetryElement(['0.5', '0.5', '0.5'])
         self.assertEqual(False, s3 == s4)
+
+
+class TestMatrix(TestCase):
+    def test_det(self):
+        m1 = Matrix([[2, 0, 0], [0, 2, 0], [0, 0, 2]])
+        self.assertEqual(8, m1.det)
