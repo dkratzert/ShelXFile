@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from src.shelxfile.fit.quatfit import matrix_minus_vect, matrix_plus_vect, transpose, centroid
+from shelxfile.fit.quatfit import matrix_minus_vect, matrix_plus_vect, transpose, centroid
 
 
 class Test(TestCase):

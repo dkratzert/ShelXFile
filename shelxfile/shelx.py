@@ -12,9 +12,9 @@
 from pathlib import Path
 from typing import Union
 
-from .atoms import Atoms, Atom
-from .refine.refine import ShelxlRefine
-from .sdm import SDM
+from shelxfile.atoms import Atoms, Atom
+from shelxfile.refine.refine import ShelxlRefine
+from shelxfile.sdm import SDM
 
 __doc__ = """
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.

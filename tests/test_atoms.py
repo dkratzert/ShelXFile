@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from src.shelxfile.shelx import Shelxfile
+from shelxfile.shelx import Shelxfile
 
 
 class TestAtoms(TestCase):

@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest import TestCase
 
-from src.shelxfile.shelx import Shelxfile
+from shelxfile.shelx import Shelxfile
 
 
 class TestShelxFileIsAtom(TestCase):
