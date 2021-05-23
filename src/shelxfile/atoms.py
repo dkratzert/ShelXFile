@@ -3,8 +3,8 @@ from typing import Union, List
 
 from src.shelxfile import elements
 from src.shelxfile.cards import AFIX, PART, RESI
-from src.shelxfile.dsrmath import atomic_distance, frac_to_cart, Array
-from src.shelxfile.misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError
+from src.shelxfile.dsrmath import atomic_distance, Array
+from src.shelxfile.misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError, frac_to_cart
 
 """
 TODO:

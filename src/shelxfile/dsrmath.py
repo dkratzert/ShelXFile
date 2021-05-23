@@ -13,6 +13,9 @@ import random
 import string
 from math import sqrt, radians, cos, sin, acos, degrees, floor, tan
 from operator import sub, add
+from typing import List, Union
+
+from src.shelxfile.misc import flatten
 
 
 class Array(object):
@@ -30,26 +33,6 @@ class Array(object):
 
     The above copyright notice and this permission notice shall be included in all
     copies or substantial portions of the Software.
-
-    >>> a = Array([1, 2, 3, 4.1])
-    >>> a += a
-    >>> a
-    Array([2, 4, 6, 8.2])
-    >>> a = Array([1, 2, 3, 4.1])
-    >>> a + 4
-    Array([5, 6, 7, 8.1])
-    >>> a + a
-    Array([2, 4, 6, 8.2])
-    >>> a[1]
-    2
-    >>> a *= 3
-    >>> a
-    Array([3, 6, 9, 12.299999999999999])
-    >>> a = Array([1, 2, 3, 4.1])
-    >>> a.dot(a)
-    30.81
-    >>> a * a
-    30.81
     """
     __slots__ = ['values']
 
@@ -69,10 +52,6 @@ class Array(object):
     def __add__(self, other: (list, 'Array')) -> 'Array':
         """
         This method is optimized for speed.
-        >>> a = Array([1, 2, 3])
-        >>> b = Array([1, 1, 1])
-        >>> a+b
-        Array([2, 3, 4])
         """
         if isinstance(other, Array):
             return Array(list(map(add, self.values, other)))
@@ -87,14 +66,7 @@ class Array(object):
 
     def __eq__(self, other):
         """
-        >>> a1 = Array([1, 2, 3, 4])
-        >>> a2 = Array([1, 2, 3.0, 4.0])
-        >>> a1 == a2
-        True
-        >>> a1 = Array([1, 2, 3, 4])
-        >>> a2 = Array([2, 2, 3.0, 4.0])
-        >>> a1 == a2
-        False
+        Test for equality.
         """
         return all([a == b for (a, b) in zip(self.values, other.values)])
 
@@ -102,12 +74,6 @@ class Array(object):
         """
         Subtracts eiter an Array or a value from the self Array.
         This method is optimized for speed.
-        >>> a = Array([1, 2, 3])
-        >>> b = Array([1, 1, 1])
-        >>> a-b
-        Array([0, 1, 2])
-        >>> b-a
-        Array([0, -1, -2])
         """
         if isinstance(other, Array):
             return Array(list(map(sub, self.values, other)))  # slightly faster
@@ -129,12 +95,7 @@ class Array(object):
 
     def __mul__(self, other: ('Array', 'Matrix')) -> (float, 'Array'):
         """
-        a * b = axbx + ayby + azbz
-
-        >>> a1 = Array([1, 2, 3])
-        >>> a2 = Array([1, 2, 3])
-        >>> a1 * a2
-        14
+        Calculates: a * b = axbx + ayby + azbz
         """
         if isinstance(other, Matrix):
             # Array() * Matrix()
@@ -154,37 +115,24 @@ class Array(object):
     def __getitem__(self, val):
         """
         Get one item from the array.
-        >>> Array([1, 2, 3])[1]
-        2
         """
         return self.values[val]
 
     def __setitem__(self, pos, val):
         """
         Get one item from the array.
-        >>> a = Array([0, 0, 0])
-        >>> a[1] = 5
-        >>> a
-        Array([0, 5, 0])
         """
         self.values[pos] = val
 
     def norm(self):
         """
         The squared lenght of an array
-
-        >>> a = Array([1, 2, 3, 4])
-        >>> a.norm()
-        30
         """
         return sum([n ** 2 for n in self.values])
 
     def normalized(self):
         """
         Euclidean norm (straight-line distance) of a vector array.
-        >>> a = Array([2, 2, 1])
-        >>> a.normalized()
-        3.0
         """
         return sqrt(self.norm())
 
@@ -192,21 +140,15 @@ class Array(object):
     def zero(m: int) -> 'Array':
         """
         Create zero Array of dimension m
-
-        >>> Array.zero(5)
-        Array([0.0, 0.0, 0.0, 0.0, 0.0])
         """
-        return Array([0.0 for row in range(m)])
+        return Array([0.0 for _ in range(m)])
 
     @staticmethod
     def randarray(m: int) -> 'Array':
         """
-        Create zero Array of dimension m
-
-        #>>> Array.randarray(5)
-        #Array([1, 4, 6, 4, 8])
+        Create random Array of dimension m
         """
-        return Array([random.randint(1, 9) for row in range(m)])
+        return Array([random.randint(1, 9) for _ in range(m)])
 
     @property
     def floor(self):
@@ -223,11 +165,6 @@ class Array(object):
     def cross(self, other: 'Array') -> 'Array':
         """
         Cross product of the Array (currently only for 3D vectors).
-
-        >>> a = Array([1, 2, 3])
-        >>> b = Array([-7, 8, 9])
-        >>> a.cross(b)
-        Array([-6, -30, 22])
         """
         if len(self) != len(other) != 3:
             raise ValueError('For 3D vectors only')
@@ -238,14 +175,6 @@ class Array(object):
     def angle(self, other: 'Array') -> float:
         """
         Calculates the angle between two vectors.
-        >>> a = Array([1, 0, 1])
-        >>> b = Array([1, 0, 0])
-        >>> a.angle(b)
-        45.0
-        >>> va = Array([0.03562, 0.14298, 0.24008]) - Array([0.04402, 0.16614, 0.22275])
-        >>> vb = Array([0.07078, 0.17382, 0.22106]) - Array([0.04402, 0.16614, 0.22275])
-        >>> round(va.angle(vb), 4)
-        120.9401
         """
         return round(degrees(acos(self.dot(other) / (self.normalized() * other.normalized()))), 9)
 
@@ -267,19 +196,6 @@ class Matrix(object):
     copies or substantial portions of the Software.
 
     DK: Missing: inverse, eigenvalues
-
-    >>> m = Matrix([[1, 2, 300], [4.1, 4.2, 4.3], [5, 6, 7]])
-
-    #>>> m+m
-    #Array([2, 4, 6, 8.2])
-    #>>> m+4
-    #Array([5, 6, 7, 8.1])
-    >>> m*=3
-    >>> m
-    | 3.0000  6.0000 900.0000|
-    |12.3000 12.6000 12.9000|
-    |15.0000 18.0000 21.0000|
-    <BLANKLINE>
     """
     __slots__ = ['values', 'shape']
 
@@ -289,11 +205,6 @@ class Matrix(object):
 
     def __getitem__(self, val):
         """
-        >>> m = Matrix([[2., 2., 3.], [1., 2.2, 3.], [1., 2., 3.]])
-        >>> m[1,1]
-        2.2
-        >>> m[1][1]
-        2.2
         """
         if isinstance(val, (tuple, list)):
             if len(val) == 1:
@@ -311,19 +222,6 @@ class Matrix(object):
     def __add__(self, other: (list, 'Matrix')) -> 'Matrix':
         """
         Matrix addition
-
-        >>> m1 = Matrix([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
-        >>> m2 = Matrix([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
-        >>> m1 + m2
-        | 2.0000  2.0000  2.0000|
-        | 2.0000  2.0000  2.0000|
-        | 2.0000  2.0000  2.0000|
-        <BLANKLINE>
-        >>> m1 + 0.5
-        | 1.5000  1.5000  1.5000|
-        | 1.5000  1.5000  1.5000|
-        | 1.5000  1.5000  1.5000|
-        <BLANKLINE>
         """
         if isinstance(other, Array):
             if not len(self) == len(other):
@@ -340,28 +238,6 @@ class Matrix(object):
     def __mul__(self, other: ('Matrix', 'Array', int, float)) -> ('Matrix', 'Array'):
         """
         a * b operation
-        >>> m = Matrix([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
-        >>> m * 2
-        | 2.0000  2.0000  2.0000|
-        | 2.0000  2.0000  2.0000|
-        | 2.0000  2.0000  2.0000|
-        <BLANKLINE>
-        >>> m2 = Matrix([[2, 2, 2], [0.5, 0.5, 0.5], [2, 2, 1]])
-        >>> m * m2
-        | 6.0000  1.5000  5.0000|
-        | 6.0000  1.5000  5.0000|
-        | 6.0000  1.5000  5.0000|
-        <BLANKLINE>
-        >>> m
-        | 1.0000  1.0000  1.0000|
-        | 1.0000  1.0000  1.0000|
-        | 1.0000  1.0000  1.0000|
-        <BLANKLINE>
-        >>> m * Array([2, 2, 2])
-        Array([6, 6, 6])
-        >>> m = Matrix([(0, 1, 0), (-1, -1, 0), (0, 0, 1)])
-        >>> Array([0.333333, 0.666667, 0.45191]) * m
-        Array([-0.666667, -0.333334, 0.45191])
         """
         if isinstance(other, (int, float)):
             return Matrix([[v * other for v in row] for row in self.values])
@@ -380,22 +256,13 @@ class Matrix(object):
 
     def __eq__(self, other):
         """
-        >>> m1 = Matrix([(1., 2., 3.), (1., 2., 3.), (1., 2., 3.)])
-        >>> m2 = Matrix([(1, 2, 3), (1, 2, 3), (1, 2, 3)])
-        >>> m1 == m2
-        True
-        >>> m1 = Matrix([(1, 2, 3), (1, 2, 3), (1, 2, 3)])
-        >>> m2 = Matrix([(1, 2, 3), (3, 2, 3), (1, 2, 3)])
-        >>> m1 == m2
-        False
+        Test for equality.
         """
         return all([b == x for (b, x) in zip(other.values, self.values)])
 
     def __sub__(self, other):
         """
         Substract two matrices.
-        >>> Matrix([[3, 2, 1], [3, 2, 1], [3, 2, 3]]) - Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
-        [[2, 0, -2], [2, 0, -2], [2, 0, 0]]
         """
         output = []
         for idx in range(len(self)):
@@ -424,19 +291,12 @@ class Matrix(object):
     def transposed(self) -> 'Matrix':
         """
         transposes a matrix
-
-        >>> m = Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
-        >>> m.transposed.values
-        [(1, 1, 1), (2, 2, 2), (3, 3, 3)]
         """
         return Matrix(list(zip(*self.values)))
 
     def transpose_alt(self):
         """
         Transposes the current matrix.
-        >>> m = Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
-        >>> m.transpose_alt().values
-        [[1, 1, 1], [2, 2, 2], [3, 3, 3]]
         """
         rows = []
         for i in range(self.shape[0]):
@@ -457,16 +317,8 @@ class Matrix(object):
     def zero(m: int, n: int) -> 'Matrix':
         """
         Create zero matrix of dimension m,n
-
-        >>> Matrix.zero(5, 3)
-        | 0.0000  0.0000  0.0000|
-        | 0.0000  0.0000  0.0000|
-        | 0.0000  0.0000  0.0000|
-        | 0.0000  0.0000  0.0000|
-        | 0.0000  0.0000  0.0000|
-        <BLANKLINE>
         """
-        return Matrix([[0.0 for row in range(n)] for col in range(m)])
+        return Matrix([[0.0 for _ in range(n)] for _ in range(m)])
 
     @staticmethod
     def randmat(m: int, n: int) -> 'Matrix':
@@ -485,18 +337,12 @@ class Matrix(object):
 
     def cholesky(self) -> 'Matrix':
         """
-        >>> m = Matrix([[25, 15, -5], [15, 18,  0], [-5,  0, 11]])
-        >>> m.cholesky()
-        | 5.0000  0.0000  0.0000|
-        | 3.0000  3.0000  0.0000|
-        |-1.0000  1.0000  3.0000|
-        <BLANKLINE>
         """
         L = Matrix.zero(*self.shape)
-        for i, (Ai, Li) in enumerate(zip(self.values, L.values)):
-            for j, Lj in enumerate(L.values[:i + 1]):
-                s = sum(Li[k] * Lj[k] for k in range(j))
-                Li[j] = sqrt(Ai[i] - s) if (i == j) else (1.0 / Lj[j] * (Ai[j] - s))
+        for i, (ai, li) in enumerate(zip(self.values, L.values)):
+            for j, lj in enumerate(L.values[:i + 1]):
+                s = sum(li[k] * lj[k] for k in range(j))
+                li[j] = sqrt(ai[i] - s) if (i == j) else (1.0 / lj[j] * (ai[j] - s))
         return L
 
     def norm(self):
@@ -509,12 +355,6 @@ class Matrix(object):
          -0.812500    0.125000    0.187500
           0.125000   -0.250000    0.125000
           0.520833    0.125000   -0.145833
-
-        >>> Matrix([ [1, 2, 3], [4, 1, 6], [7, 8, 9] ]).inversed
-        |-0.8125  0.1250  0.1875|
-        | 0.1250 -0.2500  0.1250|
-        | 0.5208  0.1250 -0.1458|
-        <BLANKLINE>
         """
         if self.shape != (3, 3):
             raise ValueError('Inversion is only valid for 3x3 Matrix.')
@@ -713,11 +553,6 @@ def my_isnumeric(value: str):
 def mean(values):
     """
     returns mean value of a list of numbers
-
-    >>> mean([1, 2, 3, 4, 1, 2, 3, 4])
-    2.5
-    >>> round(mean([1, 2, 3, 4, 1, 2, 3, 4.1, 1000000]), 4)
-    111113.3444
     """
     return sum(values) / float(len(values))
 
@@ -725,16 +560,6 @@ def mean(values):
 def median(nums):
     """
     calculates the median of a list of numbers
-    >>> median([2])
-    2
-    >>> median([1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4])
-    2.5
-    >>> median([1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4.1, 1000000])
-    3
-    >>> median([])
-    Traceback (most recent call last):
-    ...
-    ValueError: Need a non-empty iterable
     """
     ls = sorted(nums)
     n = len(ls)
@@ -748,23 +573,12 @@ def median(nums):
         return sum(ls[int(int(n) / 2 - 1):int(int(n) / 2 + 1)]) / 2.0
 
 
-def std_dev(data):
+def std_dev(data: List) -> float:
     """
     returns standard deviation of values rounded to pl decimal places
     S = sqrt( (sum(x-xm)^2) / n-1 )
     xm = sum(x)/n
     :param data: list with integer or float values
-    :type data: list
-    >>> l1 = [1.334, 1.322, 1.345, 1.451, 1.000, 1.434, 1.321, 1.322]
-    >>> l2 = [1.234, 1.222, 1.345, 1.451, 2.500, 1.234, 1.321, 1.222]
-    >>> round(std_dev(l1), 8)
-    0.13797871
-    >>> round(std_dev(l2), 8)
-    0.43536797
-    >>> median(l1)
-    1.328
-    >>> mean(l1)
-    1.316125
     """
     if len(data) == 0:
         return 0
@@ -788,10 +602,6 @@ def nalimov_test(data):
     Modified implementation of:
     "R. Kaiser, G. Gottschalk, Elementare Tests zur Beurteilung von Messdaten
     Bibliographisches Institut, Mannheim 1972."
-
-    >>> data = [1.120, 1.234, 1.224, 1.469, 1.145, 1.222, 1.123, 1.223, 1.2654, 1.221, 1.215]
-    >>> nalimov_test(data)
-    [3]
     """
     # q-values for degrees of freedom:
     f = {1: 1.409, 2: 1.645, 3: 1.757, 4: 1.814, 5: 1.848, 6: 1.870, 7: 1.885, 8: 1.895,
@@ -814,23 +624,6 @@ def nalimov_test(data):
     return outliers
 
 
-def flatten(lis):
-    """
-    Given a list, possibly nested to any level, return it flattened.
-    From: http://code.activestate.com/recipes/578948-flattening-an-arbitrarily-nested-list-in-python/
-
-    >>> flatten([['wer', 234, 'brdt5'], ['dfg'], [[21, 34,5], ['fhg', 4]]])
-    ['wer', 234, 'brdt5', 'dfg', 21, 34, 5, 'fhg', 4]
-    """
-    new_lis = []
-    for item in lis:
-        if isinstance(item, list):
-            new_lis.extend(flatten(item))
-        else:
-            new_lis.append(item)
-    return new_lis
-
-
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     """
     returns a random ID like 'L5J74W'
@@ -838,9 +631,6 @@ def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     :type size: integer
     :param chars: characters used for the ID
     :type chars: string
-
-    >>> id_generator(1, 'a')
-    'a'
     """
     return ''.join(random.choice(chars) for _ in range(size))
 
@@ -852,12 +642,6 @@ def atomic_distance(p1: list, p2: list, cell=None, shortest_dist=False):
 
     Returns the distance between the two points (Atoms). If shortest_dist is True, the
     shortest distance ignoring translation is computed.
-
-    >>> cell = [10.5086, 20.9035, 20.5072, 90, 94.13, 90]
-    >>> coord1 = [-0.186843,   0.282708,   0.526803]
-    >>> coord2 = [-0.155278,   0.264593,   0.600644]
-    >>> atomic_distance(coord1, coord2, cell)
-    1.5729229943265979
     """
     a, b, c, al, be, ga = 1, 1, 1, 1, 1, 1
     if cell:
@@ -882,31 +666,6 @@ def atomic_distance(p1: list, p2: list, cell=None, shortest_dist=False):
                     2 * dx * dz * a * c * cos(be) + 2 * dx * dy * a * b * cos(ga))
     else:
         return sqrt(dx ** 2 + dy ** 2 + dz ** 2)
-
-
-def determinante(a):
-    """
-    return determinant of 3x3 matrix
-
-    >>> m1 = [[2, 0, 0], [0, 2, 0], [0, 0, 2]]
-    >>> determinante(m1)
-    8
-    """
-    return (a[0][0] * (a[1][1] * a[2][2] - a[2][1] * a[1][2])
-            - a[1][0] * (a[0][1] * a[2][2] - a[2][1] * a[0][2])
-            + a[2][0] * (a[0][1] * a[1][2] - a[1][1] * a[0][2]))
-
-
-def subtract_vect(a, b):
-    """
-    subtract vector b from vector a
-    Deprecated, use mpmath instead!!!
-    :param a: [float, float, float]
-    :param b: [float, float, float]
-    """
-    return (a[0] - b[0],
-            a[1] - b[1],
-            a[2] - b[2])
 
 
 def dice_coefficient(a, b, case_insens=True):
@@ -1087,69 +846,9 @@ class OrthogonalMatrix():
         return self.m.transposed
 
 
-def almost_equal(a, b, places=3):
+def almost_equal(a: Union[int, float], b: Union[int, float], places=3) -> float:
     """
     Returns True or False if the number a and b are are equal inside the
     decimal places "places".
-    :param a: a real number
-    :type a: int/float
-    :param b: a real number
-    :type b: int/float
-    :param places: number of decimal places
-    :type places: int
-
-    >>> almost_equal(1.0001, 1.0005)
-    True
-    >>> almost_equal(1.1, 1.0005)
-    False
-    >>> almost_equal(2, 1)
-    False
     """
     return round(abs(a - b), places) == 0
-
-
-def frac_to_cart(frac_coord: (list, tuple), cell: list) -> list:
-    """
-    Converts fractional coordinates to cartesian coodinates
-    :param frac_coord: [float, float, float]
-    :param cell:       [float, float, float, float, float, float]
-
-    >>> cell = [10.5086, 20.9035, 20.5072, 90, 94.13, 90]
-    >>> coord1 = [-0.186843,   0.282708,   0.526803]
-    >>> print(frac_to_cart(coord1, cell))
-    [-2.741505423999065, 5.909586678000002, 10.775200700893734]
-    """
-    a, b, c, alpha, beta, gamma = cell
-    x, y, z = frac_coord
-    alpha = radians(alpha)
-    beta = radians(beta)
-    gamma = radians(gamma)
-    cosastar = (cos(beta) * cos(gamma) - cos(alpha)) / (sin(beta) * sin(gamma))
-    sinastar = sqrt(1 - cosastar ** 2)
-    xc = a * x + (b * cos(gamma)) * y + (c * cos(beta)) * z
-    yc = 0 + (b * sin(gamma)) * y + (-c * sin(beta) * cosastar) * z
-    zc = 0 + 0 + (c * sin(beta) * sinastar) * z
-    return [xc, yc, zc]
-
-
-def cart_to_frac(cart_coord: list, cell: list) -> tuple:
-    """
-    converts cartesian coordinates to fractional coordinates
-    :param cart_coord: [float, float, float]
-    :param cell:       [float, float, float, float, float, float]
-    >>> cell = [10.5086, 20.9035, 20.5072, 90, 94.13, 90]
-    >>> coords = [-2.74150542399906, 5.909586678, 10.7752007008937]
-    >>> cart_to_frac(coords, cell)
-    (-0.1868429999999998, 0.28270799999999996, 0.5268029999999984)
-    """
-    a, b, c, alpha, beta, gamma = cell
-    xc, yc, zc = cart_coord
-    alpha = radians(alpha)
-    beta = radians(beta)
-    gamma = radians(gamma)
-    cosastar = (cos(beta) * cos(gamma) - cos(alpha)) / (sin(beta) * sin(gamma))
-    sinastar = sqrt(1 - cosastar ** 2)
-    z = zc / (c * sin(beta) * sinastar)
-    y = (yc - (-c * sin(beta) * cosastar) * z) / (b * sin(gamma))
-    x = (xc - (b * cos(gamma)) * y - (c * cos(beta)) * z) / a
-    return x, y, z

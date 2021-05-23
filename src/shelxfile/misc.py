@@ -13,9 +13,8 @@ import os
 import re
 import textwrap
 import time
+from math import radians, cos, sin, sqrt
 from shutil import get_terminal_size
-
-from src.shelxfile.dsrmath import frac_to_cart, subtract_vect, determinante
 
 # TODO: Add verbose mode that doesn't fail but gives output like debug mode.
 # Without DEBUG, the parser should only fail if the file is realy damaged. With DEBUG enabled, the parser
@@ -502,3 +501,62 @@ def walkdir(rootdir, include="", exclude=""):
             else:
                 results.append(os.path.normpath(fullfilepath).replace('\\', '/'))
     return results
+
+
+def frac_to_cart(frac_coord: (list, tuple), cell: list) -> list:
+    """
+    Converts fractional coordinates to cartesian coodinates
+    :param frac_coord: [float, float, float]
+    :param cell:       [float, float, float, float, float, float]
+    """
+    a, b, c, alpha, beta, gamma = cell
+    x, y, z = frac_coord
+    alpha = radians(alpha)
+    beta = radians(beta)
+    gamma = radians(gamma)
+    cosastar = (cos(beta) * cos(gamma) - cos(alpha)) / (sin(beta) * sin(gamma))
+    sinastar = sqrt(1 - cosastar ** 2)
+    xc = a * x + (b * cos(gamma)) * y + (c * cos(beta)) * z
+    yc = 0 + (b * sin(gamma)) * y + (-c * sin(beta) * cosastar) * z
+    zc = 0 + 0 + (c * sin(beta) * sinastar) * z
+    return [xc, yc, zc]
+
+
+def cart_to_frac(cart_coord: list, cell: list) -> tuple:
+    """
+    converts cartesian coordinates to fractional coordinates
+    :param cart_coord: [float, float, float]
+    :param cell:       [float, float, float, float, float, float]
+    """
+    a, b, c, alpha, beta, gamma = cell
+    xc, yc, zc = cart_coord
+    alpha = radians(alpha)
+    beta = radians(beta)
+    gamma = radians(gamma)
+    cosastar = (cos(beta) * cos(gamma) - cos(alpha)) / (sin(beta) * sin(gamma))
+    sinastar = sqrt(1 - cosastar ** 2)
+    z = zc / (c * sin(beta) * sinastar)
+    y = (yc - (-c * sin(beta) * cosastar) * z) / (b * sin(gamma))
+    x = (xc - (b * cos(gamma)) * y - (c * cos(beta)) * z) / a
+    return x, y, z
+
+
+def determinante(a):
+    """
+    return determinant of 3x3 matrix
+    """
+    return (a[0][0] * (a[1][1] * a[2][2] - a[2][1] * a[1][2])
+            - a[1][0] * (a[0][1] * a[2][2] - a[2][1] * a[0][2])
+            + a[2][0] * (a[0][1] * a[1][2] - a[1][1] * a[0][2]))
+
+
+def subtract_vect(a, b):
+    """
+    subtract vector b from vector a
+    Deprecated, use mpmath instead!!!
+    :param a: [float, float, float]
+    :param b: [float, float, float]
+    """
+    return (a[0] - b[0],
+            a[1] - b[1],
+            a[2] - b[2])

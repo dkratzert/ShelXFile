@@ -2,9 +2,8 @@
 from __future__ import print_function
 
 import copy
-from math import fabs, cos, sin, radians
+from math import fabs
 from math import sqrt
-
 
 ##############################################################################
 # The program to superimpose atoms of two molecules by quaternion method
@@ -29,6 +28,7 @@ from math import sqrt
 # David J. Heisterberg, 1990, unpublished results.
 #
 # This program was heavily modified by Daniel Kratzert
+from src.shelxfile.misc import frac_to_cart, cart_to_frac
 
 
 def matrix_minus_vect(m, v):
@@ -70,56 +70,6 @@ def transpose(a):
     [(1, 1, 1), (2, 2, 2), (3, 3, 3)]
     """
     return list(zip(*a))
-
-
-def frac_to_cart(frac_coord, cell):
-    """
-    Converts fractional coordinates to cartesian coodinates
-    :param frac_coord: [float, float, float]
-    :param cell:       [float, float, float, float, float, float]
-    >>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
-    >>> coord1 = (-0.186843,   0.282708,   0.526803)
-    >>> print(frac_to_cart(coord1, cell))
-    [-2.741505423999065, 5.909586678000002, 10.775200700893734]
-    """
-    a, b, c, alpha, beta, gamma = cell
-    x, y, z = frac_coord
-    alpha = radians(alpha)
-    beta = radians(beta)
-    gamma = radians(gamma)
-    try:
-        cosastar = (cos(beta) * cos(gamma) - cos(alpha)) / (sin(beta) * sin(gamma))
-        sinastar = sqrt(1 - cosastar ** 2)
-    except ValueError:
-        print("*** Malformed unit cell parameters found! Please correct the database entry. ***")
-        raise
-    Xc = a * x + (b * cos(gamma)) * y + (c * cos(beta)) * z
-    Yc = 0 + (b * sin(gamma)) * y + (-c * sin(beta) * cosastar) * z
-    Zc = 0 + 0 + (c * sin(beta) * sinastar) * z
-    return [Xc, Yc, Zc]
-
-
-def cart_to_frac(cart_coord, cell):
-    """
-    converts cartesian coordinates to fractional coordinates
-    :param cart_coord: [float, float, float]
-    :param cell:       [float, float, float, float, float, float]
-    >>> cell = (10.5086, 20.9035, 20.5072, 90, 94.13, 90)
-    >>> coords = [-2.74150542399906, 5.909586678, 10.7752007008937]
-    >>> cart_to_frac(coords, cell)
-    [-0.186843, 0.282708, 0.526803]
-    """
-    a, b, c, alpha, beta, gamma = cell
-    X, Y, Z = cart_coord
-    alpha = radians(alpha)
-    beta = radians(beta)
-    gamma = radians(gamma)
-    cosastar = (cos(beta) * cos(gamma) - cos(alpha)) / (sin(beta) * sin(gamma))
-    sinastar = sqrt(1 - cosastar ** 2)
-    z = Z / (c * sin(beta) * sinastar)
-    y = (Y - (-c * sin(beta) * cosastar) * z) / (b * sin(gamma))
-    x = (X - (b * cos(gamma)) * y - (c * cos(beta)) * z) / a
-    return [round(x, 8), round(y, 8), round(z, 8)]
 
 
 def rotmol(frag_atoms, rotmat):
