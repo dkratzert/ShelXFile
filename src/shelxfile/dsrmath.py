@@ -400,8 +400,8 @@ class Matrix(object):
         output = []
         for idx in range(len(self)):
             tmp = []
-            for valA, valB in zip(self[idx], other[idx]):
-                tmp.append(valA - valB)
+            for val_a, val_b in zip(self[idx], other[idx]):
+                tmp.append(val_a - val_b)
             output.append(tmp[:])
         return output[:]
 
@@ -410,7 +410,7 @@ class Matrix(object):
         #>>> Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]]) / Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
         A / B = A * A^-1
         """
-        raise NotImplementedError
+        return NotImplementedError
 
     def __setitem__(self, key, value):
         # TODO: Implement setitem
@@ -447,11 +447,11 @@ class Matrix(object):
         """
         Dot product of two matrices.
         """
-        newA = []
+        new_a = []
         for i, col in enumerate(self.transposed.values):
             s = sum([v * o for v, o in zip(col, other)])
-            newA.append(s)
-        return Matrix(newA)
+            new_a.append(s)
+        return Matrix(new_a)
 
     @staticmethod
     def zero(m: int, n: int) -> 'Matrix':
@@ -588,17 +588,17 @@ class SymmetryElement(object):
         string = "|{aa:2} {ab:2} {ac:2}|   |{v:>4.2}|\n" \
                  "|{ba:2} {bb:2} {bc:2}| + |{vv:>4.2}|\n" \
                  "|{ca:2} {cb:2} {cc:2}|   |{vvv:>4.2}|\n".format(aa=self.matrix[0, 0],
-                                                                   ab=self.matrix[0, 1],
-                                                                   ac=self.matrix[0, 2],
-                                                                   ba=self.matrix[1, 0],
-                                                                   bb=self.matrix[1, 1],
-                                                                   bc=self.matrix[1, 2],
-                                                                   ca=self.matrix[2, 0],
-                                                                   cb=self.matrix[2, 1],
-                                                                   cc=self.matrix[2, 2],
-                                                                   v=float(self.trans[0]),
-                                                                   vv=float(self.trans[1]),
-                                                                   vvv=float(self.trans[2]))
+                                                                  ab=self.matrix[0, 1],
+                                                                  ac=self.matrix[0, 2],
+                                                                  ba=self.matrix[1, 0],
+                                                                  bb=self.matrix[1, 1],
+                                                                  bc=self.matrix[1, 2],
+                                                                  ca=self.matrix[2, 0],
+                                                                  cb=self.matrix[2, 1],
+                                                                  cc=self.matrix[2, 2],
+                                                                  v=float(self.trans[0]),
+                                                                  vv=float(self.trans[1]),
+                                                                  vvv=float(self.trans[2]))
         return string
 
     def __repr__(self):
@@ -636,8 +636,8 @@ class SymmetryElement(object):
         """
         new_symm = SymmetryElement(self.to_shelxl().split(','))
         new_symm.trans = Array([(self.trans[0] + latt_symm.trans[0]) / 1,
-                               (self.trans[1] + latt_symm.trans[1]) / 1,
-                               (self.trans[2] + latt_symm.trans[2]) / 1])
+                                (self.trans[1] + latt_symm.trans[1]) / 1,
+                                (self.trans[2] + latt_symm.trans[2]) / 1])
         new_symm.centric = self.centric
         return new_symm
 
