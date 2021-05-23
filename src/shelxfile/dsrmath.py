@@ -638,12 +638,12 @@ class SymmetryElement(object):
         :param latt_symm: SymmetryElement.
         :return: SymmetryElement.
         """
-        newSymm = SymmetryElement(self.to_shelxl().split(','))
-        newSymm.trans = Array([(self.trans[0] + latt_symm.trans[0]) / 1,
+        new_symm = SymmetryElement(self.to_shelxl().split(','))
+        new_symm.trans = Array([(self.trans[0] + latt_symm.trans[0]) / 1,
                                (self.trans[1] + latt_symm.trans[1]) / 1,
                                (self.trans[2] + latt_symm.trans[2]) / 1])
-        newSymm.centric = self.centric
-        return newSymm
+        new_symm.centric = self.centric
+        return new_symm
 
     def to_shelxl(self):
         """
@@ -774,13 +774,13 @@ def std_dev(data):
         return 0
     K = data[0]
     n = 0
-    Sum = 0
-    Sum_sqr = 0
+    summ = 0
+    sum_sqr = 0
     for x in data:
         n += 1
-        Sum += x - K
-        Sum_sqr += (x - K) * (x - K)
-    variance = (Sum_sqr - (Sum * Sum) / n) / (n - 1)
+        summ += x - K
+        sum_sqr += (x - K) * (x - K)
+    variance = (sum_sqr - (summ * summ) / n) / (n - 1)
     # use n instead of (n-1) if want to compute the exact variance of the given data
     # use (n-1) if data are samples of a larger population
     return sqrt(variance)
