@@ -79,7 +79,7 @@ class TestACTA(TestCase):
         self.ref.restore_acta_card()
         self.assertEqual(8, self.shx.index_of(self.shx.acta))
         self.assertEqual(
-            ['UNIT 1 2 3 4 5 6', 'ACTA 45', 'LIST 4 ! automatically inserted. Change 6 to 4 for CHECKCIF!!'],
+            ['UNIT 1  2  3  4  5  6', 'ACTA 45', 'LIST 4 ! automatically inserted. Change 6 to 4 for CHECKCIF!!'],
             [str(x) for x in self.shx._reslist[7:10]])
 
 
@@ -94,18 +94,34 @@ class TestLSCycles(TestCase):
 
 
 class TestSFACTable(TestCase):
-    def test_parse_element_line(self):
-        self.fail()
-        """
-        >>> from src.shelxfile import ShelXFile
-        >>> shx = ShelXFile('./tests/p21c.res')
-        >>> shx.sfac_table
-        SFAC C  H  O  F  Al  Ga
-        >>> shx.unit
-        UNIT 1  2  3  4  5  6
-        >>> shx.sfac_table.add_element('Au')
-        >>> shx.sfac_table
-        SFAC C  H  O  F  Al  Ga  Au
-        >>> shx.unit
-        UNIT 1  2  3  4  5  6  1
-        """
+    def setUp(self) -> None:
+        self.shx = Shelxfile('./resources/p21c.res')
+
+    def test_sfac_table(self):
+        self.assertEqual('SFAC C  H  O  F  Al  Ga', str(self.shx.sfac_table))
+
+    def test_unit_table(self):
+        self.assertEqual('UNIT 1  2  3  4  5  6', str(self.shx.unit))
+
+    def test_sfac_add_element(self):
+        self.shx.sfac_table.add_element('Au')
+        self.assertEqual('SFAC C  H  O  F  Al  Ga  Au', str(self.shx.sfac_table))
+
+    def test_unit_add_element(self):
+        self.shx.sfac_table.add_element('Au')
+        self.assertEqual('UNIT 1  2  3  4  5  6  1', self.shx.unit.__repr__())
+
+    def test_unit_add_element_string_repr(self):
+        self.shx.sfac_table.add_element('Au')
+        self.assertEqual('UNIT 1  2  3  4  5  6  1', str(self.shx.unit))
+
+
+class TestWGHT(TestCase):
+    def setUp(self) -> None:
+        self.shx = Shelxfile('./resources/p21c.res')
+
+    def test_wght(self):
+        self.assertEqual('WGHT   0.049 0.0', self.shx.wght.__repr__())
+
+    def test_wght_differene(self):
+        self.assertEqual([0.0, 0.0], self.shx.wght.difference())

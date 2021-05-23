@@ -131,7 +131,7 @@ class Shelxfile():
         self.latt: LATT
         self.anis = None
         self.damp = None
-        self.unit = None
+        self.unit: UNIT = Union[UNIT, None]
         self.R1 = None
         self.wr2 = None
         self.goof = None

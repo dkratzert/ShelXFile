@@ -1539,24 +1539,24 @@ class SymmCards():
         for x in self._symmcards:
             yield x
 
-    def append(self, symmData: list) -> None:
+    def append(self, symm_data: list) -> None:
         """
         Add the content of a Shelxl SYMM command to generate the appropriate SymmetryElement instance.
-        :param symmData: list of strings. eg.['1/2+X', '1/2+Y', '1/2+Z']
+        :param symm_data: list of strings. eg.['1/2+X', '1/2+Y', '1/2+Z']
         :return: None
         """
-        newSymm = SymmetryElement(symmData)
-        self._symmcards.append(newSymm)
+        new_symm = SymmetryElement(symm_data)
+        self._symmcards.append(new_symm)
         for symm in self.shx.latt.lattOps:
-            lattSymm = newSymm.applyLattSymm(symm)
-            if not lattSymm in self._symmcards:
-                self._symmcards.append(lattSymm)
+            latt_symm = new_symm.applyLattSymm(symm)
+            if not latt_symm in self._symmcards:
+                self._symmcards.append(latt_symm)
         if self.shx.latt.centric:
-            self._symmcards.append(SymmetryElement(symmData, centric=True))
+            self._symmcards.append(SymmetryElement(symm_data, centric=True))
             for symm in self.shx.latt.lattOps:
-                lattSymm = newSymm.applyLattSymm(symm)
-                lattSymm.centric = True
-                self._symmcards.append(lattSymm)
+                latt_symm = new_symm.applyLattSymm(symm)
+                latt_symm.centric = True
+                self._symmcards.append(latt_symm)
 
     def set_centric(self, value: bool):
         """
@@ -1567,13 +1567,13 @@ class SymmCards():
         self._symmcards.append(SymmetryElement(['-X', '-Y', '-Z']))
         self._symmcards[-1].centric = True
 
-    def set_latt_ops(self, lattOps: list) -> None:
+    def set_latt_ops(self, lattops: list) -> None:
         """
         Adds lattice operations. If called before adding SYMM commands, the appropriate lattice operations are used
         automatically to generate further SymmetryElements.
-        :param lattOps: list of SymmetryElement instances.
+        :param lattops: list of SymmetryElement instances.
         """
-        self.lattOps = lattOps
+        self.lattOps = lattops
 
 
 class LSCycles(Command):
@@ -1721,7 +1721,7 @@ class SFACTable():
             return
         self.elements_list.append(element.upper())
         self.sfac_table.append({'element': element.upper(), 'line_number': None})
-        self.shx.unit.add_number(1)
+        self.shx.unit.add_number(1.0)
 
     def remove_element(self, element: str):
         del self.sfac_table[self.shx.elem2sfac(element.upper()) - 1]
@@ -1745,6 +1745,9 @@ class UNIT(Command):
 
     def __repr__(self):
         return "UNIT " + "  ".join(["{:,g}".format(x) for x in self.values])
+
+    def __str__(self):
+        return self.__repr__()
 
     def __setitem__(self, key, value):
         self.values[key] = value
