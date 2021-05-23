@@ -76,8 +76,6 @@ def remove_file(filename, exit_dsr=False):
     removes the file "filename" from disk
     program exits when exit is true
     platon gets terminated if terminate is true
-
-    >>> remove_file('foobar')
     """
     if os.path.isfile(filename):
         try:
@@ -255,13 +253,6 @@ def time_this_method(f):
 def chunks(l: list, n: int) -> list:
     """
     returns successive n-sized chunks from l.
-    >>> l = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 'a', 'b', 'c', 'd', 'e', 'f']
-    >>> chunks(l, 5)
-    [[1, 2, 3, 4, 5], [6, 7, 8, 9, 0], ['a', 'b', 'c', 'd', 'e'], ['f']]
-    >>> chunks(l, 1)
-    [[1], [2], [3], [4], [5], [6], [7], [8], [9], [0], ['a'], ['b'], ['c'], ['d'], ['e'], ['f']]
-    >>> chunks(l, 50)
-    [[1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 'a', 'b', 'c', 'd', 'e', 'f']]
     """
     return [l[i:i + n] for i in range(0, len(l), n)]
 
@@ -270,13 +261,6 @@ def multiline_test(line: str) -> bool:
     """
     test if the current line is a multiline with "=" at the end
     :param line: 'O1 3 -0.01453 1.66590 0.10966 11.00 0.05 ='
-    :type line: string
-    >>> line = 'C1    1    0.278062    0.552051    0.832431    11.00000    0.02895    0.02285 ='
-    >>> multiline_test(line)
-    True
-    >>> line = 'C1    1    0.278062    0.552051    0.832431    11.00000    0.05 '
-    >>> multiline_test(line)
-    False
     """
     if line.rfind('=') > -1:
         # A '=' character in a rem line is not a line break!
@@ -399,9 +383,6 @@ def wrap_line(line: str) -> str:
     """
     Wraps long lines according to SHELXL syntax with = at end and space characters before the next line.
     The wrapping will only be at whitespace, not inside words.
-
-    >>> wrap_line("This is a really long line with over 79 characters. Shelxl wants it to be wrapped.")
-    'This is a really long line with over 79 characters. Shelxl wants it to be  =\\n   wrapped.'
     """
     maxlen = 79
     if len(line) < maxlen:
@@ -426,20 +407,6 @@ def range_resolver(atoms_range: list, atom_names: list) -> list:
     and works for each restraint line separately.
     :param atoms_range: atoms with a range definition
     :param atom_names: names of atoms in the fragment
-    >>> r = "C2 > C5".split()
-    >>> atlist = 'C1 C2 C3 C4 C5'.split()
-    >>> range_resolver(r, atlist)
-    ['C2', 'C3', 'C4', 'C5']
-    >>> r = "C2_2 > C5_2".split()
-    >>> atlist = 'C1_1 C1_2 C2_2 C3_2 C4_2 C5_2'.split()
-    >>> range_resolver(r, atlist)
-    ['C2_2', 'C3_2', 'C4_2', 'C5_2']
-    >>> r = "C2_1 > C5_1".split()
-    >>> atlist = 'C1_1 C1_2 C2_2 C3_2 C4_2 C5_2'.split()
-    >>> range_resolver(r, atlist) # doctest +ELLIPSIS
-    Traceback (most recent call last):
-     ...
-    ValueError: 'C2_1' is not in list
     """
     # dict with lists of positions of the > or < sign:
     rightleft = {'>': [], '<': []}

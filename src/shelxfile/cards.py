@@ -1485,7 +1485,7 @@ class LATT(Command):
         self.N_str = self.lattint_to_str[abs(self.N)]
         if self.N > 0:  # centrosymmetric space group:
             self.centric = True
-        self.lattOps = LATT.lattdict[abs(self.N)]
+        self.latt_ops = LATT.lattdict[abs(self.N)]
 
 
 class SYMM(Command):
@@ -1519,7 +1519,7 @@ class SymmCards():
     def __init__(self, shx):
         self.shx = shx
         self._symmcards = [SymmetryElement(['X', 'Y', 'Z'])]
-        self.lattOps = []
+        self.latt_ops = []
 
     def _as_str(self) -> str:
         return "\n".join([str(x) for x in self._symmcards])
@@ -1545,13 +1545,13 @@ class SymmCards():
         """
         new_symm = SymmetryElement(symm_data)
         self._symmcards.append(new_symm)
-        for symm in self.shx.latt.lattOps:
+        for symm in self.shx.latt.latt_ops:
             latt_symm = new_symm.apply_latt_symm(symm)
             if not latt_symm in self._symmcards:
                 self._symmcards.append(latt_symm)
         if self.shx.latt.centric:
             self._symmcards.append(SymmetryElement(symm_data, centric=True))
-            for symm in self.shx.latt.lattOps:
+            for symm in self.shx.latt.latt_ops:
                 latt_symm = new_symm.apply_latt_symm(symm)
                 latt_symm.centric = True
                 self._symmcards.append(latt_symm)
@@ -1571,7 +1571,7 @@ class SymmCards():
         automatically to generate further SymmetryElements.
         :param lattops: list of SymmetryElement instances.
         """
-        self.lattOps = lattops
+        self.latt_ops = lattops
 
 
 class LSCycles(Command):

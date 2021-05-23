@@ -348,7 +348,7 @@ class Shelxfile():
             elif word == 'CELL':
                 # CELL λ a b c α β γ
                 if not lastcard == 'TITL' and DEBUG:
-                        print('TITL is missing.')
+                    print('TITL is missing.')
                 self.cell = CELL(self, spline)
                 self.assign_card(self.cell, line_num)
                 self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell

@@ -45,22 +45,6 @@ class TestFMAP(TestCase):
         self.assertEqual(2.0, shx.fmap.code)
 
 
-"""
-    >>> shx._reslist[12]
-    ACTA 45
-    >>> shx.acta
-    ACTA 45
-    >>> ref.remove_acta_card(shx.acta)
-    >>> shx._reslist[12]
-    SIZE 0.12 0.23 0.33
-    >>> ref.restore_acta_card()
-    >>> shx.index_of(shx.acta)
-    8
-    >>> shx._reslist[7:10]
-    [UNIT 1  2  3  4  5  6, ACTA 45, 'LIST 4 ! automatically inserted. Change 6 to 4 for CHECKCIF!!']
-"""
-
-
 class TestACTA(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile('./resources/p21c.res')

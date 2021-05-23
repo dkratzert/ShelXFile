@@ -4,7 +4,6 @@ from __future__ import print_function
 import copy
 from math import fabs
 from math import sqrt
-
 ##############################################################################
 # The program to superimpose atoms of two molecules by quaternion method
 #
@@ -28,17 +27,13 @@ from math import sqrt
 # David J. Heisterberg, 1990, unpublished results.
 #
 # This program was heavily modified by Daniel Kratzert
+from typing import List, Union, Tuple
+
 from src.shelxfile.misc import frac_to_cart, cart_to_frac
 
 
-def matrix_minus_vect(m, v):
+def matrix_minus_vect(m: List[List[float]], v: Tuple[float, float, float]):
     """
-    >>> source = [[-0.01453, 1.6659, 0.10966], [-0.00146, 0.26814, 0.06351], [-0.27813, -0.21605, 1.52795]]
-    >>> cent = [-0.09804,     0.57266333 , 0.56704]
-    >>> matrix_minus_vect(source, cent) # DOCTEST: +NORMALIZE_WHITESPACE +ELLIPSIS
-    [[0.08351, 1.09323667, -0.45738], [0.09658, -0.30452333000000004, -0.50353], [-0.18008999999999997, -0.78871333, 0.9609099999999999]]
-    >>> matrix_minus_vect([[1,1,1],[2,2,2],[3,3,3]], [1,1,1])
-    [[0, 0, 0], [1, 1, 1], [2, 2, 2]]
     """
     result = []
     for coords in m:
@@ -46,14 +41,8 @@ def matrix_minus_vect(m, v):
     return result
 
 
-def matrix_plus_vect(m, v):
+def matrix_plus_vect(m: List[List[float]], v: Tuple[float, float, float]):
     """
-    >>> source = [[-0.01453, 1.6659, 0.10966], [-0.00146, 0.26814, 0.06351], [-0.27813, -0.21605, 1.52795]]
-    >>> cent = [-0.09804,     0.57266333 , 0.56704]
-    >>> matrix_plus_vect(source, cent)
-    [[-0.11257, 2.23856333, 0.6767], [-0.0995, 0.84080333, 0.6305499999999999], [-0.37617, 0.35661333000000006, 2.09499]]
-    >>> matrix_minus_vect([[1,1,1],[2,2,2],[3,3,3]], [1,1,1])
-    [[0, 0, 0], [1, 1, 1], [2, 2, 2]]
     """
     result = []
     for coords in m:
@@ -64,10 +53,6 @@ def matrix_plus_vect(m, v):
 def transpose(a):
     """
     transposes a matrix
-
-    >>> m = [[1, 2, 3], [1, 2, 3], [1, 2, 3]]
-    >>> transpose(m)
-    [(1, 1, 1), (2, 2, 2), (3, 3, 3)]
     """
     return list(zip(*a))
 
@@ -81,9 +66,6 @@ def rotmol(frag_atoms, rotmat):
     filelol (y) - rotated coordinates y = u * x
     rotmat (u) - left rotation matrix
     """
-    yx = float(0.0)
-    yy = float(0.0)
-    yz = float(0.0)
     for i in range(len(frag_atoms)):
         yx = rotmat[0][0] * frag_atoms[i][0] + rotmat[1][0] * frag_atoms[i][1] + rotmat[2][0] * frag_atoms[i][2]
         yy = rotmat[0][1] * frag_atoms[i][0] + rotmat[1][1] * frag_atoms[i][1] + rotmat[2][1] * frag_atoms[i][2]
@@ -106,21 +88,8 @@ def jacobi(matrix, maxsweeps):
     """
     eigenvect = [[float(0.0) for x in range(4)] for x in range(4)]
     eigenval = [float(0.0) for x in range(4)]
-    onorm = float(0.0)
-    dnorm = float(0.0)
-    b = float(0.0)
-    dma = float(0.0)
-    q = float(0.0)
-    t = float(0.0)
-    c = float(0.0)
-    s = float(0.0)
-    atemp = float(0.0)
-    vtemp = float(0.0)
-    dtemp = float(0.0)
     m = 0
     for j in range(4):
-        # for i in range(4):
-        #  eigenvect[i][j] = 0.0
         eigenvect[j][j] = 1.0
         eigenval[j] = matrix[j][j]
     for m in range(maxsweeps):
@@ -306,7 +275,7 @@ def qtrfit(source_xyz, target_xyz, maxsweeps):
     return quaternion, transpose(rotmat), maxsweeps
 
 
-def centroid(X):
+def centroid(vectors: List[List[float]]) -> tuple[float, float, float]:
     """
     Calculate the centroid from a vectorset X.
 
@@ -318,34 +287,32 @@ def centroid(X):
 
     Parameters
     ----------
-    X : np.array
+    vectors : np.array
         (N,D) matrix, where N is points and D is dimension.
 
     Returns
     -------
     C : float
         centeroid
-    >>> centroid([[-1.45300e-02,  1.66590e+00,  1.09660e-01], [-1.46000e-03,  2.68140e-01,  6.35100e-02],[-2.78130e-01, -2.16050e-01,  1.52795e+00]])
-    (-0.09804, 0.5726633333333333, 0.56704)
     """
     s = [0.0, 0.0, 0.0]
     num = 0
-    for line in X:
+    for line in vectors:
         num += 1
         for n, v in enumerate(line):
             s[n] += v
     return (s[0] / num, s[1] / num, s[2] / num)
 
 
-def rmsd(V, W):
+def rmsd(vect1, vect2):
     """
     Calculate Root-mean-square deviation from two sets of vectors V and W.
 
     Parameters
     ----------
-    V : np.array
+    vect1 : np.array
         (N,D) matrix, where N is points and D is dimension.
-    W : np.array
+    vect2 : np.array
         (N,D) matrix, where N is points and D is dimension.
 
     Returns
@@ -354,15 +321,15 @@ def rmsd(V, W):
         Root-mean-square deviation
 
     """
-    D = len(V[0])
-    N = len(V)
+    D = len(vect1[0])
+    N = len(vect1)
     rmsd = 0.0
-    for v, w in zip(V, W):
+    for v, w in zip(vect1, vect2):
         rmsd += sum([(v[i] - w[i]) ** 2.0 for i in range(D)])
     return sqrt(rmsd / N)
 
 
-def show_coordinates(atoms, V):
+def show_coordinates(atoms, vect):
     """
     Print coordinates V with corresponding atoms to stdout in XYZ format.
 
@@ -370,12 +337,12 @@ def show_coordinates(atoms, V):
     ----------
     atoms : np.array
         List of atomic types
-    V : np.array
+    vect : np.array
         (N,3) matrix of atomic coordinates
     """
     for n, atom in enumerate(atoms):
         atom = atom[0].upper() + atom[1:]
-        print("{0:2s}   1 {1:15.8f} {2:15.8f} {3:15.8f}   11.0  0.04".format(atom, *V[n]))
+        print("{0:2s}   1 {1:15.8f} {2:15.8f} {3:15.8f}   11.0  0.04".format(atom, *vect[n]))
 
 
 def fit_fragment(fragment_atoms, source_atoms, target_atoms):
@@ -399,28 +366,25 @@ def fit_fragment(fragment_atoms, source_atoms, target_atoms):
     rmsd: float
         RMSD (root mean square deviation)
     """
-    source_atoms = source_atoms
-    target_atoms = target_atoms
-    fragment_atoms = fragment_atoms
-    P_source = copy.deepcopy(source_atoms)
-    Q_target = copy.deepcopy(target_atoms)
+    p_source = copy.deepcopy(source_atoms)
+    q_target = copy.deepcopy(target_atoms)
     # Create the centroid of P_source and Q_target which is the geometric center of a
     # N-dimensional region and translate P_source and Q_target onto that center:
     # http://en.wikipedia.org/wiki/Centroid
-    Pcentroid = centroid(P_source)
-    Qcentroid = centroid(Q_target)
+    pcentroid = centroid(p_source)
+    qcentroid = centroid(q_target)
     # Move P_source and Q_target to origin:
-    P_source = matrix_minus_vect(P_source, Pcentroid)
-    Q_target = matrix_minus_vect(Q_target, Qcentroid)
+    p_source = matrix_minus_vect(p_source, pcentroid)
+    q_target = matrix_minus_vect(q_target, qcentroid)
     # get the Kabsch rotation matrix:
-    quaternion, U, maxsweeps = qtrfit(P_source, Q_target, 30)
+    quaternion, U, maxsweeps = qtrfit(p_source, q_target, 30)
     # translate source_atoms onto center:
-    source_atoms = matrix_minus_vect(source_atoms, Pcentroid)
+    source_atoms = matrix_minus_vect(source_atoms, pcentroid)
     # rotate fragment_atoms (instead of source_atoms):
     rotated_fragment = rotmol(fragment_atoms, U)
     # move fragment back from zero (be aware that the translation is still wrong!):
-    rotated_fragment = matrix_plus_vect(rotated_fragment, Qcentroid)
-    rms = rmsd(Q_target, P_source)
+    rotated_fragment = matrix_plus_vect(rotated_fragment, qcentroid)
+    rms = rmsd(q_target, p_source)
     return list(rotated_fragment), rms
 
 
