@@ -1,10 +1,10 @@
 from math import acos, sqrt, degrees
 from typing import Union, List
 
-from src.shelxfile import elements
-from src.shelxfile.cards import AFIX, PART, RESI
-from src.shelxfile.dsrmath import atomic_distance, Array
-from src.shelxfile.misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError, frac_to_cart
+from .cards import AFIX, PART, RESI
+from .dsrmath import atomic_distance, Array
+from .misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError, frac_to_cart
+from . import elements
 
 """
 TODO:

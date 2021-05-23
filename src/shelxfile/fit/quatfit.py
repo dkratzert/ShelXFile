@@ -29,7 +29,7 @@ from math import sqrt
 # This program was heavily modified by Daniel Kratzert
 from typing import List, Union, Tuple
 
-from src.shelxfile.misc import frac_to_cart, cart_to_frac
+from ..misc import frac_to_cart, cart_to_frac
 
 
 def matrix_minus_vect(m: List[List[float]], v: Tuple[float, float, float]):

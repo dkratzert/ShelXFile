@@ -14,10 +14,10 @@ from math import sqrt, radians, sin
 from pathlib import Path
 from string import ascii_letters
 
-from src.shelxfile.atoms import Atom
-from src.shelxfile.cards import AFIX, RESI
-from src.shelxfile.dsrmath import Array, Matrix, vol_unitcell
-from src.shelxfile.misc import DEBUG, wrap_line
+from .atoms import Atom
+from .cards import AFIX, RESI
+from .dsrmath import Array, Matrix, vol_unitcell
+from .misc import DEBUG, wrap_line
 
 
 class SDMItem(object):
@@ -343,7 +343,7 @@ def ufrac_to_ucart(A, cell, uvals):
 
 
 if __name__ == "__main__":
-    from src.shelxfile.shelx import Shelxfile
+    from .shelx import Shelxfile
 
     shx = Shelxfile('tests/p-31c.res')
     sdm = SDM(shx)

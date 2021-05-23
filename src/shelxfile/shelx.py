@@ -12,9 +12,9 @@
 from pathlib import Path
 from typing import Union
 
-from src.shelxfile.atoms import Atoms, Atom
-from src.shelxfile.refine.refine import ShelxlRefine
-from src.shelxfile.sdm import SDM
+from .atoms import Atoms, Atom
+from .refine.refine import ShelxlRefine
+from .sdm import SDM
 
 __doc__ = """
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.
@@ -29,16 +29,15 @@ import os
 import re
 import sys
 
-from src.shelxfile.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
+from .cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues
-from src.shelxfile.dsrmath import Array, OrthogonalMatrix
-from src.shelxfile.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
+from .dsrmath import Array, OrthogonalMatrix
+from .misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 
-__version__ = 3
 """
 TODO:
 - Handle BEDE & LONE plus their results
@@ -1077,7 +1076,7 @@ if __name__ == "__main__":
     # for at in shx.grow(with_qpeaks=True):
     #    print(wrap_line(str(at)))
     sys.exit()
-    from src.shelxfile.misc import walkdir
+    from .misc import walkdir
 
     files = walkdir(r'D:\GitHub\testresfiles', '.res')
     print('Indexing...')

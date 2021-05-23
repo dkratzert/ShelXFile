@@ -17,11 +17,8 @@ import subprocess
 import sys
 from shutil import which, disk_usage, copyfile
 
-from src.shelxfile.cards import ACTA
-
-__metaclass__ = type  # use new-style classes
-
-from src.shelxfile.misc import remove_file, sep_line, find_line
+from ..cards import ACTA
+from ..misc import remove_file, sep_line, find_line
 
 
 def get_xl_version_string(exe: str) -> str:
@@ -151,7 +148,7 @@ class ShelxlRefine():
                 print('*** Unable to create backup directory {}. ***'.format(bakup_dir))
         try:
             copyfile(resfile,
-                            bakup_dir + os.path.sep + os.path.split(self.resfile_name)[1] + '_' + timestamp + '.res')
+                     bakup_dir + os.path.sep + os.path.split(self.resfile_name)[1] + '_' + timestamp + '.res')
         except IOError:
             print('\n*** Unable to make backup file from {} in shxsaves. ***'.format(resfile))
 
@@ -245,7 +242,7 @@ class ShelxlRefine():
         status = True
         if os.stat(resfile).st_size < 10:
             # status is False if shelx was unsecessful
-            status = False 
+            status = False
         if not status:  # fail
             print(sep_line)
             print('\nError: SHELXL terminated unexpectedly.')

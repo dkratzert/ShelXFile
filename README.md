@@ -14,8 +14,10 @@ Examples:
 
 
 ```python
->>> from src.shelxfile.shelx import Shelxfile
->>> shx = Shelxfile('src/tests/resources/p21c.res')
+pip install shelxfile
+
+>>> from shelxfile import shelx
+>>> shx = shelx.Shelxfile('src/tests/resources/p21c.res')
 >>> shx.cell
 CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 

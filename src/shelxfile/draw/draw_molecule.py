@@ -1,6 +1,6 @@
 from __future__ import division
-from src.shelxfile.atoms import Atoms
-from src.shelxfile.shelx import Shelxfile
+from ..atoms import Atoms
+from ..shelx import Shelxfile
 import sys
 import time
 from math import sin, cos, pi, sqrt
