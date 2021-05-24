@@ -5,14 +5,15 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='shelxfile',
-    version='1',
+    version='2',
     url='https://github.com/dkratzert/ShelXFile',
     license='Beerware License',
     author='Daniel Kratzert',
     author_email='dkratzert@gmx.de',
     description='A parser for SHELXL results files.',
-    package_dir={"": "shelxfile"},
-    packages=find_packages(where="shelxfile"),
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    packages=find_packages(where=".", exclude=['tests']),
     python_requires=">=3.5",
     classifiers=[
         "Intended Audience :: Science/Research",
@@ -20,7 +21,7 @@ setup(
         "Environment :: Console",
         "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3",
-        "License :: Beerware",
+        "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
 )
