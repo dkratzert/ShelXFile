@@ -1421,7 +1421,7 @@ class HKLF(Command):
         self.sm = 1
         self.m = 0
         if len(p) > 0:
-            self.n = p[0]
+            self.n = int(p[0])
         if len(p) > 1:
             self.s = p[1]
         if len(p) > 10:

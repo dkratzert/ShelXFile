@@ -104,7 +104,7 @@ class Shelxfile():
         self.nohkl = False
         self._a, self._b, self._c, self._alpha, self._beta, self._gamma, self.V = \
             None, None, None, None, None, None, None
-        self.cell = None
+        self.cell: Union[CELL, None] = None
         self.ansc = None
         self.abin = None
         self.acta = None
@@ -152,7 +152,7 @@ class Shelxfile():
         self.mpla = None
         self.rtab = []
         self.omit = []
-        self.hklf = None
+        self.hklf: Union[HKLF, None] = None
         self.grid = None
         self.free = []
         self.titl = ""

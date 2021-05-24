@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='shelxfile',
-    version='2',
+    version='3',
     url='https://github.com/dkratzert/ShelXFile',
     license='Beerware License',
     author='Daniel Kratzert',
