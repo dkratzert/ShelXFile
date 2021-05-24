@@ -12,9 +12,10 @@
 from pathlib import Path
 from typing import Union, List
 
-from atoms import Atoms, Atom
-from refine.refine import ShelxlRefine
-from sdm import SDM
+from shelxfile.atoms.atoms import Atoms
+from shelxfile.atoms.atom import Atom
+from shelxfile.refine.refine import ShelxlRefine
+from shelxfile.shelx.sdm import SDM
 
 __doc__ = """
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.
@@ -29,13 +30,13 @@ import os
 import re
 import sys
 
-from cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
+from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues
-from dsrmath import Array, OrthogonalMatrix
-from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
+from shelxfile.misc.dsrmath import Array, OrthogonalMatrix
+from shelxfile.misc.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 
 """

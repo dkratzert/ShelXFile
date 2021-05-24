@@ -27,9 +27,9 @@ from math import sqrt
 # David J. Heisterberg, 1990, unpublished results.
 #
 # This program was heavily modified by Daniel Kratzert
-from typing import List, Union, Tuple
+from typing import List, Tuple
 
-from ..misc import frac_to_cart, cart_to_frac
+from shelxfile.misc.misc import frac_to_cart, cart_to_frac
 
 
 def matrix_minus_vect(m: List[List[float]], v: Tuple[float, float, float]):

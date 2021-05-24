@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from shelxfile.misc import range_resolver, wrap_line, multiline_test, chunks
+from shelxfile.misc.misc import range_resolver, wrap_line, multiline_test, chunks
 
 
 class Test(TestCase):

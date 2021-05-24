@@ -11,8 +11,8 @@ setup(
     author='Daniel Kratzert',
     author_email='dkratzert@gmx.de',
     description='A parser for SHELXL results files.',
-    package_dir={"": "src"},
-    packages=find_packages(where="src"),
+    package_dir={"": "shelxfile"},
+    packages=find_packages(where="shelxfile"),
     python_requires=">=3.5",
     classifiers=[
         "Intended Audience :: Science/Research",

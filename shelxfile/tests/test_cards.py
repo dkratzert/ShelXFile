@@ -1,8 +1,8 @@
 from unittest import TestCase
 
-from shelxfile.cards import RESI
+from shelxfile.shelx.cards import RESI
 from shelxfile.refine.refine import ShelxlRefine
-from shelxfile.shelx import Shelxfile
+from shelxfile.shelx.shelx import Shelxfile
 
 
 class TestCELL(TestCase):

@@ -17,8 +17,8 @@ import subprocess
 import sys
 from shutil import which, disk_usage, copyfile
 
-from shelxfile.cards import ACTA
-from shelxfile.misc import remove_file, sep_line, find_line
+from shelxfile.shelx.cards import ACTA
+from shelxfile.misc.misc import remove_file, sep_line, find_line
 
 
 def get_xl_version_string(exe: str) -> str:

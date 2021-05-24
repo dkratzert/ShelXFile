@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from shelxfile.elements import get_radius, get_radius_from_element, get_atomic_number, get_element, get_atomlabel
+from shelxfile.misc.elements import get_radius, get_radius_from_element, get_atomic_number, get_element, get_atomlabel
 
 
 class Test(TestCase):

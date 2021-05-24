@@ -1,9 +1,9 @@
 from __future__ import division
-from ..atoms import Atoms
-from ..shelx import Shelxfile
+from shelxfile.atoms.atoms import Atoms
 import sys
 import time
 from math import sin, cos, pi, sqrt
+
 
 """
 This module is a fork from https://github.com/des4maisons/molecule-viewer
@@ -181,8 +181,10 @@ class Screen(list):
 
 
 if __name__ == "__main__":
+    from shelxfile.shelx.shelx import Shelxfile
     #filename = sys.argv[1]
-    shx = Shelxfile('./tests/p21c.res')
+    shx = Shelxfile()
+    shx.read_file('./tests/resources/p21c.res')
     try:
         width = sys.argv[2]
         height = sys.argv[3]

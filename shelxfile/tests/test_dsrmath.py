@@ -1,10 +1,10 @@
 from unittest import TestCase
 
-from shelxfile.dsrmath import vol_unitcell, distance, dice_coefficient, levenshtein, dice_coefficient2, \
+from shelxfile.misc.dsrmath import vol_unitcell, distance, dice_coefficient, levenshtein, dice_coefficient2, \
     SymmetryElement, Matrix, Array, mean, median, std_dev, nalimov_test, id_generator, atomic_distance, \
     almost_equal
-from shelxfile.misc import flatten, frac_to_cart, cart_to_frac, determinante, subtract_vect
-from shelxfile.shelx import Shelxfile
+from shelxfile.misc.misc import flatten, frac_to_cart, cart_to_frac, determinante, subtract_vect
+from shelxfile.shelx.shelx import Shelxfile
 
 
 class Testdsrmath(TestCase):
