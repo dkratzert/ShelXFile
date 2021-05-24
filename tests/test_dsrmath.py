@@ -55,19 +55,20 @@ class Testdsrmath(TestCase):
 
 class TestSymmetryElement(TestCase):
     def setUp(self) -> None:
-        self.shx = Shelxfile('resources/p21c.res')
+        self.shx = Shelxfile()
+        self.shx.read_file('resources/p21c.res')
 
     def test_to_shelxl(self):
-        self.assertEqual('[+X, +Y, +Z, -X, 0.5+Y, 0.5-Z, +X, -0.5-Y, -0.5+Z, -X, -Y, -Z]',
+        self.assertEqual('[+X, +Y, +Z, -X, -Y, -Z, -X, 0.5+Y, 0.5-Z, +X, -0.5-Y, -0.5+Z]',
                          self.shx.symmcards._symmcards.__repr__())
 
     def test_repr(self):
-        self.assertEqual(SymmetryElement(['-X', '-Y', '-Z']), self.shx.symmcards[3])
+        self.assertEqual(SymmetryElement(['-X', '-Y', '-Z']), self.shx.symmcards[1])
 
     def test_string(self):
         self.assertEqual("|-1  0  0|   | 0.0|\n"
                          "| 0  1  0| + | 0.5|\n"
-                         "| 0  0 -1|   | 0.5|\n", self.shx.symmcards[1].__str__())
+                         "| 0  0 -1|   | 0.5|\n", self.shx.symmcards[2].__str__())
 
     def test_equals_false(self):
         self.assertEqual(False, self.shx.symmcards[0] == self.shx.symmcards[1])

@@ -10,7 +10,7 @@
 # ----------------------------------------------------------------------------
 #
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 
 from shelxfile.atoms import Atoms, Atom
 from shelxfile.refine.refine import ShelxlRefine
@@ -92,7 +92,7 @@ class Shelxfile():
     _spgrp_regex = re.compile(r'^REM\s+\S+\s+in\s+\S+', re.IGNORECASE)
 
     @time_this_method
-    def __init__(self, resfile: Union[Path, str]):
+    def __init__(self):
         """
         Reads the shelx file and extracts information.
 
@@ -189,49 +189,109 @@ class Shelxfile():
         self.error_line_num = -1  # Only used to tell the line number during an exception.
         self.restrdict = {}
         self.wght_suggested = None
+        self.resfile: Union[Path, None] = None
+
+    def write_shelx_file(self, filename=None, verbose=False) -> None:
+        if not filename:
+            filename = self.resfile
+        with open(filename, 'w') as f:
+            for num, line in enumerate(self._reslist):
+                if num in self.delete_on_write:
+                    if DEBUG:
+                        # print('Deleted line {}'.format(num + 1))
+                        pass
+                    continue
+                if line == '':  # and self._reslist[num + 1] == '':
+                    continue
+                # Prevent wrapping long lines with \n breaks by splitting first:
+                line = "\n".join([wrap_line(x) for x in str(line).split("\n")])
+                f.write(str(line) + '\n')
+        if verbose or DEBUG:
+            print('File successfully written to {}'.format(os.path.abspath(filename)))
+
+    def read_file(self, resfile: Union[Path, str]) -> None:
         if isinstance(resfile, str):
             resfile = Path(resfile)
-        self.resfile = resfile
         if DEBUG:
-            print('Resfile is:', self.resfile)
+            print('Resfile is:', resfile)
         try:
-            self._reslist = self.read_file_to_list(self.resfile)
-            if len(self._reslist) < 20 and DEBUG:
-                print('*** Not a SHELXL file: {} ***'.format(self.resfile))
-                sys.exit()
+            self._reslist = resfile.read_text().splitlines(keepends=False)
+            self._test_if_file_is_valid(resfile)
         except UnicodeDecodeError:
             if DEBUG:
-                print('*** Unable to read file', self.resfile, '***')
+                print('*** Unable to read file', resfile, '***')
             return
-        try:
-            self.parse_cards()
-            if self.latt.centric:
-                self.symmcards.set_centric(True)
-        except Exception as e:
-            # print('File not parsed:', self.resfile)
-            if DEBUG:
-                try:
-                    print(self.resfile[self.error_line_num])
-                except IndexError:
-                    pass
-                print(e)
-                print("*** Syntax error found in file {}, line {} ***".format(self.resfile, self.error_line_num + 1))
-            if DEBUG:
-                raise
-            else:
-                # print('*** Parser Error ***')
-                return
-        else:
-            try:
-                # self.run_after_parse()
-                pass
-            except Exception as e:
-                # print('File not parsed!:', self.resfile)
-                if DEBUG:
-                    print(e)
-                    raise
+        self.parse_cards()
 
     def parse_cards(self):
+        try:
+            self._parse_cards()
+        except Exception as e:
+            if DEBUG:
+                self.show_line_where_error_occured(e)
+                raise
+            else:
+                return
+
+    def _test_if_file_is_valid(self, resfile):
+        if len(self._reslist) < 20 and DEBUG:
+            print('*** Not a SHELXL file: {} ***'.format(resfile))
+            sys.exit()
+
+    def show_line_where_error_occured(self, e):
+        try:
+            print('Error near:\n', self._reslist[self.error_line_num])
+        except IndexError:
+            pass
+        print(e)
+        print("*** Syntax error found in file {}, line {} ***".format(self.resfile, self.error_line_num + 1))
+
+    def _find_included_files(self, reslist: List):
+        includefiles = []
+        for line_num, line in enumerate(reslist):
+            if line.startswith('+'):
+                try:
+                    file_included_in_includefile = self._read_included_file(includefiles, line)
+                    if file_included_in_includefile:
+                        for line_num_includefile, l in enumerate(file_included_in_includefile):
+                            reslist_position = line_num + 1 + line_num_includefile
+                            # '+filename' include files are not copied to res file,
+                            #  so I have to delete these lines on write.
+                            # '++filename' copies them to the .res file where appropriate
+                            # I leave this out, because I am not SHELXL:
+                            # if l.startswith('+') and l[:2] != '++':
+                            #    self.delete_on_write.update([lnum])
+                            reslist.insert(reslist_position, l)
+                        continue
+                except IndexError:
+                    if DEBUG:
+                        print('*** CANNOT READ INCLUDE FILE {} ***'.format(line))
+                    # Not sure if this is a good idea: del reslist[n]
+
+    def _read_included_file(self, includefiles: List[str], line: str):
+        include_filename = line.split()[1]
+        # Detect recursive file inclusion:
+        if include_filename in includefiles:
+            raise ValueError('*** Recoursive include files detected! ***')
+        includefiles.append(include_filename)
+        try:
+            newfile = Path(include_filename).read_text().splitlines(keepends=False)
+        except IOError as e:
+            if DEBUG:
+                print(e)
+                print('*** CANNOT OPEN NESTED INPUT FILE {} ***'.format(include_filename))
+            return []
+        return newfile
+
+    def reload(self):
+        """
+        Reloads the shelx file and parses it again.
+        """
+        if DEBUG:
+            print('loading file:', self.resfile)
+        self.__init__(self.resfile.resolve())
+
+    def _parse_cards(self):
         lastcard = ''
         fvarnum = 1
         for line_num, line in enumerate(self._reslist):
@@ -379,6 +439,8 @@ class Shelxfile():
                 self.assign_card(self.latt, line_num)
                 if not lastcard == 'ZERR' and DEBUG:
                     print('*** ZERR instruction is missing! ***')
+                if self.latt.centric:
+                    self.symmcards.set_centric(True)
             elif word == "SYMM":
                 # SYMM symmetry operation
                 #  Being more greedy, because many files do this wrong:
@@ -728,95 +790,9 @@ class Shelxfile():
         packed_atoms = sdm.packer(sdm, needsymm, with_qpeaks=with_qpeaks)
         return packed_atoms
 
-    def write_shelx_file(self, filename=None, verbose=False) -> None:
-        if not filename:
-            filename = self.resfile
-        with open(filename, 'w') as f:
-            for num, line in enumerate(self._reslist):
-                if num in self.delete_on_write:
-                    if DEBUG:
-                        # print('Deleted line {}'.format(num + 1))
-                        pass
-                    continue
-                if line == '':  # and self._reslist[num + 1] == '':
-                    continue
-                # Prevent wrapping long lines with \n breaks by splitting first:
-                line = "\n".join([wrap_line(x) for x in str(line).split("\n")])
-                f.write(str(line) + '\n')
-        if verbose or DEBUG:
-            print('File successfully written to {}'.format(os.path.abspath(filename)))
-
-    def read_file_to_list(self, resfile: Path) -> list:
-        """
-        Read in shelx file and returns a list without line endings. +include files are inserted
-        also.
-        :param resfile: The path to a SHLEL .res or .ins file.
-        """
-        reslist = []
-        includefiles = []
-        try:
-            reslist = resfile.read_text().splitlines(keepends=False)
-            for n, line in enumerate(reslist):
-                if line.startswith('+'):
-                    try:
-                        file_included_in_includefile = self._read_included_file(includefiles, line, resfile)
-                        if file_included_in_includefile:
-                            for num, l in enumerate(file_included_in_includefile):
-                                lnum = n + 1 + num
-                                # '+filename' include files are not copied to res file,
-                                #  so I have to delete these lines on write.
-                                # '++filename' copies them to the .res file where appropriate
-                                # I leave this out, because I am not SHELXL:
-                                # if l.startswith('+') and l[:2] != '++':
-                                #    self.delete_on_write.update([lnum])
-                                reslist.insert(lnum, l)
-                            continue
-                    except IndexError:
-                        if DEBUG:
-                            print('*** CANNOT READ INCLUDE FILE {} ***'.format(line))
-                        # Not sure if this is a good idea: del reslist[n]
-        except IOError as e:
-            print(e)
-            print('*** CANNOT READ FILE {} ***'.format(resfile))
-        return reslist
-
-    def _read_included_file(self, includefiles, line, resfile):
-        include_filename = line.split()[1]
-        # Detect recoursive file inclusion:
-        if include_filename in includefiles:
-            raise ValueError('*** Recoursive include files detected! ***')
-        includefiles.append(include_filename)
-        newfile = Shelxfile.read_nested_file_to_list(os.path.join(os.path.dirname(resfile),
-                                                                  include_filename))
-        return newfile
-
-    @staticmethod
-    def read_nested_file_to_list(resfile: str) -> list:
-        """
-        Read in shelx file and returns a list without line endings.
-        :param resfile: The path to a SHLEL .res or .ins file.
-        """
-        reslist = []
-        try:
-            with open(os.path.abspath(resfile), 'r') as f:
-                reslist = f.read().splitlines(keepends=False)
-        except IOError as e:
-            if DEBUG:
-                print(e)
-                print('*** CANNOT OPEN NESTED INPUT FILE {} ***'.format(resfile))
-            return reslist
-        return reslist
-
-    def reload(self):
-        """
-        Reloads the shelx file and parses it again.
-        """
-        if DEBUG:
-            print('loading file:', self.resfile)
-        self.__init__(self.resfile.resolve())
-
     def refine(self, cycles: int = 0) -> bool:
-        cycl = self.cycles.cycles._textline[:]
+        if not cycles:
+            cycles = self.cycles.cycles._textline[:]
         filen, _ = os.path.splitext(self.resfile)
         self.write_shelx_file(filen + '.ins')
         # shutil.copyfile(filen+'.res', filen+'.ins')
@@ -825,7 +801,7 @@ class Shelxfile():
         ref.run_shelxl()
         self.reload()
         ref.restore_acta_card()
-        c = LSCycles(self, cycl)
+        c = LSCycles(self, cycles)
         self.cycles.cycles = c
         self.write_shelx_file(filen + '.res')
         return True
@@ -1061,59 +1037,25 @@ class Shelxfile():
 
 
 if __name__ == "__main__":
-    # get_commands()
-    # sys.exit()
-    file = r'src/tests/p21c.res'
-    try:
-        shx = Shelxfile(file)
-    except Exception:
-        raise
+    print(Path('.').resolve())
+    file = r'../tests/resources/p21c.res'
+    shx = Shelxfile()
+    shx.read_file(file)
     print(shx.atoms)
     print(shx.sum_formula_exact)
     print(shx.sum_formula)
     print(shx.sum_formula_ex_dict())
-    # shx.write_shelx_file('tests/complete_run/test.ins')
-    # for at in shx.grow(with_qpeaks=True):
-    #    print(wrap_line(str(at)))
     sys.exit()
-    from .misc import walkdir
 
-    files = walkdir(r'D:\GitHub\testresfiles', '.res')
-    print('Indexing...')
-    num = 0
-    ex = ['dsrsaves', '.olex', 'ED', 'shelXlesaves', 'SAVEHIST']
-    ex2 = ['01S8sad', '12UFibca_c', '88Q9ibca_e', 'A506p', 'CW7Spna21_a', 'DWMDp21c', 'p21c_cmdline', 'VH75ibca_d',
-           'YVXZp', 'ZIXCpbcn_a']
-    ex += ex2
-    for f in files:
-        cont = False
-        for e in ex:
-            if e in str(f):
-                cont = True
-        if cont:
-            continue
-        # path = f.parent
-        # file = f.name
-        # print(path.joinpath(file))
-        # id = id_generator(size=4)
-        # copy(str(f), Path(r"d:/Github/testresfiles/").joinpath(id+file))
-        # print('copied', str(f.name))
-
-        # print(f)
-        shx = ShelXFile(f)
-        num += 1
-        # print(f)
-        # print(shx.sum_formula_exact)
-    print(num, 'Files')
-
+    # noinspection PyUnreachableCode
     """
-    def get_commands():
-        url = "http://shelx.uni-goettingen.de/shelxl_html.php"
-        response = urlopen('{}/version.txt'.format(url))
-        html = response.read().decode('UTF-8')
-        #res = BeautifulSoup(html, "html5lib")
-        tags = res.findAll("p", {"class": 'instr'})
-        for l in tags:
-            if l:
-                print(str(l).split(">")[1].split("<")[0])
-    """
+        def get_shelx_commands():
+            url = "http://shelx.uni-goettingen.de/shelxl_html.php"
+            response = urlopen('{}/version.txt'.format(url))
+            html = response.read().decode('UTF-8')
+            #res = BeautifulSoup(html, "html5lib")
+            tags = res.findAll("p", {"class": 'instr'})
+            for l in tags:
+                if l:
+                    print(str(l).split(">")[1].split("<")[0])
+        """

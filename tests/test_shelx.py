@@ -39,7 +39,8 @@ class TestShelxfileElementToSfac(TestCase):
     """
 
     def setUp(self) -> None:
-        self.shx = Shelxfile(Path('resources/p21c.res').resolve())
+        self.shx = Shelxfile()
+        self.shx.read_file('resources/p21c.res')
 
     def test_elem2sfac_oxygen(self):
         self.assertEqual(3, self.shx.elem2sfac('O'))
@@ -54,7 +55,8 @@ class TestShelxfileElementToSfac(TestCase):
 class TestShelxfile(TestCase):
 
     def setUp(self) -> None:
-        self.shx = Shelxfile(Path('resources/p21c.res').resolve())
+        self.shx = Shelxfile()
+        self.shx.read_file('resources/p21c.res')
 
     def test_sfac2elem_C(self):
         self.assertEqual('C', self.shx.sfac2elem(1))
@@ -76,3 +78,13 @@ class TestShelxfile(TestCase):
 
     def test_sum_formula(self):
         self.assertEqual('C0.25 H0.5 O0.75 F1 AL1.25 GA1.5', self.shx.sum_formula)
+
+    def test_read_file_to_list(self):
+        shx = Shelxfile()
+        shx.read_file('resources/p21c.res')
+        self.assertEqual(['TITL p21c in P2(1)/c',
+                          '    created by SHELXL-2018/3 at 16:18:25 on 03-May-2018',
+                          'CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90',
+                          'ZERR 4 0.0003 0.0005 0.0005 0 0.001 0',
+                          'LATT 1'],
+                         [str(x) for x in shx._reslist[:5]])
