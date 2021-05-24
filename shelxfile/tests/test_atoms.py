@@ -7,7 +7,7 @@ class TestAtoms(TestCase):
 
     def setUp(self) -> None:
         self.shx = Shelxfile()
-        self.shx.read_file('resources/p21c.res')
+        self.shx.read_file('tests/resources/p21c.res')
 
     def test_number(self):
         self.assertEqual(148, self.shx.atoms.number)

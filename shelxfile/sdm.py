@@ -14,10 +14,10 @@ from math import sqrt, radians, sin
 from pathlib import Path
 from string import ascii_letters
 
-from .atoms import Atom
-from .cards import AFIX, RESI
-from .dsrmath import Array, Matrix, vol_unitcell
-from .misc import DEBUG, wrap_line
+from atoms import Atom
+from cards import AFIX, RESI
+from dsrmath import Array, Matrix, vol_unitcell
+from misc import DEBUG, wrap_line
 
 
 class SDMItem(object):

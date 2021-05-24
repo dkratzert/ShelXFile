@@ -1,10 +1,10 @@
 from math import acos, sqrt, degrees
 from typing import Union, List
 
-from .cards import AFIX, PART, RESI
-from .dsrmath import atomic_distance, Array
-from .misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError, frac_to_cart
-from . import elements
+from cards import AFIX, PART, RESI
+from dsrmath import atomic_distance, Array
+from misc import DEBUG, split_fvar_and_parameter, ParseUnknownParam, ParseSyntaxError, frac_to_cart
+from shelxfile.elements import get_atomic_number, get_radius_from_element
 
 """
 TODO:
@@ -452,7 +452,7 @@ class Atom():
 
     @property
     def an(self):
-        return elements.get_atomic_number(self.element)
+        return get_atomic_number(self.element)
 
     @element.setter
     def element(self, new_element: str) -> None:
@@ -466,7 +466,7 @@ class Atom():
         """
         Returns the atomic covalence radius in angstrom.
         """
-        return elements.get_radius_from_element(self.element)
+        return get_radius_from_element(self.element)
 
     def __iter__(self):
         for x in self.__repr__().split():

@@ -15,7 +15,7 @@ from math import sqrt, radians, cos, sin, acos, degrees, floor, tan
 from operator import sub, add
 from typing import List, Union
 
-from .misc import flatten
+from misc import flatten
 
 
 class Array(object):

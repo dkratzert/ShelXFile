@@ -8,7 +8,7 @@ from shelxfile.shelx import Shelxfile
 class TestCELL(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()
-        self.shx.read_file('resources/p21c.res')
+        self.shx.read_file('tests/resources/p21c.res')
 
     def test_volume(self):
         self.assertEqual(4493.0474, round(self.shx.cell.volume, 4))
@@ -17,7 +17,7 @@ class TestCELL(TestCase):
 class TestRESI(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()
-        self.shx.read_file('resources/p21c.res')
+        self.shx.read_file('tests/resources/p21c.res')
 
     def test_get_resi_1_tol(self):
         r = RESI(None, 'RESI 1 TOL'.split())
@@ -44,15 +44,15 @@ class TestFMAP(TestCase):
 
     def test_fmap_number(self):
         shx = Shelxfile()
-        shx.read_file('resources/p21c.res')
+        shx.read_file('tests/resources/p21c.res')
         self.assertEqual(2.0, shx.fmap.code)
 
 
 class TestACTA(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()
-        self.shx.read_file('resources/p21c.res')
-        self.ref = ShelxlRefine(self.shx, './resources/p21c.res')
+        self.shx.read_file('tests/resources/p21c.res')
+        self.ref = ShelxlRefine(self.shx, './tests/resources/p21c.res')
 
     def test_acta(self):
         self.assertEqual('ACTA 45', self.shx._reslist[12].__repr__())
@@ -74,7 +74,7 @@ class TestACTA(TestCase):
 class TestLSCycles(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()
-        self.shx.read_file('resources/p21c.res')
+        self.shx.read_file('tests/resources/p21c.res')
         self.ref = ShelxlRefine(self.shx, './resources/p21c.res')
 
     def test_set_refine_cycles(self):
@@ -85,7 +85,7 @@ class TestLSCycles(TestCase):
 class TestSFACTable(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()
-        self.shx.read_file('resources/p21c.res')
+        self.shx.read_file('tests/resources/p21c.res')
 
     def test_sfac_table(self):
         self.assertEqual('SFAC C  H  O  F  Al  Ga', str(self.shx.sfac_table))
@@ -109,7 +109,7 @@ class TestSFACTable(TestCase):
 class TestWGHT(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()
-        self.shx.read_file('resources/p21c.res')
+        self.shx.read_file('tests/resources/p21c.res')
 
     def test_wght(self):
         self.assertEqual('WGHT   0.049 0.0', self.shx.wght.__repr__())

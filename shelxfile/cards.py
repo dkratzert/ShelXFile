@@ -2,8 +2,8 @@ import re
 from math import cos, radians, sqrt
 from typing import List
 
-from .dsrmath import my_isnumeric, SymmetryElement
-from .misc import chunks, ParseParamError, ParseNumError, \
+from dsrmath import my_isnumeric, SymmetryElement
+from misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, DEBUG, ParseSyntaxError
 
 """

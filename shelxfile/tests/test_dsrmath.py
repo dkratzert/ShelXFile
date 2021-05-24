@@ -56,7 +56,7 @@ class Testdsrmath(TestCase):
 class TestSymmetryElement(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()
-        self.shx.read_file('resources/p21c.res')
+        self.shx.read_file('tests/resources/p21c.res')
 
     def test_to_shelxl(self):
         self.assertEqual('[+X, +Y, +Z, -X, -Y, -Z, -X, 0.5+Y, 0.5-Z, +X, -0.5-Y, -0.5+Z]',

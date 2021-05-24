@@ -12,9 +12,9 @@
 from pathlib import Path
 from typing import Union, List
 
-from shelxfile.atoms import Atoms, Atom
-from shelxfile.refine.refine import ShelxlRefine
-from shelxfile.sdm import SDM
+from atoms import Atoms, Atom
+from refine.refine import ShelxlRefine
+from sdm import SDM
 
 __doc__ = """
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.
@@ -29,13 +29,13 @@ import os
 import re
 import sys
 
-from .cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
+from cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues
-from .dsrmath import Array, OrthogonalMatrix
-from .misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
+from dsrmath import Array, OrthogonalMatrix
+from misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 
 """
@@ -177,7 +177,7 @@ class Shelxfile():
         self.indexes = {}
         self.atoms = Atoms(self)
         self.fvars = FVARs(self)
-        self.restraints = Restraints()
+        self.restraints: Restraints = Restraints()
         self.sfac_table = SFACTable(self)
         self.delete_on_write = set()
         self.wavelen = None
@@ -210,6 +210,9 @@ class Shelxfile():
             print('File successfully written to {}'.format(os.path.abspath(filename)))
 
     def read_file(self, resfile: Union[Path, str]) -> None:
+        """
+        Read input from a file path.
+        """
         if isinstance(resfile, str):
             resfile = Path(resfile)
         if DEBUG:
@@ -221,6 +224,15 @@ class Shelxfile():
             if DEBUG:
                 print('*** Unable to read file', resfile, '***')
             return
+        self._find_included_files()
+        self.parse_cards()
+
+    def read_string(self, resfile_string: str):
+        """
+        Read input as string.
+        This will not read files included with "+filename" syntax!
+        """
+        self._reslist = resfile_string.splitlines(keepends=False)
         self.parse_cards()
 
     def parse_cards(self):
@@ -246,9 +258,10 @@ class Shelxfile():
         print(e)
         print("*** Syntax error found in file {}, line {} ***".format(self.resfile, self.error_line_num + 1))
 
-    def _find_included_files(self, reslist: List):
+    def _find_included_files(self):
+        # Tracks the file names of included files in order to find recursive inclusion:
         includefiles = []
-        for line_num, line in enumerate(reslist):
+        for line_num, line in enumerate(self._reslist):
             if line.startswith('+'):
                 try:
                     file_included_in_includefile = self._read_included_file(includefiles, line)
@@ -261,7 +274,7 @@ class Shelxfile():
                             # I leave this out, because I am not SHELXL:
                             # if l.startswith('+') and l[:2] != '++':
                             #    self.delete_on_write.update([lnum])
-                            reslist.insert(reslist_position, l)
+                            self._reslist.insert(reslist_position, l)
                         continue
                 except IndexError:
                     if DEBUG:
@@ -1038,7 +1051,8 @@ class Shelxfile():
 
 if __name__ == "__main__":
     print(Path('.').resolve())
-    file = r'../tests/resources/p21c.res'
+    # file = r'../shelxfile/tests/resources/p21c.res'
+    file = r'./shelxfile/tests/resources/p-31c.res'
     shx = Shelxfile()
     shx.read_file(file)
     print(shx.atoms)
@@ -1049,13 +1063,14 @@ if __name__ == "__main__":
 
     # noinspection PyUnreachableCode
     """
-        def get_shelx_commands():
-            url = "http://shelx.uni-goettingen.de/shelxl_html.php"
-            response = urlopen('{}/version.txt'.format(url))
-            html = response.read().decode('UTF-8')
-            #res = BeautifulSoup(html, "html5lib")
-            tags = res.findAll("p", {"class": 'instr'})
-            for l in tags:
-                if l:
-                    print(str(l).split(">")[1].split("<")[0])
-        """
+    #To get all available SHELX commands:
+    def get_shelx_commands():
+        url = "http://shelx.uni-goettingen.de/shelxl_html.php"
+        response = urlopen('{}/version.txt'.format(url))
+        html = response.read().decode('UTF-8')
+        #res = BeautifulSoup(html, "html5lib")
+        tags = res.findAll("p", {"class": 'instr'})
+        for l in tags:
+            if l:
+                print(str(l).split(">")[1].split("<")[0])
+    """
