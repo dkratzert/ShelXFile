@@ -190,6 +190,7 @@ class Shelxfile():
         self.restrdict = {}
         self.wght_suggested = None
         self.resfile: Union[Path, None] = None
+        self._reslist: List = []
 
     def write_shelx_file(self, filename=None, verbose=False) -> None:
         if not filename:
@@ -215,10 +216,11 @@ class Shelxfile():
         """
         if isinstance(resfile, str):
             resfile = Path(resfile)
+        self.resfile = resfile
         if DEBUG:
             print('Resfile is:', resfile)
         try:
-            self._reslist = resfile.read_text().splitlines(keepends=False)
+            self._reslist: List = resfile.read_text().splitlines(keepends=False)
             self._test_if_file_is_valid(resfile)
         except UnicodeDecodeError:
             if DEBUG:
@@ -282,13 +284,13 @@ class Shelxfile():
                     # Not sure if this is a good idea: del reslist[n]
 
     def _read_included_file(self, includefiles: List[str], line: str):
-        include_filename = line.split()[1]
+        include_filename: Path = self.resfile.resolve().parent.joinpath(line[1:])
         # Detect recursive file inclusion:
-        if include_filename in includefiles:
+        if include_filename.name in includefiles:
             raise ValueError('*** Recoursive include files detected! ***')
-        includefiles.append(include_filename)
+        includefiles.append(include_filename.name)
         try:
-            newfile = Path(include_filename).read_text().splitlines(keepends=False)
+            newfile = include_filename.read_text().splitlines(keepends=False)
         except IOError as e:
             if DEBUG:
                 print(e)
@@ -593,9 +595,8 @@ class Shelxfile():
                 self.append_card(self.disp, DISP(self, spline), line_num)
             elif word == 'EQIV':
                 # EQIV $n symmetry operation
-                if len(spline) > 1:
-                    if spline[1].startswith('$'):
-                        self.eqiv.append(spline[1:])
+                if len(spline) > 1 and spline[1].startswith('$'):
+                    self.eqiv.append(spline[1:])
             elif word == 'EXTI':
                 # EXTI x[0]
                 self.exti = float(spline[1])
@@ -1059,6 +1060,7 @@ if __name__ == "__main__":
     print(shx.sum_formula_exact)
     print(shx.sum_formula)
     print(shx.sum_formula_ex_dict())
+    print(shx.restraints)
     sys.exit()
 
     # noinspection PyUnreachableCode
