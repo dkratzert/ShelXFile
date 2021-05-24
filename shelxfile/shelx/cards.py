@@ -95,7 +95,23 @@ ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
 """
 
 
-class Restraint:
+class Residue():
+    @property
+    def residue_number(self):
+        if '_' in self._spline[0]:
+            _, suffix = self._spline[0].upper().split('_')
+            if any([x.isalpha() for x in suffix]):
+                self.residue_class = suffix
+            else:
+                # TODO: implement _+, _- and _*
+                if '*' in suffix:
+                    return list(self.shx.residues.residue_numbers.keys())
+                else:
+                    return [int(suffix)]
+        return [0]
+
+
+class Restraint(Residue):
 
     def __init__(self, shx, spline: list):
         """
@@ -112,20 +128,6 @@ class Restraint:
     def index(self):
         return self.shx.index_of(self)
 
-    @property
-    def residue_number(self):
-        if '_' in self.spline[0]:
-            _, suffix = self.spline[0].upper().split('_')
-            if any([x.isalpha() for x in suffix]):
-                self.residue_class = suffix
-            else:
-                # TODO: implement _+, _- and _*
-                if '*' in suffix:
-                    return list(self.shx.residues.residue_numbers.keys())
-                else:
-                    return [int(suffix)]
-        return [0]
-
     def _parse_line(self, spline, pairs=False):
         """
         Residues may be referenced by any instruction that allows atom names; the reference takes
@@ -136,7 +138,8 @@ class Restraint:
         assumed (unless overridden by a global residue number or class appended to the instruction
         codeword). 
         """
-        self.spline = spline
+        self._spline = spline
+        # TODO: check if suffix is a residue class and set instance variable accordingly
         if '_' in spline[0]:
             self.name, suffix = spline[0].upper().split('_')
         else:
@@ -204,7 +207,6 @@ class Command():
         self.shx = shx
         self._spline = spline
         self.residue_class = ''
-        # self.residue_number = 0
         self._textline = ' '.join(spline)
 
     def _parse_line(self, spline, intnums=False):
@@ -228,20 +230,6 @@ class Command():
             else:
                 words.append(x)
         return numparams, words
-
-    @property
-    def residue_number(self):
-        if '_' in self._spline[0]:
-            _, suffix = self._spline[0].upper().split('_')
-            if any([x.isalpha() for x in suffix]):
-                self.residue_class = suffix
-            else:
-                # TODO: implement _+, _- and _*
-                if '*' in suffix:
-                    return list(self.shx.residues.residue_numbers.keys())
-                else:
-                    return [int(suffix)]
-        return [0]
 
     @property
     def index(self):
@@ -272,25 +260,24 @@ class ABIN(Command):
         if len(p) > 0:
             self.n1 = p[0]
         if len(p) > 1:
-            self.n1 = p[1]
+            self.n2 = p[1]
 
 
 class ANIS(Command):
 
-    def __init__(self, shx, spline):
+    def __init__(self, shx, spline: List):
         """
         ANIS n
         ANIS names
         """
         super(ANIS, self).__init__(shx, spline)
-        p, atoms = self._parse_line(spline)
+        p, self.atoms = self._parse_line(spline)
         self.over_all = True
         if len(p) > 0:
             self.over_all = False
             self.n = p[0]
-        if len(atoms) > 0:
+        if len(self.atoms) > 0:
             self.over_all = False
-            self.atoms = atoms
 
     def __bool__(self):
         return True

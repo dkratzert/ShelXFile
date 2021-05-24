@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from shelxfile.shelx.cards import RESI
 from shelxfile.refine.refine import ShelxlRefine
+from shelxfile.shelx.cards import RESI, ANIS, ABIN, SADI
 from shelxfile.shelx.shelx import Shelxfile
 
 
@@ -116,3 +116,51 @@ class TestWGHT(TestCase):
 
     def test_wght_differene(self):
         self.assertEqual([0.0, 0.0], self.shx.wght.difference())
+
+
+class TestANIS(TestCase):
+
+    def test_anis_n(self):
+        a = ANIS(Shelxfile(), 'ANIS 12'.split())
+        self.assertEqual([], a.atoms)
+        self.assertEqual(12, a.n)
+
+    def test_anis_atoms(self):
+        a = ANIS(Shelxfile(), 'ANIS C12 C23 Al3a'.split())
+        self.assertEqual(['C12', 'C23', 'Al3a'], a.atoms)
+        self.assertEqual(False, hasattr(a, 'n'))
+
+
+class TestABIN(TestCase):
+    def test_abin(self):
+        a = ABIN(Shelxfile(), 'ABIN 1.234 4'.split())
+        self.assertEqual(1.234, a.n1)
+        self.assertEqual(4, a.n2)
+
+
+class TestSADI(TestCase):
+    def test_sadi_normal(self):
+        a = SADI(Shelxfile(), 'SADI C1 C2 C2 C3 C3 C4'.split())
+        self.assertEqual([['C1', 'C2'], ['C2', 'C3'], ['C3', 'C4']], a.atoms)
+        self.assertEqual('', a.residue_class)
+        self.assertEqual([0], a.residue_number)
+
+    def test_sadi_normal_with_resinum(self):
+        a = SADI(Shelxfile(), 'SADI_1 C1 C2 C2 C3 C3 C4'.split())
+        self.assertEqual([['C1', 'C2'], ['C2', 'C3'], ['C3', 'C4']], a.atoms)
+        self.assertEqual('', a.residue_class)
+        self.assertEqual([1], a.residue_number)
+
+    def test_sadi_normal_with_resinum_on_atoms(self):
+        a = SADI(Shelxfile(), 'SADI C1_1 C2_1 C2_2 C3_2 C3_2 C4_2'.split())
+        self.assertEqual([['C1_1', 'C2_1'], ['C2_2', 'C3_2'], ['C3_2', 'C4_2']], a.atoms)
+        self.assertEqual('', a.residue_class)
+        self.assertEqual([0], a.residue_number)
+
+    def test_sadi_normal_with_name(self):
+        a = SADI(None, 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
+        self.assertEqual([['C1', 'C2'], ['C2', 'C3'], ['C3', 'C4']], a.atoms)
+        self.assertEqual('', a.residue_class)
+        self.assertEqual([0], a.residue_number)
+        self.assertEqual(0.02, a.s1)
+        self.assertEqual(0.04, a.s2)
