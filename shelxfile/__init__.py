@@ -1,1 +1,1 @@
-from shelxfile.shelx import shelx
+from shelxfile.shelx.shelx import Shelxfile

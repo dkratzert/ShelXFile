@@ -158,9 +158,15 @@ class TestSADI(TestCase):
         self.assertEqual([0], a.residue_number)
 
     def test_sadi_normal_with_name(self):
-        a = SADI(None, 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
+        a = SADI(Shelxfile(), 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
         self.assertEqual([['C1', 'C2'], ['C2', 'C3'], ['C3', 'C4']], a.atoms)
+
+    def test_sadi_with_name_2(self):
+        a = SADI(None, 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
         self.assertEqual('', a.residue_class)
         self.assertEqual([0], a.residue_number)
-        self.assertEqual(0.02, a.s1)
-        self.assertEqual(0.04, a.s2)
+
+    def test_sadi_with_name_3(self):
+        a = SADI(Shelxfile(), 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
+        # TODO: The wrong value is from DEFS
+        self.assertEqual(0.02, a.s)
