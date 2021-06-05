@@ -122,7 +122,7 @@ class Shelxfile():
         self.merg = None
         self.more = None
         self.move = None
-        self.defs = None
+        self.defs: Union[DEFS, None] = None
         self.zerr = None
         self.wght = None
         self.frag = None

@@ -96,6 +96,10 @@ ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
 
 
 class Residue():
+    def __init__(self):
+        self.shx = None
+        self._spline = None
+
     @property
     def residue_number(self):
         if '_' in self._spline[0]:
@@ -118,6 +122,7 @@ class Restraint(Residue):
         Base class for parsing restraints.
         TODO: resolve ranges like SADI_CCF3 O1 > F9
         """
+        super().__init__()
         self.shx = shx
         self.residue_class = ''  # '' is the default class (with residue number 0)
         self.textline = ' '.join(spline)
@@ -144,26 +149,8 @@ class Restraint(Residue):
             self.name, suffix = spline[0].upper().split('_')
         else:
             self.name = spline[0].upper()
-        # Beware! DEFS changes only the non-defined default values:
-        # DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
-        if DEFS.active:
-            if self.name == 'DFIX':
-                self.s = DEFS.sd
-            if self.name == 'SAME':
-                self.s1 = DEFS.sd
-                self.s2 = DEFS.sd * 2
-            if self.name == 'SADI':
-                self.s = DEFS.sd
-            if self.name == 'CHIV':
-                self.s = DEFS.sf
-            if self.name == 'FLAT':
-                self.s = DEFS.sf
-            if self.name == 'DELU':
-                self.s1 = DEFS.su
-                self.s2 = DEFS.su
-            if self.name == 'SIMU':
-                self.s = DEFS.ss
-                self.st = DEFS.ss * 2
+        self.set_defs_values()
+        self.check_if_class_name_fits_to_command()
         params = []
         atoms = []
         for x in spline[1:]:
@@ -175,6 +162,33 @@ class Restraint(Residue):
             return params, chunks(atoms, 2)
         else:
             return params, atoms
+
+    def check_if_class_name_fits_to_command(self):
+        if DEBUG and self.__class__.__name__ != self.name:
+            print('*** Trying to parse restraint with wrong class ***')
+            raise ParseSyntaxError
+
+    def set_defs_values(self):
+        # Beware! DEFS changes only the non-defined default values:
+        # DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
+        if self.shx.defs:  # and self.shx.defs.active:
+            if self.name == 'DFIX':
+                self.s = self.shx.defs.sd
+            if self.name == 'SAME':
+                self.s1 = self.shx.defs.sd
+                self.s2 = self.shx.defs.sd * 2
+            if self.name == 'SADI':
+                self.s = self.shx.defs.sd
+            if self.name == 'CHIV':
+                self.s = self.shx.defs.sf
+            if self.name == 'FLAT':
+                self.s = self.shx.defs.sf
+            if self.name == 'DELU':
+                self.s1 = self.shx.defs.su
+                self.s2 = self.shx.defs.su
+            if self.name == 'SIMU':
+                self.s = self.shx.defs.ss
+                self.st = self.shx.defs.ss * 2
 
     def _paircheck(self):
         if not self.atoms:
@@ -467,8 +481,9 @@ class RESI():
 
         Allowed residue numbers is now from -999 to 9999 (2017/1)
         """
+        alpha = re.compile('[a-zA-Z]')
         for x in resi:
-            if re.search('[a-zA-Z]', x):
+            if alpha.search(x):
                 if ':' in x:
                     # contains ":" thus must be a chain-id+number
                     self.chain_id, self.residue_number = x.split(':')[0], int(x.split(':')[1])
@@ -1094,13 +1109,6 @@ class Restraints():
 
 
 class DEFS(Restraint):
-    # keeps track if DEFS was previously activated:
-    active = False
-    sd = 0.02
-    sf = 0.1
-    su = 0.01
-    ss = 0.04
-    maxsof = 1
 
     def __init__(self, shx, spline: list):
         """
@@ -1109,24 +1117,29 @@ class DEFS(Restraint):
         DFIX, SAME, SADI, CHIV, FLAT, DELU and SIMU restraints.
         """
         super(DEFS, self).__init__(shx, spline)
-        DEFS.active = True
+        self.sf = 0.1
+        self.su = 0.01
+        self.ss = 0.04
+        self.maxsof = 1
+        self.sd = 0.02
+        self.active = True
         p, _ = self._parse_line(spline)
         if _:
             raise ParseParamError
         if len(p) > 0:
-            DEFS.sd = p[0]
+            self.sd = p[0]
         if len(p) > 1:
-            DEFS.sf = p[1]
+            self.sf = p[1]
         if len(p) > 2:
-            DEFS.su = p[2]
+            self.su = p[2]
         if len(p) > 3:
-            DEFS.ss = p[3]
+            self.ss = p[3]
         if len(p) > 4:
-            DEFS.maxsof = p[4]
+            self.maxsof = p[4]
 
     @property
     def all(self):
-        return DEFS.sd, DEFS.sf, DEFS.su, DEFS.ss, DEFS.maxsof
+        return self.sd, self.sf, self.su, self.ss, self.maxsof
 
 
 class NCSY(Restraint):
@@ -1213,10 +1226,9 @@ class DFIX(Restraint):
         self._paircheck()
         if not self.d:
             raise ParseNumError
-        if DEBUG:
-            if 0.0001 < self.d <= self.s:  # Raise exception if d is smaller than s
-                print('*** WRONG ODER of INSTRUCTIONS. d is smaller than s ***')
-                print("{}".format(self.textline))
+        if DEBUG and 0.0001 < self.d <= self.s:
+            print('*** WRONG ODER of INSTRUCTIONS. d is smaller than s ***')
+            print("{}".format(self.textline))
 
 
 class DANG(Restraint):

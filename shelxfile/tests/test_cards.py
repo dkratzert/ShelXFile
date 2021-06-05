@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from shelxfile.refine.refine import ShelxlRefine
-from shelxfile.shelx.cards import RESI, ANIS, ABIN, SADI
+from shelxfile.shelx.cards import RESI, ANIS, ABIN, SADI, DFIX
 from shelxfile.shelx.shelx import Shelxfile
 
 
@@ -139,34 +139,66 @@ class TestABIN(TestCase):
 
 
 class TestSADI(TestCase):
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/I-43d.res')
+
     def test_sadi_normal(self):
-        a = SADI(Shelxfile(), 'SADI C1 C2 C2 C3 C3 C4'.split())
+        a = SADI(self.shx, 'SADI C1 C2 C2 C3 C3 C4'.split())
         self.assertEqual([['C1', 'C2'], ['C2', 'C3'], ['C3', 'C4']], a.atoms)
         self.assertEqual('', a.residue_class)
         self.assertEqual([0], a.residue_number)
 
     def test_sadi_normal_with_resinum(self):
-        a = SADI(Shelxfile(), 'SADI_1 C1 C2 C2 C3 C3 C4'.split())
+        a = SADI(self.shx, 'SADI_1 C1 C2 C2 C3 C3 C4'.split())
         self.assertEqual([['C1', 'C2'], ['C2', 'C3'], ['C3', 'C4']], a.atoms)
         self.assertEqual('', a.residue_class)
         self.assertEqual([1], a.residue_number)
 
     def test_sadi_normal_with_resinum_on_atoms(self):
-        a = SADI(Shelxfile(), 'SADI C1_1 C2_1 C2_2 C3_2 C3_2 C4_2'.split())
+        a = SADI(self.shx, 'SADI C1_1 C2_1 C2_2 C3_2 C3_2 C4_2'.split())
         self.assertEqual([['C1_1', 'C2_1'], ['C2_2', 'C3_2'], ['C3_2', 'C4_2']], a.atoms)
         self.assertEqual('', a.residue_class)
         self.assertEqual([0], a.residue_number)
 
     def test_sadi_normal_with_name(self):
-        a = SADI(Shelxfile(), 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
+        a = SADI(self.shx, 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
         self.assertEqual([['C1', 'C2'], ['C2', 'C3'], ['C3', 'C4']], a.atoms)
 
     def test_sadi_with_name_2(self):
-        a = SADI(None, 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
+        a = SADI(self.shx, 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
         self.assertEqual('', a.residue_class)
         self.assertEqual([0], a.residue_number)
 
     def test_sadi_with_name_3(self):
-        a = SADI(Shelxfile(), 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
-        # TODO: The wrong value is from DEFS
+        a = SADI(self.shx, 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
         self.assertEqual(0.02, a.s)
+
+    def test_sadi_with_name_4(self):
+        a = SADI(self.shx, 'SADI_CCF3 0.001 C1 C2 C2 C3 C3 C4'.split())
+        self.assertEqual(0.001, a.s)
+
+
+class TestwithDEFS(TestCase):
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/p21c.res')
+
+    def test_sadi_with_s(self):
+        a = SADI(self.shx, 'SADI_CCF3 0.001 C1 C2 C2 C3 C3 C4'.split())
+        self.assertEqual(0.001, a.s)
+
+    def test_sadi_without_s(self):
+        a = SADI(self.shx, 'SADI C1 C2 C2 C3 C3 C4'.split())
+        self.assertEqual(0.0234, a.s)
+
+    def test_DFIX_without_s(self):
+        a = DFIX(self.shx, 'DFIX 1.45 C1 C2 C2 C3 C3 C4'.split())
+        self.assertEqual(1.45, a.d)
+        self.assertEqual(0.0234, a.s)
+        self.assertEqual(0.0234, self.shx.defs.sd)
+
+    def test_DFIX_with_s(self):
+        a = DFIX(self.shx, 'DFIX 1.45 0.022 C1 C2 C2 C3 C3 C4'.split())
+        self.assertEqual(1.45, a.d)
+        self.assertEqual(0.022, a.s)

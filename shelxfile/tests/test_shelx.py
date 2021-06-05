@@ -87,3 +87,9 @@ class TestShelxfile(TestCase):
                           'ZERR 4 0.0003 0.0005 0.0005 0 0.001 0',
                           'LATT 1'],
                          [str(x) for x in shx._reslist[:5]])
+
+
+    def test_read_file(self):
+        shx = Shelxfile()
+        with self.assertRaises(FileNotFoundError):
+            shx.read_file('tests/resources/foobar.res')

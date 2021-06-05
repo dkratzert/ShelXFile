@@ -1,5 +1,6 @@
 from unittest import TestCase
 
+from shelxfile.misc.misc import frac_to_cart
 from shelxfile.shelx.shelx import Shelxfile
 
 
@@ -138,6 +139,10 @@ class TestAtoms(TestCase):
     def test_cart_coords(self):
         self.assertEqual([-0.19777464582151, 4.902748697, 6.89776640065679],
                          self.shx.atoms.get_atom_by_id(40).cart_coords)
+
+    def test_cartesian_from_method(self):
+        self.assertEqual([round(x, 14) for x in frac_to_cart(self.shx.atoms.get_atom_by_id(40).frac_coords, list(self.shx.cell))],
+                          self.shx.atoms.get_atom_by_id(40).cart_coords)
 
     def test_frac_coords(self):
         self.assertEqual((0.028576, 0.234542, 0.337234), self.shx.atoms.get_atom_by_id(40).frac_coords)
