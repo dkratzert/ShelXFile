@@ -117,3 +117,5 @@ shelxfile/tests/p21c.ins
 shelxfile/tests/p21c.lst
 *.fcf
 shelxfile/tests/p21c.cif
+test.res
+shelxfile/libvector_length.dylib

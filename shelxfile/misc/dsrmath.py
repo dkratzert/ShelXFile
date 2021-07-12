@@ -402,7 +402,7 @@ class SymmetryElement(object):
     Class representing a symmetry operation.
     """
     symm_id = 1
-    __slots__ = ['centric', 'symms', 'ID', 'matrix', 'trans']
+    __slots__ = ['centric', 'symms', 'ID', 'matrix', 'trans', 'matrix_iter', 'trans_iter']
 
     def __init__(self, symms, centric=False):
         """
@@ -420,6 +420,8 @@ class SymmetryElement(object):
             trans.append(t)
         self.matrix = Matrix(lines).transposed
         self.trans = Array(trans)
+        self.matrix_iter = Matrix(lines).transposed.values
+        self.trans_iter = Array(trans).values
         if centric:
             self.matrix *= -1
             self.trans *= -1

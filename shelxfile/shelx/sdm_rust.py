@@ -10,11 +10,15 @@
 # ----------------------------------------------------------------------------
 #
 import time
+from dataclasses import dataclass
 from math import sqrt, radians, sin
 from pathlib import Path
 from string import ascii_letters
+from typing import Union
 
-from shelxfile.atoms.atom import Atom
+from shelxfile.shelx.dsrmath import calc_sdm as sdmr
+
+#from shelxfile.atoms.atom import Atom
 from shelxfile.misc.dsrmath import Array, Matrix, vol_unitcell
 from shelxfile.misc.misc import DEBUG, wrap_line
 from shelxfile.shelx.cards import AFIX, RESI
@@ -47,13 +51,30 @@ class SDMItem(object):
                                                                  self.symmetry_number, self.dddd)
 
 
-class SDM():
+@dataclass
+class Atom:
+    x: float
+    y: float
+    z: float
+    element: str
+    part: int
+    symmgen: bool
+    molindex: int
+
+
+def is_hydrogen(element):
+    return True if element in ("H", "D") else False
+
+
+class SDMR():
     """
     This class calculates the shortest distance matrix and creates a completed (grown) structure by crystal symmetry.
     """
 
     def __init__(self, shx: 'Shelxfile'):
         self.shx = shx
+        self.sdm_list: list[SDMItem]
+        self.maxmol: int = 1
         self.cell = (
             self.shx.cell.a, self.shx.cell.b, self.shx.cell.c, self.shx.cell.al, self.shx.cell.be, self.shx.cell.ga)
         self.aga = self.shx.cell.a * self.shx.cell.b * self.shx.cell.cosga
@@ -71,93 +92,69 @@ class SDM():
         self.bstar = (self.shx.cell.c * self.shx.cell.a * sin(radians(self.shx.cell.be))) / self.shx.cell.V
         self.cstar = (self.shx.cell.a * self.shx.cell.b * sin(radians(self.shx.cell.ga))) / self.shx.cell.V
 
+
+    def get_atoms(self) -> tuple[Union[Atom, Atom], ...]:
+        atoms = []
+        for atom in self.shx.atoms:
+            atoms.append(
+                Atom(atom.x, atom.y, atom.z, element=atom.element, part=atom.part.n, symmgen=False, molindex=0))
+        return tuple(atoms)
+
     def calc_sdm(self) -> list:
         t1 = time.perf_counter()
-        all_atoms = self.shx.atoms.all_atoms
-        self.bondlist.clear()
-        for i, at1 in enumerate(all_atoms):
-            prime_array = [Array(at1.frac_coords) * symop.matrix + symop.trans for symop in self.shx.symmcards]
-            for j, at2 in enumerate(all_atoms):
-                mind = 1000000
-                hma = False
-                sdm_item = SDMItem()
-                for n, symop in enumerate(self.shx.symmcards):
-                    D = prime_array[n] - Array(at2.frac_coords) + 0.5
-                    dp = [v - 0.5 for v in D - D.floor]
-                    dk = self.vector_length(*dp)
-                    if dk > 5:
-                        continue
-                    if n:
-                        dk += 0.0001
-                    if (dk > 0.01) and (mind >= dk):
-                        mind = min(dk, mind)
-                        sdm_item.dist = mind
-                        sdm_item.atom1 = at1
-                        sdm_item.atom2 = at2
-                        sdm_item.a1 = i
-                        sdm_item.a2 = j
-                        sdm_item.symmetry_number = n
-                        hma = True
-                if not sdm_item.atom1:
-                    # Do not grow grown atoms:
-                    continue
-                if (not sdm_item.atom1.ishydrogen and not sdm_item.atom2.ishydrogen) and \
-                        sdm_item.atom1.part.n * sdm_item.atom2.part.n == 0 \
-                        or sdm_item.atom1.part.n == sdm_item.atom2.part.n:
-                    dddd = (at1.radius + at2.radius) * 1.2
-                    sdm_item.dddd = dddd
-                else:
-                    dddd = 0.0
-                if sdm_item.dist < dddd:
-                    if hma:
-                        # self.bondlist.append((i, j, sdm_item.atom1.name, sdm_item.atom2.name, sdm_item.dist))
-                        sdm_item.covalent = True
-                else:
-                    sdm_item.covalent = False
-                if hma:
-                    self.sdm_list.append(sdm_item)
+        all_atoms = self.get_atoms()
+        symms = self.shx.symmcards._symmcards
+        # symms = [SymmetryElement(['X', 'Y', 'Z']), SymmetryElement(['-X', '0.5+Y', '0.5-Z'])]
+        self.sdm_list = sdmr(all_atoms, symms)
         t2 = time.perf_counter()
         self.sdmtime = t2 - t1
-        if DEBUG:
-            print('Zeit sdm_calc:', self.sdmtime)
-        self.sdm_list.sort()
+        # if DEBUG:
+        print('Zeit sdm_calc:', self.sdmtime)
+        # self.sdm_list.sort()
         self.calc_molindex(all_atoms)
-        need_symm = self.collect_needed_symmetry()
+        need_symm = self.collect_needed_symmetry(all_atoms)
         if DEBUG:
             print("The asymmetric unit contains {} fragments.".format(self.maxmol))
         return need_symm
 
-    def collect_needed_symmetry(self) -> list:
+    def calc_d(self, at2_plushalf, n, prime):
+        D = prime - at2_plushalf
+        return D
+
+    def calc_primearray(self, at1):
+        prime_array = tuple(Array(at1.frac_coords) * symop.matrix + symop.trans for symop in self.shx.symmcards)
+        return prime_array
+
+    def collect_needed_symmetry(self, all_atoms) -> list:
         need_symm = []
         # Collect needsymm list:
         for sdm_item in self.sdm_list:
             if sdm_item.covalent:
                 # all_atoms[sdm_item.a1].molindex < 1 ...
-                if sdm_item.atom1.molindex < 1 or sdm_item.atom1.molindex > 6:
+                at1: Atom = all_atoms[sdm_item.a1]
+                at2: Atom = all_atoms[sdm_item.a2]
+                if at1.molindex < 1 or at1.molindex > 6:
                     continue
                 for n, symop in enumerate(self.shx.symmcards):
-                    if sdm_item.atom1.part.n != 0 and sdm_item.atom2.part.n != 0 \
-                            and sdm_item.atom1.part.n != sdm_item.atom2.part.n:
+                    if at1.part != 0 and at2.part != 0 \
+                            and at1.part != at2.part:
                         # both not part 0 and different part numbers
                         continue
                     # Both the same atomic number and number hydrogen:
-                    if sdm_item.atom1.an == sdm_item.atom2.an and sdm_item.atom1.ishydrogen:
+                    if at1.element == at2.element and is_hydrogen(at1):
                         continue
-                    prime = Array(sdm_item.atom1.frac_coords) * symop.matrix + symop.trans
-                    D = prime - Array(sdm_item.atom2.frac_coords) + Array([0.5, 0.5, 0.5])
+                    prime = Array([at1.x, at1.y, at1.z]) * symop.matrix + symop.trans
+                    D = prime - Array([at2.x, at2.y, at2.z]) + Array([0.5, 0.5, 0.5])
                     floor_d = D.floor
                     dp = D - floor_d - Array([0.5, 0.5, 0.5])
                     if n == 0 and Array([0, 0, 0]) == floor_d:
                         continue
                     dk = self.vector_length(*dp)
                     dddd = sdm_item.dist + 0.2
-                    if sdm_item.atom1.ishydrogen and sdm_item.atom2.ishydrogen:
+                    if is_hydrogen(at1) and is_hydrogen(at2):
                         dddd = 1.8
                     if (dk > 0.001) and (dddd >= dk):
-                        bs = [n + 1, (5 - floor_d[0]), (5 - floor_d[1]), (5 - floor_d[2]), sdm_item.atom1.molindex]
-                        # Does not work:
-                        # self.bondlist.append((sdm_item.a1, sdm_item.a2, sdm_item.atom1.name+'<',
-                        #                      sdm_item.atom2.name+'<', sdm_item.dist))
+                        bs = [n + 1, (5 - floor_d[0]), (5 - floor_d[1]), (5 - floor_d[2]), at1.molindex]
                         if bs not in need_symm:
                             need_symm.append(bs)
         return need_symm
@@ -174,13 +171,16 @@ class SDM():
             nextmol = 0
             while someleft:
                 someleft = 0
-                for sdmItem in self.sdm_list:
-                    if sdmItem.covalent and sdmItem.atom1.molindex * sdmItem.atom2.molindex < 0:
-                        sdmItem.atom1.molindex = self.maxmol
-                        sdmItem.atom2.molindex = self.maxmol
+                sdm_item: SDMItem
+                for sdm_item in self.sdm_list:
+                    at1: Atom = all_atoms[sdm_item.a1]
+                    at2: Atom = all_atoms[sdm_item.a2]
+                    if sdm_item.covalent and at1.molindex * at2.molindex < 0:
+                        at1.molindex = self.maxmol
+                        at2.molindex = self.maxmol
                         someleft += 1
             for ni, at in enumerate(all_atoms):
-                if not at.ishydrogen and at.molindex < 0:
+                if not is_hydrogen(at.element) and at.molindex < 0:
                     nextmol = ni
                     break
             if nextmol:
@@ -349,7 +349,7 @@ if __name__ == "__main__":
 
     shx = Shelxfile()
     shx.read_file('shelxfile/tests/resources/p-31c.res')
-    sdm = SDM(shx)
+    sdm = SDMR(shx)
     needsymm = sdm.calc_sdm()
     packed_atoms = sdm.packer(sdm, needsymm)
     # print(needsymm)
