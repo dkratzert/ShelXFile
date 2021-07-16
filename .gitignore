@@ -119,3 +119,4 @@ shelxfile/tests/p21c.lst
 shelxfile/tests/p21c.cif
 test.res
 shelxfile/libvector_length.dylib
+dsr-log.lst
