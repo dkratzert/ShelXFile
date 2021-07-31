@@ -12,47 +12,20 @@
 import time
 from dataclasses import dataclass
 from math import sqrt, radians, sin
-from pathlib import Path
 from string import ascii_letters
 from typing import Union
 
-from shelxfile.shelx.dsrmath import calc_sdm as sdmr
+from shelxfile.shelx.dsrmath import calc_sdm
 
-#from shelxfile.atoms.atom import Atom
+from shelxfile.atoms.atom import Atom
 from shelxfile.misc.dsrmath import Array, Matrix, vol_unitcell
-from shelxfile.misc.misc import DEBUG, wrap_line
+from shelxfile.misc.misc import DEBUG
 from shelxfile.shelx.cards import AFIX, RESI
 
 
-class SDMItem(object):
-    __slots__ = ['dist', 'atom1', 'atom2', 'a1', 'a2', 'symmetry_number', 'covalent', 'dddd']
-
-    def __init__(self):
-        self.dist = 0.0
-        self.atom1 = None
-        self.a1 = 0
-        self.atom2 = None
-        self.a2 = 0
-        self.symmetry_number = 0
-        self.covalent = True
-        self.dddd = 0
-
-    def __lt__(self, a2):
-        return True if self.dist < a2.dist else False
-
-    def __eq__(self, other: 'SDMItem'):
-        if other.a1 == self.a2 and other.a2 == self.a1:
-            return True
-        return False
-
-    def __repr__(self):
-        return '{} {} {} {} dist: {} coval: {} sn: {} {}'.format(self.atom1.name, self.atom2.name, self.a1, self.a2,
-                                                                 self.dist, self.covalent,
-                                                                 self.symmetry_number, self.dddd)
-
-
 @dataclass
-class Atom:
+class RAtom:
+    name: str
     x: float
     y: float
     z: float
@@ -60,10 +33,7 @@ class Atom:
     part: int
     symmgen: bool
     molindex: int
-
-
-def is_hydrogen(element):
-    return True if element in ("H", "D") else False
+    qpeak: bool
 
 
 class SDMR():
@@ -73,14 +43,15 @@ class SDMR():
 
     def __init__(self, shx: 'Shelxfile'):
         self.shx = shx
-        self.sdm_list: list[SDMItem]
+        # self.sdm_list: list[SDMItem]
+        self.all_atoms = self.get_atoms()
+        self.sdm_list = []  # list of sdmitems
         self.maxmol: int = 1
         self.cell = (
             self.shx.cell.a, self.shx.cell.b, self.shx.cell.c, self.shx.cell.al, self.shx.cell.be, self.shx.cell.ga)
         self.aga = self.shx.cell.a * self.shx.cell.b * self.shx.cell.cosga
         self.bbe = self.shx.cell.a * self.shx.cell.c * self.shx.cell.cosbe
         self.cal = self.shx.cell.b * self.shx.cell.c * self.shx.cell.cosal
-        self.sdm_list = []  # list of sdmitems
         self.maxmol = 1
         self.sdmtime = 0
         self.bondlist = []
@@ -92,66 +63,54 @@ class SDMR():
         self.bstar = (self.shx.cell.c * self.shx.cell.a * sin(radians(self.shx.cell.be))) / self.shx.cell.V
         self.cstar = (self.shx.cell.a * self.shx.cell.b * sin(radians(self.shx.cell.ga))) / self.shx.cell.V
 
-
-    def get_atoms(self) -> tuple[Union[Atom, Atom], ...]:
+    def get_atoms(self) -> tuple[Union[RAtom, RAtom], ...]:
         atoms = []
         for atom in self.shx.atoms:
             atoms.append(
-                Atom(atom.x, atom.y, atom.z, element=atom.element, part=atom.part.n, symmgen=False, molindex=0))
+                RAtom(name=atom.name, x=atom.x, y=atom.y, z=atom.z, element=atom.element, part=atom.part.n,
+                      symmgen=False, molindex=0, qpeak=atom.qpeak))
         return tuple(atoms)
 
     def calc_sdm(self) -> list:
         t1 = time.perf_counter()
-        all_atoms = self.get_atoms()
         symms = self.shx.symmcards._symmcards
-        # symms = [SymmetryElement(['X', 'Y', 'Z']), SymmetryElement(['-X', '0.5+Y', '0.5-Z'])]
-        self.sdm_list = sdmr(all_atoms, symms)
+        self.sdm_list = calc_sdm(self.all_atoms, symms)
+        self.sdm_list.sort()
         t2 = time.perf_counter()
         self.sdmtime = t2 - t1
-        # if DEBUG:
-        print('Zeit sdm_calc:', self.sdmtime)
-        # self.sdm_list.sort()
-        self.calc_molindex(all_atoms)
-        need_symm = self.collect_needed_symmetry(all_atoms)
+        self.calc_molindex(self.shx.atoms.all_atoms)
+        need_symm = self.collect_needed_symmetry(self.shx.atoms.all_atoms)
         if DEBUG:
             print("The asymmetric unit contains {} fragments.".format(self.maxmol))
         return need_symm
-
-    def calc_d(self, at2_plushalf, n, prime):
-        D = prime - at2_plushalf
-        return D
-
-    def calc_primearray(self, at1):
-        prime_array = tuple(Array(at1.frac_coords) * symop.matrix + symop.trans for symop in self.shx.symmcards)
-        return prime_array
 
     def collect_needed_symmetry(self, all_atoms) -> list:
         need_symm = []
         # Collect needsymm list:
         for sdm_item in self.sdm_list:
             if sdm_item.covalent:
-                # all_atoms[sdm_item.a1].molindex < 1 ...
                 at1: Atom = all_atoms[sdm_item.a1]
                 at2: Atom = all_atoms[sdm_item.a2]
                 if at1.molindex < 1 or at1.molindex > 6:
                     continue
+                prime_array = [Array(at1.frac_coords) * symop.matrix + symop.trans for symop in self.shx.symmcards]
                 for n, symop in enumerate(self.shx.symmcards):
                     if at1.part != 0 and at2.part != 0 \
                             and at1.part != at2.part:
                         # both not part 0 and different part numbers
                         continue
                     # Both the same atomic number and number hydrogen:
-                    if at1.element == at2.element and is_hydrogen(at1):
+                    if at1.element == at2.element and at1.is_hydrogen:
                         continue
-                    prime = Array([at1.x, at1.y, at1.z]) * symop.matrix + symop.trans
-                    D = prime - Array([at2.x, at2.y, at2.z]) + Array([0.5, 0.5, 0.5])
+                    # prime = Array([at1.x, at1.y, at1.z]) * symop.matrix + symop.trans
+                    D = prime_array[n] - Array([at2.x, at2.y, at2.z]) + Array((0.5, 0.5, 0.5))
                     floor_d = D.floor
-                    dp = D - floor_d - Array([0.5, 0.5, 0.5])
-                    if n == 0 and Array([0, 0, 0]) == floor_d:
+                    if n == 0 and D.floor.values == (0, 0, 0):
                         continue
+                    dp = D - floor_d - Array((0.5, 0.5, 0.5))
                     dk = self.vector_length(*dp)
                     dddd = sdm_item.dist + 0.2
-                    if is_hydrogen(at1) and is_hydrogen(at2):
+                    if at1.is_hydrogen and at2.is_hydrogen:
                         dddd = 1.8
                     if (dk > 0.001) and (dddd >= dk):
                         bs = [n + 1, (5 - floor_d[0]), (5 - floor_d[1]), (5 - floor_d[2]), at1.molindex]
@@ -171,7 +130,6 @@ class SDMR():
             nextmol = 0
             while someleft:
                 someleft = 0
-                sdm_item: SDMItem
                 for sdm_item in self.sdm_list:
                     at1: Atom = all_atoms[sdm_item.a1]
                     at2: Atom = all_atoms[sdm_item.a2]
@@ -180,7 +138,7 @@ class SDMR():
                         at2.molindex = self.maxmol
                         someleft += 1
             for ni, at in enumerate(all_atoms):
-                if not is_hydrogen(at.element) and at.molindex < 0:
+                if not at.is_hydrogen and at.molindex < 0:
                     nextmol = ni
                     break
             if nextmol:
@@ -194,11 +152,10 @@ class SDMR():
         A = 2.0 * (x * y * self.aga + x * z * self.bbe + y * z * self.cal)
         return sqrt(x ** 2 * self.asq + y ** 2 * self.bsq + z ** 2 * self.csq + A)
 
-    def packer(self, sdm: 'SDM', need_symm: list, with_qpeaks=False):
+    def packer(self, sdm: 'SDMR', need_symm: list, with_qpeaks=False):
         """
         Packs atoms of the asymmetric unit to real molecules.
         """
-        # t1 = time.perf_counter()
         asymm = self.shx.atoms.all_atoms
         if with_qpeaks:
             showatoms = asymm[:]
@@ -211,9 +168,8 @@ class SDMR():
             l -= 5
             symm_num -= 1
             for atom in asymm:
-                if not with_qpeaks:
-                    if atom.qpeak:
-                        continue
+                if not with_qpeaks and atom.qpeak:
+                    continue
                 # Essential to have hydrogen atoms grown:
                 # if not atom.ishydrogen and atom.molindex == symmgroup:
                 if atom.molindex == symmgroup:
@@ -221,7 +177,6 @@ class SDMR():
                     if atom.qpeak:
                         continue
                     else:
-                        pass
                         uvals = atom.uvals
                         # TODO: Transform u values according to symmetry:
                         # currently, the adps are directed in wrong directions after after applying symmetry to atoms.
@@ -250,10 +205,6 @@ class SDMR():
                                 isthere = True
                     if not isthere:
                         showatoms.append(new_atom)
-                # elif grow_qpeaks:
-                #    add q-peaks here
-        # t2 = time.perf_counter()
-        # print('packzeit:', t2-t1) # 0.04s
         return showatoms
 
     def transform_uvalues(self, uvals: (list, tuple), symm_num: int):
@@ -349,56 +300,14 @@ if __name__ == "__main__":
 
     shx = Shelxfile()
     shx.read_file('shelxfile/tests/resources/p-31c.res')
+    t1 = time.perf_counter()
     sdm = SDMR(shx)
     needsymm = sdm.calc_sdm()
+    print(needsymm)
     packed_atoms = sdm.packer(sdm, needsymm)
-    # print(needsymm)
-    # [[8, 5, 5, 5, 1], [16, 5, 5, 5, 1], [7, 4, 5, 5, 3]]
-    # print(len(shx.atoms))
-    # print(len(packed_atoms))
-
-    head = """
-REM Solution 1  R1  0.081,  Alpha = 0.0146  in P31c
-REM Flack x = -0.072 ( 0.041 ) from Parsons' quotients
-REM C19.667 N2.667 P4
-TITL p-31c-neu in P-31c
-CELL  0.71073  12.5067  12.5067  24.5615   90.000   90.000  120.000
-ZERR   2   0.0043   0.0043   0.0085   0.000   0.000   0.000
-LATT -1
-SFAC C H N P Cl
-UNIT 120 186 14 12 12
-TEMP -173.000
-OMIT 0   0   2
-L.S. 10
-BOND $H
-ACTA
-CONF
-
-LIST 4
-FMAP 2
-PLAN 40
-WGHT    0.034600    0.643600
-FVAR       0.22604   0.76052   0.85152\n"""
-
-    tail = """\n
-HKLF 4
- 
-REM  p-31c-neu in P-31c
-REM R1 =  0.0308 for    4999 Fo > 4sig(Fo)  and  0.0343 for all    5352 data
-REM    287 parameters refined using    365 restraints
- 
-END 
- 
-WGHT      0.0348      0.6278 
-"""
-    for at in packed_atoms:
-        if at.qpeak:
-            continue
-        # print(wrap_line(str(at)))
-        head += wrap_line(str(at)) + '\n'
-    head += tail
-    p = Path('./test.res')
-    p.write_text(head)
-    print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
-    # print(sdm.bondlist)
-    # print(len(sdm.bondlist), '(170) Atome in p-31c.res, (208) in I-43d.res')
+    print(len(shx.atoms))
+    print(len(packed_atoms))
+    # [[1, 5, 5, 5, 4], [1, 5, 5, 5, 5], [2, 6, 5, 5, 5], [3, 6, 6, 5, 5], [1, 5, 5, 5, 3], [2, 6, 6, 5, 3],
+    # 88
+    # 208
+    print('Zeit für sdm:', round(time.perf_counter() - t1, 3), 's')

@@ -42,7 +42,7 @@ class SDMItem(object):
         return False
 
     def __repr__(self):
-        return '{} {} {} {} dist: {} coval: {} sn: {} {}'.format(self.atom1.name, self.atom2.name, self.a1, self.a2,
+        return '{} {} dist: {:.6} coval: {} sn: {}  {}\n'.format(self.a1, self.a2,
                                                                  self.dist, self.covalent,
                                                                  self.symmetry_number, self.dddd)
 
@@ -85,7 +85,7 @@ class SDM():
                     D = prime_array[n] - Array(at2.frac_coords) + 0.5
                     dp = [v - 0.5 for v in D - D.floor]
                     dk = self.vector_length(*dp)
-                    if dk > 5:
+                    if dk > 5.3:
                         continue
                     if n:
                         dk += 0.0001
@@ -121,6 +121,7 @@ class SDM():
         if DEBUG:
             print('Zeit sdm_calc:', self.sdmtime)
         self.sdm_list.sort()
+        print(len(self.sdm_list))
         self.calc_molindex(all_atoms)
         need_symm = self.collect_needed_symmetry()
         if DEBUG:
@@ -174,10 +175,10 @@ class SDM():
             nextmol = 0
             while someleft:
                 someleft = 0
-                for sdmItem in self.sdm_list:
-                    if sdmItem.covalent and sdmItem.atom1.molindex * sdmItem.atom2.molindex < 0:
-                        sdmItem.atom1.molindex = self.maxmol
-                        sdmItem.atom2.molindex = self.maxmol
+                for sdm_item in self.sdm_list:
+                    if sdm_item.covalent and sdm_item.atom1.molindex * sdm_item.atom2.molindex < 0:
+                        sdm_item.atom1.molindex = self.maxmol
+                        sdm_item.atom2.molindex = self.maxmol
                         someleft += 1
             for ni, at in enumerate(all_atoms):
                 if not at.ishydrogen and at.molindex < 0:
@@ -211,9 +212,8 @@ class SDM():
             l -= 5
             symm_num -= 1
             for atom in asymm:
-                if not with_qpeaks:
-                    if atom.qpeak:
-                        continue
+                if not with_qpeaks and atom.qpeak:
+                    continue
                 # Essential to have hydrogen atoms grown:
                 # if not atom.ishydrogen and atom.molindex == symmgroup:
                 if atom.molindex == symmgroup:
@@ -349,11 +349,13 @@ if __name__ == "__main__":
 
     shx = Shelxfile()
     shx.read_file('shelxfile/tests/resources/p-31c.res')
+    t1 = time.perf_counter()
     sdm = SDM(shx)
     needsymm = sdm.calc_sdm()
+    print(needsymm)
     packed_atoms = sdm.packer(sdm, needsymm)
-    # print(needsymm)
-    # [[8, 5, 5, 5, 1], [16, 5, 5, 5, 1], [7, 4, 5, 5, 3]]
+    print('Zeit für sdm:', round(time.perf_counter() - t1, 3), 's')
+    # p-31c: [[2, 6, 5, 5, 5], [3, 6, 6, 5, 5], [2, 6, 6, 5, 3], [3, 5, 6, 5, 3], [2, 5, 5, 5, 4], [3, 5, 5, 5, 4]]
     # print(len(shx.atoms))
     # print(len(packed_atoms))
 
@@ -399,6 +401,8 @@ WGHT      0.0348      0.6278
     head += tail
     p = Path('./test.res')
     p.write_text(head)
+    print(len(shx.atoms))
+    print(len(packed_atoms))
     print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
     # print(sdm.bondlist)
     # print(len(sdm.bondlist), '(170) Atome in p-31c.res, (208) in I-43d.res')

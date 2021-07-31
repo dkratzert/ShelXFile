@@ -1,9 +1,10 @@
 from __future__ import division
-from shelxfile.atoms.atoms import Atoms
 import sys
 import time
 from math import sin, cos, pi, sqrt
 
+from shelxfile.atoms.atoms import Atoms
+from shelx.shelx import Shelxfile
 
 """
 This module is a fork from https://github.com/des4maisons/molecule-viewer
@@ -133,7 +134,7 @@ class Molecule(object):
             self.atoms.append(Atom(at.x, at.y, at.z, at.name, at.resinum))
 
     def parse_atom(self, str):
-        type, seqnum, elt, one, x, y, z, who, cares = str.split()
+        atype, seqnum, elt, one, x, y, z, who, cares = str.split()
         self.atoms.append(Atom(float(x), float(y), float(z), elt, int(seqnum)))
 
     # dimensions is 2-tuple of the number of characters on x and y axis
@@ -181,7 +182,6 @@ class Screen(list):
 
 
 if __name__ == "__main__":
-    from shelxfile.shelx.shelx import Shelxfile
     #filename = sys.argv[1]
     shx = Shelxfile()
     shx.read_file('./tests/resources/p21c.res')

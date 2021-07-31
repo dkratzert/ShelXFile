@@ -1,7 +1,7 @@
-from shelxfile.shelx.cards import PART, AFIX, RESI
 from shelxfile.misc.dsrmath import atomic_distance
 from shelxfile.misc.elements import get_atomic_number, get_radius_from_element
 from shelxfile.misc.misc import split_fvar_and_parameter, DEBUG, ParseSyntaxError, frac_to_cart, ParseUnknownParam
+from shelxfile.shelx.cards import PART, AFIX, RESI
 
 
 class Atom():
@@ -121,7 +121,7 @@ class Atom():
         self._occupancy = occ
 
     @property
-    def ishydrogen(self) -> bool:
+    def is_hydrogen(self) -> bool:
         """
         Returns True if the current atom is a hydrogen isotope.
         """
@@ -129,6 +129,10 @@ class Atom():
             return True
         else:
             return False
+
+    @property
+    def ishydrogen(self) -> bool:
+        return self.is_hydrogen
 
     def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None,
                             afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0,

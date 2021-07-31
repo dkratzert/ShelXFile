@@ -12,13 +12,14 @@
 import os
 import re
 import textwrap
-import time
 from math import radians, cos, sin, sqrt
 from shutil import get_terminal_size
 
 # TODO: Add verbose mode that doesn't fail but gives output like debug mode.
 # Without DEBUG, the parser should only fail if the file is realy damaged. With DEBUG enabled, the parser
 # fails even in harmless cases.
+from time import time, perf_counter
+
 DEBUG = False
 PROFILE = False
 
@@ -239,9 +240,9 @@ def time_this_method(f):
 
         @wraps(f)
         def wrapper(*args, **kwargs):
-            t1 = time.clock()
+            t1 = perf_counter()
             result = f(*args, **kwargs)
-            t2 = time.clock()
+            t2 = perf_counter()
             if PROFILE:
                 print('Time for "{}": {:5.3} ms\n'.format(f.__name__ + '()', (t2 - t1) * 1000))
             return result
@@ -279,7 +280,7 @@ class TextLine:
         """
         self.data = initdata
         self.next = None
-        self.id = time.time()
+        self.id = time()
 
     def get_data(self):
         return self.data

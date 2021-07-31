@@ -36,7 +36,7 @@ class Array(object):
     """
     __slots__ = ['values']
 
-    def __init__(self, values: list):
+    def __init__(self, values: Union[list, tuple]):
         self.values = values
 
     def __iter__(self) -> iter:
