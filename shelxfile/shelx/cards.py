@@ -337,12 +337,12 @@ class CELL(Command):
             self.a = p[1]
             self.b = p[2]
             self.c = p[3]
-            self.al = p[4]
-            self.be = p[5]
-            self.ga = p[6]
-            self.cosal = cos(radians(self.al))
-            self.cosbe = cos(radians(self.be))
-            self.cosga = cos(radians(self.ga))
+            self.alpha = p[4]
+            self.beta = p[5]
+            self.gamma = p[6]
+            self.cosal = cos(radians(self.alpha))
+            self.cosbe = cos(radians(self.beta))
+            self.cosga = cos(radians(self.gamma))
         else:
             raise ParseSyntaxError
 
@@ -352,7 +352,7 @@ class CELL(Command):
         calculates the volume of a unit cell
         """
         try:
-            ca, cb, cg = cos(radians(self.al)), cos(radians(self.be)), cos(radians(self.ga))
+            ca, cb, cg = cos(radians(self.alpha)), cos(radians(self.beta)), cos(radians(self.gamma))
             v = self.a * self.b * self.c * sqrt(1 + 2 * ca * cb * cg - ca ** 2 - cb ** 2 - cg ** 2)
         except AttributeError:
             # No valid celll

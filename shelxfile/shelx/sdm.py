@@ -55,7 +55,7 @@ class SDM():
     def __init__(self, shx: 'Shelxfile'):
         self.shx = shx
         self.cell = (
-            self.shx.cell.a, self.shx.cell.b, self.shx.cell.c, self.shx.cell.al, self.shx.cell.be, self.shx.cell.ga)
+            self.shx.cell.a, self.shx.cell.b, self.shx.cell.c, self.shx.cell.alpha, self.shx.cell.beta, self.shx.cell.gamma)
         self.aga = self.shx.cell.a * self.shx.cell.b * self.shx.cell.cosga
         self.bbe = self.shx.cell.a * self.shx.cell.c * self.shx.cell.cosbe
         self.cal = self.shx.cell.b * self.shx.cell.c * self.shx.cell.cosal
@@ -67,9 +67,9 @@ class SDM():
         self.bsq = self.shx.cell[1] ** 2
         self.csq = self.shx.cell[2] ** 2
         # calculate reciprocal lattice vectors:
-        self.astar = (self.shx.cell.b * self.shx.cell.c * sin(radians(self.shx.cell.al))) / self.shx.cell.V
-        self.bstar = (self.shx.cell.c * self.shx.cell.a * sin(radians(self.shx.cell.be))) / self.shx.cell.V
-        self.cstar = (self.shx.cell.a * self.shx.cell.b * sin(radians(self.shx.cell.ga))) / self.shx.cell.V
+        self.astar = (self.shx.cell.b * self.shx.cell.c * sin(radians(self.shx.cell.alpha))) / self.shx.cell.V
+        self.bstar = (self.shx.cell.c * self.shx.cell.a * sin(radians(self.shx.cell.beta))) / self.shx.cell.V
+        self.cstar = (self.shx.cell.a * self.shx.cell.b * sin(radians(self.shx.cell.gamma))) / self.shx.cell.V
 
     def calc_sdm(self) -> list:
         t1 = time.perf_counter()
@@ -243,9 +243,9 @@ class SDM():
                         for atom in showatoms:
                             if atom.part.n != new_atom.part.n:
                                 continue
-                            length = sdm.vector_length(new_atom.frac_coords[0] - atom.frac_coords[0],
-                                                       new_atom.frac_coords[1] - atom.frac_coords[1],
-                                                       new_atom.frac_coords[2] - atom.frac_coords[2])
+                            length = sdm.vector_length(new_atom.x - atom.x,
+                                                       new_atom.y - atom.y,
+                                                       new_atom.z - atom.z)
                             if length < 0.2:
                                 isthere = True
                     if not isthere:
