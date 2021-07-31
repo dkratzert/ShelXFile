@@ -34,6 +34,7 @@ class RAtom:
     symmgen: bool
     molindex: int
     qpeak: bool
+    radius: float
 
 
 class SDMR():
@@ -68,7 +69,7 @@ class SDMR():
         for atom in self.shx.atoms:
             atoms.append(
                 RAtom(name=atom.name, x=atom.x, y=atom.y, z=atom.z, element=atom.element, part=atom.part.n,
-                      symmgen=False, molindex=0, qpeak=atom.qpeak))
+                      symmgen=False, molindex=0, qpeak=atom.qpeak, radius=atom.radius))
         return tuple(atoms)
 
     def calc_sdm(self) -> list:
