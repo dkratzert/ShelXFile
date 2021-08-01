@@ -5,6 +5,7 @@ from unittest import TestCase
 
 from shelxfile.misc.misc import wrap_line
 from shelxfile.shelx.sdm_rust import SDMR
+from shelxfile.shelx.sdm_complete import get_vector_length
 from shelxfile.shelx.shelx import Shelxfile
 from shelxfile.shelx.sdm import SDM
 
@@ -97,14 +98,12 @@ WGHT      0.0348      0.6278
         self.assertEqual(7.343581289102655, sdm.vector_length(-0.3665069999999999, 0.293439, -0.06597900000000001))
 
     def test_vector_length2(self):
-        from shelxfile.shelx.dsrmath import get_vector_length
         Cell = namedtuple('UnitCell', 'a, b, c, alpha, beta, gamma')
         cell = Cell(1.0, 1.0, 1.0, 90.0, 90.0, 90.0)
         print(get_vector_length(cell, 1.0, 1.0, 1.0))
         self.assertEqual(1.7320508075688774, get_vector_length(cell, 1.0, 1.0, 1.0))
 
     def test_vector_length3(self):
-        from shelxfile.shelx.dsrmath import get_vector_length
         Cell = namedtuple('UnitCell', 'a, b, c, alpha, beta, gamma')
         cell = Cell(12.5067, 12.5067, 24.5615, 90.0, 90.0, 120.0)
         print(get_vector_length(cell, 0.32436, 0.31780200000000003, 0.32296800000000003))
