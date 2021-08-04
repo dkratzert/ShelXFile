@@ -18,7 +18,7 @@ pip install shelxfile
 
 >>> from shelxfile import Shelxfile
 >>> shx = Shelxfile()
->>> shx.read_file('src/tests/resources/p21c.res')
+>>> shx.read_file('src/tests/resources/p21c.res')  # or .read_string() 
 >>> shx.cell
 CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 
