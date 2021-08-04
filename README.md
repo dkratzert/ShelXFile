@@ -17,7 +17,8 @@ Examples:
 pip install shelxfile
 
 >>> from shelxfile import Shelxfile
->>> shx = Shelxfile('src/tests/resources/p21c.res')
+>>> shx = Shelxfile()
+>>> shx.read_file('src/tests/resources/p21c.res')
 >>> shx.cell
 CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 
@@ -29,6 +30,14 @@ CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 
 >>> shx.cell.a
 10.5086
+
+# You can overwrite any parameter in a shelx file:
+>>> shx.plan
+20
+
+>>> shx.plan = 30
+>>> shx.plan
+30
 
 >>> shx.atoms
 O1     3    0.074835    0.238436    0.402457   -31.00000    0.01579    0.03095      0.01852   -0.00468   -0.00210    0.01153
