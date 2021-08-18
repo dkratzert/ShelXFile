@@ -151,7 +151,7 @@ class TestAtoms(TestCase):
         self.assertEqual(0.028576, self.shx.atoms.get_atom_by_id(40).x)
 
     def test_cart_x(self):
-        self.assertEqual(-0.19777464582150567, self.shx.atoms.get_atom_by_id(40).xc)
+        self.assertEqual(-0.1977746458, round(self.shx.atoms.get_atom_by_id(40).xc, 10))
 
     def test_radius(self):
         self.assertEqual(0.77, self.shx.atoms.get_atom_by_id(40).radius)
