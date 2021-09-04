@@ -25,7 +25,7 @@ from shelxfile.shelx.cards import AFIX, RESI
 
 
 @dataclass
-class RAtom:
+class Atom:
     name: str
     x: float
     y: float
@@ -66,11 +66,11 @@ class SDMR():
         self.bstar = (self.shx.cell.c * self.shx.cell.a * sin(radians(self.shx.cell.beta))) / self.shx.cell.V
         self.cstar = (self.shx.cell.a * self.shx.cell.b * sin(radians(self.shx.cell.gamma))) / self.shx.cell.V
 
-    def get_atoms(self) -> tuple[Union[RAtom, RAtom], ...]:
+    def get_atoms(self) -> tuple[Union[Atom, Atom], ...]:
         atoms = []
         for atom in self.shx.atoms:
             atoms.append(
-                RAtom(name=atom.name, x=atom.x, y=atom.y, z=atom.z, element=atom.element, part=atom.part.n,
+                Atom(name=atom.name, x=atom.x, y=atom.y, z=atom.z, element=atom.element, part=atom.part.n,
                       symmgen=False, molindex=-1, qpeak=atom.qpeak, radius=atom.radius))
         return tuple(atoms)
 
@@ -83,9 +83,9 @@ class SDMR():
         t2 = time.perf_counter()
         print('Zeit für sdm:', round(t2 - t1, 3), 's')
         self.sdmtime = t2 - t1
-        #self.calc_molindex(self.shx.atoms.all_atoms)
-        #print([x.molindex for x in self.shx.atoms.all_atoms])
-        #need_symm = self.collect_needed_symmetry(self.shx.atoms.all_atoms)
+        # self.calc_molindex(self.shx.atoms.all_atoms)
+        # print([x.molindex for x in self.shx.atoms.all_atoms])
+        # need_symm = self.collect_needed_symmetry(self.shx.atoms.all_atoms)
         if DEBUG:
             print("The asymmetric unit contains {} fragments.".format(self.maxmol))
         return need_symm
@@ -304,16 +304,16 @@ if __name__ == "__main__":
     shx.read_file('shelxfile/tests/resources/p-31c.res')
     t1 = time.perf_counter()
     sdm = SDMR(shx)
-    needsymm = sdm.calc_sdm()
+    packed_atoms = sdm.calc_sdm()
     print('Zeit für sdm:', round(time.perf_counter() - t1, 3), 's')
-    print(needsymm, '#needsym#')
-    packed_atoms = sdm.packer(sdm, needsymm)
+    print(packed_atoms, '#packed atoms#')
+    # packed_atoms = sdm.packer(sdm, needsymm)
     print(len(shx.atoms))
     print(len(packed_atoms))
-    #assert str(
+    # assert str(
     #    needsymm) == "[[1, 5, 5, 5, 4], [1, 5, 5, 5, 5], [2, 6, 5, 5, 5], [3, 6, 6, 5, 5], [1, 5, 5, 5, 3], [2, 6, 6, 5, 3], [3, 5, 6, 5, 3], [2, 5, 5, 5, 4], [3, 5, 5, 5, 4]]"
-    assert str(
-        needsymm) == "[[2, 6, 5, 5, 5], [3, 6, 6, 5, 5], [2, 6, 6, 5, 3], [3, 5, 6, 5, 3], [2, 5, 5, 5, 4], [3, 5, 5, 5, 4]]"
+    # assert str(
+    #    needsymm) == "[[2, 6, 5, 5, 5], [3, 6, 6, 5, 5], [2, 6, 6, 5, 3], [3, 5, 6, 5, 3], [2, 5, 5, 5, 4], [3, 5, 5, 5, 4]]"
     assert str(packed_atoms[90]) == 'H2>>1_b 2   0.557744    0.080938   0.300634   21.00000   -1.30000'
     assert str(packed_atoms[
                    129]) == 'C15>>2_a  1    1.145639    0.497216    0.299794    11.00000    0.01803    0.01661      0.03458    0.00038   -0.00408    0.01187'
