@@ -304,7 +304,7 @@ class Shelxfile():
         """
         if DEBUG:
             print('loading file:', self.resfile)
-        self.__init__(self.resfile.resolve())
+        self.read_file(self.resfile.resolve())
 
     def _parse_cards(self):
         lastcard = ''

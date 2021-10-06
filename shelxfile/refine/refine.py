@@ -17,8 +17,8 @@ import subprocess
 import sys
 from shutil import which, disk_usage, copyfile
 
-from shelxfile.shelx.cards import ACTA
 from shelxfile.misc.misc import remove_file, sep_line, find_line
+from shelxfile.shelx.cards import ACTA
 
 
 def get_xl_version_string(exe: str) -> str:
@@ -53,47 +53,39 @@ class ShelxlRefine():
         self.shx = shx
         self.shelxpath = shelxpath
         self.resfile_name, ext = os.path.splitext(resfile_name)
-        self._shelx_command = self.find_shelxl_exe()
+        self._shelx_command = self.find_shelxl_exe(shelxpath)
         self.backup_file = os.path.abspath(str(self.resfile_name + '.shx-bak'))
         self._acta_card = ''  # stores the ACTA values if acta is removed before refinement
 
         if not self._shelx_command:
-            print('\nSHELXL executable not found in system path! No fragment fitting possible.\n')
+            print('\nSHELXL executable not found in system path.\n')
             print('You can download SHELXL at http://shelx.uni-goettingen.de\n')
-            sys.exit()
 
-    def find_shelxl_exe(self):
+    def find_shelxl_exe(self, shelxpath=None) -> str:
         """
         returns the appropriate shelxl executable
         """
         names = ['shelxl', 'xl']
         download = 'You can download SHELXL at http://shelx.uni-goettingen.de'
-        shx_exe = []
-        if self.shelxpath:
-            if not disk_usage(self.shelxpath):
-                print("SHELXL executable not found! Can not proceed...")
-                sys.exit()
-            return self.shelxpath
+        exe = ''
+        if shelxpath:
+            return shelxpath
         for name in names:
-            shx_exe.append(which(name))  # list of shelxl executables in path
-            try:
-                exe = shx_exe[0]
-            except IndexError as e:
-                print(e)
+            exe = which(name)
+            if not exe:
                 continue
             version = get_xl_version_string(exe)
             if not version:
                 print('Your SHELXL version', exe, 'is too old for this Program')
                 print('Please use SHELXL 2017 or above!')
                 print(download)
-                sys.exit()
             version = version.split('/')
             if int(version[0]) < 2017:
                 print('Your SHELXL version is too old. Please use SHELXL 2017 or above!')
                 print(download)
-                sys.exit()
             else:
                 return exe
+        return exe
 
     def get_b_array(self):
         """
