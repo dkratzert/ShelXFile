@@ -42,3 +42,15 @@ class TestRefine(TestCase):
         shx.read_file('tests/resources/complete_run/p21c.res')
         shx.cycles.cycles = 3
         self.assertEqual('L.S. 10', str(shx.cycles))
+
+
+    def test_refine_with_cycle_number_set_to_4_in_LScycles(self):
+        shx = Shelxfile()
+        shx.read_file('tests/resources/model_finished/p21c.res')
+        shx.cycles.set_refine_cycles(4)
+        shx.refine()
+
+    def test_refine_with_cycle_number_set_to_4_in_refine(self):
+        shx = Shelxfile()
+        shx.read_file('tests/resources/model_finished/p21c.res')
+        shx.refine(4)

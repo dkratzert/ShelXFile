@@ -805,21 +805,19 @@ class Shelxfile():
         return packed_atoms
 
     def refine(self, cycles: int = 0) -> bool:
-        if not cycles:
-            cycles = self.cycles._cycles._textline[:]
-        else:
-            cycles = str(cycles)
-        filen, _ = os.path.splitext(self.resfile)
+        filen = self.resfile.stem
+        # Go into path of resfile:
+        os.chdir(self.resfile.parent)
+        # so that shelxl can use the filename as parameter only (It does not like long names)
         self.write_shelx_file(filen + '.ins')
         # shutil.copyfile(filen+'.res', filen+'.ins')
-        ref = ShelxlRefine(self, str(self.resfile.resolve()))
+        ref = ShelxlRefine(self, self.resfile)
         ref.remove_acta_card(self.acta)
-        self.cycles.number = cycles
+        if cycles:
+            self.cycles.number = cycles
         ref.run_shelxl()
         self.reload()
         ref.restore_acta_card()
-        c = LSCycles(self, cycles)
-        self.cycles._cycles = c
         self.write_shelx_file(filen + '.res')
         return True
 
@@ -835,7 +833,7 @@ class Shelxfile():
                 return True
             else:
                 self.update_weight()
-                self.refine(8)
+                self.refine(9)
         print("Maximum number of refinement cycles reached, but no WGHT convergence.")
         return False
 
