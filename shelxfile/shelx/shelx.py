@@ -182,7 +182,7 @@ class Shelxfile():
         self.delete_on_write = set()
         self.wavelen = None
         self.global_sadi = None
-        self.cycles = None
+        self.cycles: Union[None, LSCycles] = None
         self.list = 0
         self.theta_full = 0
         self.non_h = None
@@ -806,17 +806,20 @@ class Shelxfile():
 
     def refine(self, cycles: int = 0) -> bool:
         if not cycles:
-            cycles = self.cycles.cycles._textline[:]
+            cycles = self.cycles._cycles._textline[:]
+        else:
+            cycles = str(cycles)
         filen, _ = os.path.splitext(self.resfile)
         self.write_shelx_file(filen + '.ins')
         # shutil.copyfile(filen+'.res', filen+'.ins')
         ref = ShelxlRefine(self, str(self.resfile.resolve()))
         ref.remove_acta_card(self.acta)
+        self.cycles.number = cycles
         ref.run_shelxl()
         self.reload()
         ref.restore_acta_card()
         c = LSCycles(self, cycles)
-        self.cycles.cycles = c
+        self.cycles._cycles = c
         self.write_shelx_file(filen + '.res')
         return True
 

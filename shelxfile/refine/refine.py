@@ -102,6 +102,8 @@ class ShelxlRefine():
         """
         Removes ACTA x from reslist and stores value in self._acta_card.
         """
+        if not acta_card:
+            return
         self._acta_card = acta_card._textline.strip('\r\n')[:]
         del self.shx._reslist[self.shx.index_of(acta_card)]
         self.shx.acta = None
