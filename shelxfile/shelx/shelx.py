@@ -809,12 +809,12 @@ class Shelxfile():
         # Go into path of resfile:
         os.chdir(self.resfile.parent)
         # so that shelxl can use the filename as parameter only (It does not like long names)
+        if cycles:
+            self.cycles.number = cycles
         self.write_shelx_file(filen + '.ins')
         # shutil.copyfile(filen+'.res', filen+'.ins')
         ref = ShelxlRefine(self, self.resfile)
         ref.remove_acta_card(self.acta)
-        if cycles:
-            self.cycles.number = cycles
         ref.run_shelxl()
         self.reload()
         ref.restore_acta_card()
