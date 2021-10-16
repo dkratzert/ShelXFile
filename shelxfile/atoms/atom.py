@@ -43,7 +43,6 @@ class Atom():
         self.uvals_orig = [0.04, 0.0, 0.0, 0.0, 0.0]
         self.frag_atom = False
         self.restraints = []
-        self.previous_non_h = None  # Find in self.shx.atoms durinf initialization
         self._line_numbers = None
         self._occupancy = 1.0
         self.molindex = 0

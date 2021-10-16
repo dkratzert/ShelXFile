@@ -331,7 +331,7 @@ class CELL(Command):
         p, _ = self._parse_line(spline)
         self._cell_list = []
         if len(p) > 0:
-            self.wavelen = p[0]
+            self.wavelen = float(p[0])
         if len(p) > 6:
             self._cell_list = p[1:]
             self.a = p[1]

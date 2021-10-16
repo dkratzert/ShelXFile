@@ -12,8 +12,8 @@
 from pathlib import Path
 from typing import Union, List
 
-from shelxfile.atoms.atoms import Atoms
 from shelxfile.atoms.atom import Atom
+from shelxfile.atoms.atoms import Atoms
 from shelxfile.refine.refine import ShelxlRefine
 from shelxfile.shelx.sdm import SDM
 
@@ -37,7 +37,7 @@ from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS
     RESI, ABIN, ANIS, Residues
 from shelxfile.misc.dsrmath import Array, OrthogonalMatrix
 from shelxfile.misc.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
-    time_this_method, multiline_test, dsr_regex, wrap_line, ParseSyntaxError
+    multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 
 """
 TODO:
@@ -104,91 +104,89 @@ class Shelxfile():
         self._a, self._b, self._c, self._alpha, self._beta, self._gamma, self.V = \
             None, None, None, None, None, None, None
         self.cell: Union[CELL, None] = None
-        self.ansc = None
-        self.abin = None
-        self.acta = None
-        self.fmap = None
-        self.xnpd = None
-        self.wpdb = None
-        self.wigl = None
-        self.temp = 20
+        self.ansc: List[float] = []
+        self.abin: Union[None, ABIN] = None
+        self.acta: Union[None, ACTA] = None
+        self.fmap: Union[None, FMAP] = None
+        self.xnpd: Union[None, XNPD] = None
+        self.wpdb: Union[None, WPDB] = None
+        self.wigl: Union[None, WIGL] = None
+        self.temp: Union[int, float] = 20
+        # TODO: Implement swat class:
         self.swat = None
-        self.stir = None
-        self.spec = None
-        self.twst = None
-        self.plan = None
-        self.prig = None
-        self.merg = None
-        self.more = None
-        self.move = None
-        self.defs: Union[DEFS, None] = None
-        self.zerr = None
-        self.wght = None
-        self.frag = None
-        self.twin = None
-        self.basf = None
-        self.latt: LATT
-        self.anis = None
-        self.damp = None
-        self.unit: UNIT = Union[UNIT, None]
-        self.R1 = None
-        self.wr2 = None
-        self.goof = None
-        self.rgoof = None
-        self.space_group = None
-        self.data = None
-        self.parameters = None
-        self.dat_to_param = None
-        self.num_restraints = None
-        self.hpeak = None
-        self.dhole = None
-        self.sump = []
-        self.end = False
-        self.maxsof = 1.0
-        self.size = None
-        self.htab = None
-        self.shel = None
-        self.mpla = None
-        self.rtab = []
-        self.omit = []
-        self.hklf: Union[HKLF, None] = None
-        self.grid = None
-        self.free = []
-        self.titl = ""
-        self.exti = 0
-        self.eqiv = []
-        self.bonds = []
-        self.disp = []
-        self.conn = None
-        self.conf = None
-        self.bind = []
-        self.ansr = 0.001
-        self.bloc = []
+        self.stir: Union[None, STIR] = None
+        self.spec: Union[None, SPEC] = None
+        self.twst: Union[None, TWST] = None
+        self.plan: Union[None, PLAN] = None
+        self.prig: Union[None, PRIG] = None
+        self.merg: Union[None, MERG] = None
+        self.more: Union[None, MORE] = None
+        self.move: Union[None, MOVE] = None
+        self.defs: Union[None, DEFS] = None
+        self.zerr: Union[None, ZERR] = None
+        self.wght: Union[None, WGHT] = None
+        self.frag: Union[None, FRAG] = None
+        self.twin: Union[None, TWIN] = None
+        self.basf: Union[None, BASF] = None
+        self.latt: Union[None, LATT] = None
+        self.anis: Union[None, ANIS] = None
+        self.damp: Union[None, DAMP] = None
+        self.unit: Union[None, UNIT] = None
+        self.size: Union[None, SIZE] = None
+        self.htab: Union[None, HTAB] = None
+        self.shel: Union[None, SHEL] = None
+        self.mpla: Union[None, MPLA] = None
+        self.hklf: Union[None, HKLF] = None
+        self.grid: Union[None, GRID] = None
+        self.conn: Union[None, CONN] = None
+        self.conf: Union[None, CONF] = None
         self.afix: Union[AFIX, None] = None
-        self.part = PART(self, ['PART', '0'])
-        self.resi = RESI(self, ['RESI', '0'])
+        self.rtab: List[RTAB] = []
+        self.omit: List[str] = []
+        self.free: List[FREE] = []
+        self.eqiv: List[str] = []
+        self.bonds: List[BOND] = []
+        self.disp: List[BOND] = []
+        self.bind: List[BIND] = []
+        self.bloc: List[BLOC] = []
+        self.part: PART = PART(self, ['PART', '0'])
+        self.resi: RESI = RESI(self, ['RESI', '0'])
         self.residues = Residues(self)
-        self.dsrlines = []
-        self.dsrline_nums = []
-        self.symmcards = SymmCards(self)
-        self.hfixes = []
-        self.Z = 1
-        self.rem = []
-        self.indexes = {}
-        self.atoms = Atoms(self)
-        self.fvars = FVARs(self)
+        self.dsrlines: List[str] = []
+        self.dsrline_nums: List[int] = []
+        self.symmcards: SymmCards = SymmCards(self)
+        self.hfixes: List[HFIX] = []
+        self.sump: List[SUMP] = []
+        self.wght_suggested: Union[None, WGHT] = None
+        self.Z: int = 1
+        self.titl = ""
+        self.exti: float = 0.0
+        self.ansr: float = 0.001
+        self.rem: List[REM] = []
+        self.atoms: Atoms = Atoms(self)
+        self.fvars: FVARs = FVARs(self)
         self.restraints: Restraints = Restraints()
-        self.sfac_table = SFACTable(self)
-        self.delete_on_write = set()
-        self.wavelen = None
-        self.global_sadi = None
-        self.cycles = None
-        self.list = 0
-        self.theta_full = 0
-        self.non_h = None
-        self.error_line_num = -1  # Only used to tell the line number during an exception.
-        self.restrdict = {}
-        self.wght_suggested = None
+        self.sfac_table: SFACTable = SFACTable(self)
+        self.R1: Union[None, float] = None
+        self.wr2: Union[None, float] = None
+        self.goof: Union[None, float] = None
+        self.rgoof: Union[None, float] = None
+        self.space_group: Union[None, str] = None
+        self.data: Union[None, int] = None
+        self.parameters: Union[None, int] = None
+        self.dat_to_param: Union[None, float] = None
+        self.num_restraints: Union[None, int] = None
+        self.highest_peak: Union[None, float] = None
+        self.deepest_hole: Union[None, float] = None
+        self.end: bool = False
+        self.maxsof: float = 1.0
+        self.delete_on_write: set = set()
+        self.wavelen: float = 0.0
+        self.global_sadi: Union[None, int] = None
+        self.cycles: Union[None, int] = None
+        self.list: int = 0
+        self.theta_full: float = 0.0
+        self.error_line_num: int = -1  # Only used to tell the line number during an exception.
         self.resfile: Union[Path, None] = None
         self._reslist: List = []
 
@@ -216,7 +214,7 @@ class Shelxfile():
         """
         if isinstance(resfile, str):
             resfile = Path(resfile)
-        self.resfile = resfile
+        self.resfile = resfile.resolve()
         if DEBUG:
             print('Resfile is:', resfile)
         try:
@@ -595,6 +593,7 @@ class Shelxfile():
                 self.append_card(self.disp, DISP(self, spline), line_num)
             elif word == 'EQIV':
                 # EQIV $n symmetry operation
+                # TODO: implement EQUIV class
                 if len(spline) > 1 and spline[1].startswith('$'):
                     self.eqiv.append(spline[1:])
             elif word == 'EXTI':
@@ -618,8 +617,7 @@ class Shelxfile():
                 self.append_card(self.restraints, FLAT(self, spline), line_num)
             elif word == 'FREE':
                 # FREE atom1 atom2
-                free = FREE(self, spline)
-                self.free.append(free)
+                self.append_card(self.free, FREE(self, spline), line_num)
             elif word == 'GRID':
                 # GRID sl[#] sa[#] sd[#] dl[#] da[#] dd[#]
                 self.grid = GRID(self, spline)
@@ -671,6 +669,7 @@ class Shelxfile():
                     raise ParseOrderError
             elif word == 'OMIT':
                 # OMIT atomnames  or  OMIT s[-2] 2θ(lim)[180]  or  OMIT h k l
+                # TODO: Implement OMIT class
                 self.omit.append(spline[1:])
             elif word == 'PLAN':
                 # PLAN npeaks[20] d1[#] d2[#]
@@ -1016,8 +1015,8 @@ class Shelxfile():
     def _get_peak_hole(self, spline):
         # REM Highest difference peak  0.407,  deepest hole -0.691,  1-sigma level  0.073
         try:
-            self.hpeak = float(spline[4].split(",")[0])
-            self.dhole = float(spline[7].split(",")[0])
+            self.highest_peak = float(spline[4].split(",")[0])
+            self.deepest_hole = float(spline[7].split(",")[0])
         except(IndexError, ValueError):
             pass
 
