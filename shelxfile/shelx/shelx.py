@@ -167,6 +167,7 @@ class Shelxfile():
         self.fvars: FVARs = FVARs(self)
         self.restraints: Restraints = Restraints()
         self.sfac_table: SFACTable = SFACTable(self)
+        self.cycles: Union[None, LSCycles] = None
         self.R1: Union[None, float] = None
         self.wr2: Union[None, float] = None
         self.goof: Union[None, float] = None
@@ -183,7 +184,6 @@ class Shelxfile():
         self.delete_on_write: set = set()
         self.wavelen: float = 0.0
         self.global_sadi: Union[None, int] = None
-        self.cycles: Union[None, int] = None
         self.list: int = 0
         self.theta_full: float = 0.0
         self.error_line_num: int = -1  # Only used to tell the line number during an exception.
@@ -804,18 +804,19 @@ class Shelxfile():
         return packed_atoms
 
     def refine(self, cycles: int = 0) -> bool:
-        if not cycles:
-            cycles = self.cycles.cycles._textline[:]
-        filen, _ = os.path.splitext(self.resfile)
+        filen = self.resfile.stem
+        # Go into path of resfile:
+        os.chdir(self.resfile.parent)
+        # so that shelxl can use the filename as parameter only (It does not like long names)
+        if cycles:
+            self.cycles.number = cycles
         self.write_shelx_file(filen + '.ins')
         # shutil.copyfile(filen+'.res', filen+'.ins')
-        ref = ShelxlRefine(self, str(self.resfile.resolve()))
+        ref = ShelxlRefine(self, self.resfile)
         ref.remove_acta_card(self.acta)
         ref.run_shelxl()
         self.reload()
         ref.restore_acta_card()
-        c = LSCycles(self, cycles)
-        self.cycles.cycles = c
         self.write_shelx_file(filen + '.res')
         return True
 
@@ -831,7 +832,7 @@ class Shelxfile():
                 return True
             else:
                 self.update_weight()
-                self.refine(8)
+                self.refine(9)
         print("Maximum number of refinement cycles reached, but no WGHT convergence.")
         return False
 

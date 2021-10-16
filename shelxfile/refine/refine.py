@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 from shutil import which, disk_usage, copyfile
 
 from shelxfile.misc.misc import remove_file, sep_line, find_line
@@ -49,10 +50,10 @@ class ShelxlRefine():
     The resfilename should be without ending.
     """
 
-    def __init__(self, shx, resfile_name: str, shelxpath: str = None):
+    def __init__(self, shx, resfile_path: Path, shelxpath: str = None):
         self.shx = shx
         self.shelxpath = shelxpath
-        self.resfile_name, ext = os.path.splitext(resfile_name)
+        self.resfile_name = resfile_path.stem
         self._shelx_command = self.find_shelxl_exe(shelxpath)
         self.backup_file = os.path.abspath(str(self.resfile_name + '.shx-bak'))
         self._acta_card = ''  # stores the ACTA values if acta is removed before refinement
@@ -102,6 +103,8 @@ class ShelxlRefine():
         """
         Removes ACTA x from reslist and stores value in self._acta_card.
         """
+        if not acta_card:
+            return
         self._acta_card = acta_card._textline.strip('\r\n')[:]
         del self.shx._reslist[self.shx.index_of(acta_card)]
         self.shx.acta = None
@@ -206,6 +209,8 @@ class ShelxlRefine():
         """
         resfile = self.resfile_name + '.res'
         hklfile = self.resfile_name + '.hkl'
+        # Go into path of resfile:
+        os.chdir(Path(resfile).parent)
         if not os.path.exists(hklfile):
             print('You need a proper hkl file to run SHELXL.')
             sys.exit()

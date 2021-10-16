@@ -218,7 +218,7 @@ class Command():
     """
 
     def __init__(self, shx, spline: list):
-        self.shx = shx
+        self._shx = shx
         self._spline = spline
         self.residue_class = ''
         self._textline = ' '.join(spline)
@@ -247,7 +247,7 @@ class Command():
 
     @property
     def index(self):
-        return self.shx.index_of(self)
+        return self._shx.index_of(self)
 
     def __iter__(self):
         for x in self.__repr__().split():
@@ -1577,6 +1577,7 @@ class LSCycles(Command):
     def __init__(self, shx, spline: list):
         """
         L.S. nls[0] nrf[0] nextra[0]
+        #TODO: support nls parameter
         If nrf is positive, it is the number of these cycles that should be performed before applying ANIS.
         Negative nrf indicates which reflections should be ignored during the refinement but used instead for
         the calculation of free R-factors in the final structure factor summation.
@@ -1585,21 +1586,21 @@ class LSCycles(Command):
         """
         super(LSCycles, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
-        self.shx = shx
+        self._shx = shx
         self.cgls = False
-        self.cycles = 0
-        self.nrf = ''
-        self.nextra = ''
+        self._cycles = 0
+        self._nrf = ''
+        self._nextra = ''
         try:
-            self.cycles = p[0]
-        except (IndexError, NameError):
+            self._cycles = int(p[0])
+        except (IndexError, NameError, ValueError):
             raise ParseNumError
         try:
-            self.nrf = p[1]
+            self._nrf = int(p[1])
         except IndexError:
             pass
         try:
-            self.nextra = p[2]
+            self._nextra = int(p[2])
         except IndexError:
             pass
         if spline[0].upper() == 'CGLS':
@@ -1607,16 +1608,21 @@ class LSCycles(Command):
 
     @property
     def number(self):
-        return self.cycles
+        return self._cycles
 
-    def set_refine_cycles(self, number: int):
+    @number.setter
+    def number(self, n: int) -> None:
+        self._cycles = int(n)
+        self.__init__(self._shx, self._as_str().split())
+
+    def set_refine_cycles(self, number: int) -> None:
         """
         Sets the number of refinement cycles for the current res file.
         """
-        self.cycles = number
+        self.number = int(number)
 
     @property
-    def text(self):
+    def text(self) -> str:
         """
         'CGLS 10 2 '
         """
@@ -1627,8 +1633,8 @@ class LSCycles(Command):
             yield x
 
     def _as_str(self):
-        return '{} {} {} {}'.format('CGLS' if self.cgls else 'L.S.', self.cycles,
-                                    self.nrf if self.nrf else '', self.nextra if self.nextra else '').strip()
+        return '{} {} {} {}'.format('CGLS' if self.cgls else 'L.S.', self._cycles,
+                                    self._nrf if self._nrf else '', self._nextra if self._nextra else '').strip()
 
     def __repr__(self):
         return self._as_str()
