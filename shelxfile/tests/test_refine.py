@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from shutil import which
 from unittest import TestCase
 
@@ -6,6 +8,9 @@ from shelxfile.refine.refine import get_xl_version_string
 
 
 class TestRefine(TestCase):
+    def setUp(self) -> None:
+        os.chdir(Path(__file__).parent.parent)
+
     def test_get_xl_version_string_with_no_path(self):
         self.assertEqual('', get_xl_version_string(''))
 
