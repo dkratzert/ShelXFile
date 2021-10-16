@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 from shelxfile.refine.refine import ShelxlRefine
@@ -52,7 +53,7 @@ class TestACTA(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()
         self.shx.read_file('tests/resources/p21c.res')
-        self.ref = ShelxlRefine(self.shx, './tests/resources/p21c.res')
+        self.ref = ShelxlRefine(self.shx, Path('./tests/resources/p21c.res'))
 
     def test_acta(self):
         self.assertEqual('ACTA 45', self.shx._reslist[12].__repr__())
@@ -75,7 +76,7 @@ class TestLSCycles(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()
         self.shx.read_file('tests/resources/p21c.res')
-        self.ref = ShelxlRefine(self.shx, './resources/p21c.res')
+        self.ref = ShelxlRefine(self.shx, Path('./resources/p21c.res'))
 
     def test_set_refine_cycles(self):
         self.shx.cycles.set_refine_cycles(44)
