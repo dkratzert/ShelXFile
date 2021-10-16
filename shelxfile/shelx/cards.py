@@ -1662,11 +1662,11 @@ class SFACTable():
         sftext = ''
         elements = []
         for sf in self.sfac_table:
-            if not self.is_exp(sf):
+            if not self.is_exp(sf) and sf['element'].capitalize() not in elements:
                 elements.append(sf['element'].capitalize())
             else:
                 if elements:
-                    sftext += "\nSFAC " + " ".join(elements)
+                    sftext = self._extend_sfac_text(elements, sftext)
                     elements = []
                 values = []
                 for x in ['element', 'a1', 'b1', 'a2', 'b2', 'a3', 'b3', 'a4', 'b4', 'c',
@@ -1674,8 +1674,12 @@ class SFACTable():
                     values.append(sf[x])
                 sftext += "\nSFAC " + "  ".join(values)
         if elements:
-            sftext += "\nSFAC " + "  ".join(elements)
+            sftext = self._extend_sfac_text(elements, sftext)
         return sftext[1:]
+
+    def _extend_sfac_text(self, elements: List[str], sftext: str) -> str:
+        sftext += "\nSFAC " + "  ".join(elements)
+        return sftext
 
     def __getitem__(self, index: int):
         """

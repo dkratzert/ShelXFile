@@ -16,7 +16,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from shutil import which, disk_usage, copyfile
+from shutil import which, copyfile
 
 from shelxfile.misc.misc import remove_file, sep_line, find_line
 from shelxfile.shelx.cards import ACTA
@@ -50,7 +50,7 @@ class ShelxlRefine():
     The resfilename should be without ending.
     """
 
-    def __init__(self, shx, resfile_path: Path, shelxpath: str = None):
+    def __init__(self, shx: 'Shelxfile', resfile_path: Path, shelxpath: str = None):
         self.shx = shx
         self.shelxpath = shelxpath
         self.resfile_name = resfile_path.stem
@@ -107,6 +107,8 @@ class ShelxlRefine():
             return
         self._acta_card = acta_card._textline.strip('\r\n')[:]
         del self.shx._reslist[self.shx.index_of(acta_card)]
+        #acta_index = self.shx.index_of(acta_card)
+        #self.shx.delete_on_write.update([acta_index])
         self.shx.acta = None
 
     def restore_acta_card(self):
@@ -162,53 +164,43 @@ class ShelxlRefine():
         except IOError:
             print('Unable to delete backup file {}.'.format(self.backup_file))
 
-    def pretty_shx_output(self, output):
+    def pretty_shx_output(self, out: str):
         """
         selectively prints the output from shelx
         """
-        for out in output:
-            if out.startswith(' +  Copyright(C)'):
-                print(' SHELXL {}'.format(' '.join(out.split()[6:8])))
-            # wR2
-            # These values are always bad after a simple LS fit without any atom movement:
-            # if out.startswith(' wR2') and not wr2:
-            #    wr2 = True
-            #    line = out[:].split()
-            #    print(' {}  {} {:>6}'.format(line[0], line[1], line[2][:6]))
-            # R1
-            # if out.startswith(' R1') and not r1:
-            #    r1 = True
-            #    line = out[:].split()
-            #    print(' {}   {} {:>6}'.format(line[0], line[1], line[2][:6]))
-            # GooF
-            # if re.match(r'.*GooF.*', out) and not gof:
-            #    gof = True
-            #    line = out.split()
-            #    print(' {} {} {:>5}0'.format(line[0], line[1], line[4][:5]))
-            if re.match(r'.*CANNOT RESOLVE (SAME|RIGU|SIMU|DELU)', out):
-                print('\nWarning: Are you sure that all atoms are in the correct order?\n')
-            if re.match(r'.*CANNOT\s+OPEN\s+FILE.*hkl.*', out):
-                print('*** No hkl file found! ***')
-                print('*** You need a proper hkl file to run SHELXL! ***')
-                sys.exit()
-            if re.match(r'.*\*\* Extinction \(EXTI\) or solvent.*', out):
-                continue
-            if re.match(r'.*\*\* MERG code changed to 0', out):
-                # disable this output
-                continue
-            if re.match(r'.*\*\* Bond\(s\) to .* ignored', out):
-                # disable this output
-                continue
-            if re.match(r'.*\*\*.*', out):
-                print('\n SHELXL says:')
-                print(' {}'.format(out.strip('\n\r')))
+        if out.startswith(' +  Copyright(C)'):
+            print(' SHELXL {}'.format(' '.join(out.split()[6:8])), end='')
+        if out.startswith(' R1'):
+            line = out[:].split()
+            print(' {}   {} {:>6}'.format(line[0], line[1], line[2][:6]), end='')
+        if re.match(r'.*CANNOT RESOLVE (SAME|RIGU|SIMU|DELU)', out):
+            print('\nWarning: Are you sure that all atoms are in the correct order?\n')
+        if re.match(r'.*CANNOT\s+OPEN\s+FILE.*hkl.*', out):
+            print('*** No hkl file found! ***')
+            print('*** You need a proper hkl file to run SHELXL! ***')
+            sys.exit()
+        if re.match(r'.*\*\* Extinction \(EXTI\) or solvent.*', out):
+            return
+        if re.match(r'.*\*\* MERG code changed to 0', out):
+            return
+        if re.match(r'.*\*\* Bond\(s\) to .* ignored', out):
+            return
+        if re.match(r'.*\*\*.*', out):
+            print('\n SHELXL says:')
+            print(' {}'.format(out.strip('\n\r')), end='')
+        if 'before cycle' in out:
+            print(out, end='')
+        if 'finished at' in out:
+            print(out, end='')
 
     def run_shelxl(self):
         """
         This method runs shelxl 2013 on the res file self.resfile_name
         """
+        status = True
         resfile = self.resfile_name + '.res'
         hklfile = self.resfile_name + '.hkl'
+        current_path = Path('.').resolve()
         # Go into path of resfile:
         os.chdir(Path(resfile).parent)
         if not os.path.exists(hklfile):
@@ -219,28 +211,17 @@ class ShelxlRefine():
         self.backup_shx_file()
         print(sep_line)
         print(' Running SHELXL with "{}" and "{}"'.format(' '.join(command_line), self.shx.cycles))
-        p = subprocess.Popen(command_line,
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
-        (child_stdin, child_stdout_and_stderr) = (p.stdin, p.stdout)
-        child_stdin.close()
-        # Watch the output for successful termination
-        out = child_stdout_and_stderr.readline().decode('ascii')
-        output = []
-        while out:
-            if "cycle" in out:
-                print(out.rstrip("\n\r"))
-            output.append(out)
-            out = child_stdout_and_stderr.readline().decode('ascii')
-        child_stdout_and_stderr.close()
-        # output only the most importand things from shelxl:
-        self.pretty_shx_output(output)
-        status = True
+        with subprocess.Popen(command_line, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as p:
+            for line in p.stdout:
+                # output only the most importand things from shelxl:
+                self.pretty_shx_output(line)
+        os.chdir(current_path)
+        if p.returncode != 0:
+            status = False
         if os.stat(resfile).st_size < 10:
             # status is False if shelx was unsecessful
             status = False
-        if not status:  # fail
+        if not status:
             print(sep_line)
             print('\nError: SHELXL terminated unexpectedly.')
             print('Check for errors in your SHELX input file!\n')
@@ -251,8 +232,6 @@ class ShelxlRefine():
         """
         Does some checks if the refinement makes sense e.g. if the data to parameter
         ratio is in an acceptable range.
-        :param list_file: SHELXL listing file
-        :type list_file: list
         """
         is_resfile_there = os.path.exists(self.resfile_name + '.res')
         if is_resfile_there and is_resfile_there == 'zero':

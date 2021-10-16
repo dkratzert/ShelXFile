@@ -808,16 +808,27 @@ class Shelxfile():
         # Go into path of resfile:
         os.chdir(self.resfile.parent)
         # so that shelxl can use the filename as parameter only (It does not like long names)
-        if cycles:
-            self.cycles.number = cycles
-        self.write_shelx_file(filen + '.ins')
+        self.cycles.number = cycles
         # shutil.copyfile(filen+'.res', filen+'.ins')
         ref = ShelxlRefine(self, self.resfile)
         ref.remove_acta_card(self.acta)
+        self.write_shelx_file(filen + '.ins')
         ref.run_shelxl()
         self.reload()
         ref.restore_acta_card()
-        self.write_shelx_file(filen + '.res')
+        # TODO: """
+        #  Traceback (most recent call last):
+        #   File "/Users/daniel/Documents/GitHub/ShelXFile/shelxfile/tests/test_refine.py", line 66, in test_refine_with_cycle_number_set_to_0_in_refine
+        #     self.refine = shx.refine(0)
+        #   File "/Users/daniel/Documents/GitHub/ShelXFile/shelxfile/shelx/shelx.py", line 819, in refine
+        #     self.write_shelx_file(filen + '.res')
+        #   File "/Users/daniel/Documents/GitHub/ShelXFile/shelxfile/shelx/shelx.py", line 206, in write_shelx_file
+        #     line = "\n".join([wrap_line(x) for x in str(line).split("\n")])
+        #   File "/Users/daniel/Documents/GitHub/ShelXFile/shelxfile/shelx/cards.py", line 1674, in __repr__
+        #     values.append(sf[x])
+        # KeyError: 'a1'
+        #  """
+        #self.write_shelx_file(filen + '.res')
         return True
 
     def refine_weight_convergence(self, stop_after: int = 10):

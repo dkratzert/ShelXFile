@@ -10,6 +10,7 @@ from shelxfile.refine.refine import get_xl_version_string
 class TestRefine(TestCase):
     def setUp(self) -> None:
         os.chdir(Path(__file__).parent.parent)
+        # pass
 
     def test_get_xl_version_string_with_no_path(self):
         self.assertEqual('', get_xl_version_string(''))
@@ -48,7 +49,6 @@ class TestRefine(TestCase):
         shx.cycles.cycles = 3
         self.assertEqual('L.S. 10', str(shx.cycles))
 
-
     def test_refine_with_cycle_number_set_to_4_in_LScycles(self):
         shx = Shelxfile()
         shx.read_file('tests/resources/model_finished/p21c.res')
@@ -59,3 +59,8 @@ class TestRefine(TestCase):
         shx = Shelxfile()
         shx.read_file('tests/resources/model_finished/p21c.res')
         shx.refine(4)
+
+    def test_refine_with_cycle_number_set_to_0_in_refine(self):
+        shx = Shelxfile()
+        shx.read_file('tests/resources/model_finished/p21c.res')
+        self.refine = shx.refine(0)
