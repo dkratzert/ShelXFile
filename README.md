@@ -139,10 +139,10 @@ specified by SHELXL during the file writing.
 ```python
 >>> shx.write_shelx_file('test.ins')
 ```
-No matter if you loaded a .res or .ins file with refine(), SHELXL refines the structure of the Shelxfile() object. 
-The default for refine() are zero least-squares cycles:
+No matter if you loaded a .res or .ins file with refine(), SHELXL refines the structure of the Shelxfile() object:
 
 ```python
+>>> shx.insert_anis()
 >>> shx.refine(2)
 
  Running SHELXL with "/usr/local/bin/shelxl -b3000 /Users/daniel/GitHub/Shelxfile/tests/p21c" and "L.S. 2"
