@@ -249,6 +249,10 @@ class Command():
     def index(self):
         return self._shx.index_of(self)
 
+    @property
+    def position(self) -> int:
+        return self.index
+
     def __iter__(self):
         for x in self.__repr__().split():
             yield x
@@ -1669,8 +1673,8 @@ class SFACTable():
                     sftext = self._extend_sfac_text(elements, sftext)
                     elements = []
                 values = []
-                for x in ['element', 'a1', 'b1', 'a2', 'b2', 'a3', 'b3', 'a4', 'b4', 'c',
-                          'fprime', 'fdprime', 'mu', 'r', 'wt']:
+                for x in ('element', 'a1', 'b1', 'a2', 'b2', 'a3', 'b3', 'a4', 'b4', 'c',
+                          'fprime', 'fdprime', 'mu', 'r', 'wt'):
                     values.append(sf[x])
                 sftext += "\nSFAC " + "  ".join(values)
         if elements:

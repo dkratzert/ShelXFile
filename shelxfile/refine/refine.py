@@ -107,8 +107,8 @@ class ShelxlRefine():
             return
         self._acta_card = acta_card._textline.strip('\r\n')[:]
         del self.shx._reslist[self.shx.index_of(acta_card)]
-        #acta_index = self.shx.index_of(acta_card)
-        #self.shx.delete_on_write.update([acta_index])
+        # acta_index = self.shx.index_of(acta_card)
+        # self.shx.delete_on_write.update([acta_index])
         self.shx.acta = None
 
     def restore_acta_card(self):
@@ -193,10 +193,12 @@ class ShelxlRefine():
         if 'finished at' in out:
             print(out, end='')
 
-    def run_shelxl(self):
+    def run_shelxl(self, anis: bool = False):
         """
         This method runs shelxl 2013 on the res file self.resfile_name
         """
+        if anis:
+            self.shx.insert_anis()
         status = True
         resfile = self.resfile_name + '.res'
         hklfile = self.resfile_name + '.hkl'
@@ -211,7 +213,8 @@ class ShelxlRefine():
         self.backup_shx_file()
         print(sep_line)
         print(' Running SHELXL with "{}" and "{}"'.format(' '.join(command_line), self.shx.cycles))
-        with subprocess.Popen(command_line, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as p:
+        with subprocess.Popen(command_line, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1,
+                              universal_newlines=True) as p:
             for line in p.stdout:
                 # output only the most importand things from shelxl:
                 self.pretty_shx_output(line)
