@@ -1,11 +1,22 @@
 import os
 import shutil
+import unittest
 from pathlib import Path
 from shutil import which
 from unittest import TestCase
 
 from shelxfile import Shelxfile
-from shelxfile.refine.refine import get_xl_version_string
+from shelxfile.refine.refine import get_xl_version_string, find_shelxl_exe
+
+
+def do_nothing(arg):
+    return arg
+
+
+if find_shelxl_exe():
+    skip = do_nothing
+else:
+    skip = unittest.skip('SHELXL not found -> skipping test.')
 
 
 def clean_refine_files(basename='p21c'):
@@ -18,13 +29,12 @@ def clean_refine_files(basename='p21c'):
     Path('{}.hkl'.format(basename)).unlink(missing_ok=True)
 
 
+@skip
 class TestRefine(TestCase):
     def setUp(self) -> None:
         os.chdir(Path(__file__).parent.parent)
         res = Path('tests/resources/complete_run/p21c.res')
-        # hkl = Path('tests/resources/complete_run/p21c.hkl')
         shutil.copy(res, '.')
-        # shutil.copy(hkl, '.')
         self.shx = Shelxfile()
         self.shx.read_file('./p21c.res')
 
@@ -60,6 +70,7 @@ class TestRefine(TestCase):
         self.assertEqual('L.S. 10', str(self.shx.cycles))
 
 
+@skip
 class TestRefineFinishedmodel(TestCase):
 
     def setUp(self) -> None:
