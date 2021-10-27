@@ -80,26 +80,26 @@ class TestRefineFinishedmodel(TestCase):
     def test_refine_with_cycle_number_set_to_4_in_LScycles(self):
         self.assertTrue('L.S. 10' in Path('p21c.res').read_text())
         self.shx.cycles.set_refine_cycles(4)
-        self.shx.refine()
+        self.shx.refine(backup_before=False)
         txt = Path('p21c.res').read_text()
         self.assertTrue('L.S. 4' in txt)
 
     def test_refine_with_cycle_number_set_to_4_in_refine(self):
         self.assertTrue('L.S. 10' in Path('p21c.res').read_text())
-        self.shx.refine(4)
+        self.shx.refine(4, backup_before=False)
         txt = Path('p21c.res').read_text()
         self.assertTrue('L.S. 4' in txt)
 
     def test_refine_with_ANIS_inserted_and_cycle_number_set_to_4_in_refine(self):
         self.assertFalse('ANIS' in Path('p21c.res').read_text())
         self.shx.insert_anis()
-        self.shx.refine(3)
+        self.shx.refine(3, backup_before=False)
         self.assertTrue('ANIS' in Path('p21c.ins').read_text())
         self.assertFalse('ANIS' in Path('p21c.res').read_text())
 
     def test_refine_with_cycle_number_set_to_0_in_refine(self):
         self.assertTrue('L.S. 10' in Path('p21c.res').read_text())
-        self.refine = self.shx.refine(0)
+        self.refine = self.shx.refine(0, backup_before=False)
         txt = Path('p21c.res').read_text()
         self.assertTrue('L.S. 0' in txt)
 

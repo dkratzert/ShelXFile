@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from shelxfile.shelx.shelx import Shelxfile
+from shelxfile import Shelxfile
 
 
 class TestShelxFileIsAtom(TestCase):
@@ -88,8 +88,26 @@ class TestShelxfile(TestCase):
                           'LATT 1'],
                          [str(x) for x in shx._reslist[:5]])
 
-
     def test_read_file(self):
         shx = Shelxfile()
         with self.assertRaises(FileNotFoundError):
             shx.read_file('tests/resources/foobar.res')
+
+
+class TestShelxfileGoodModel(TestCase):
+
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/model_finished/p21c.res')
+
+    def test_atom_representation(self):
+        a = self.shx._reslist[39]
+        self.assertEqual(
+            'C1     1   -0.187504    0.282782    0.527531    11.00000    0.01807    0.02353      0.01797    0.00008   -0.00179    0.00036',
+            str(a))
+
+    def test_atom_object(self):
+        a = self.shx._reslist[39]
+        self.assertEqual(
+            'C1     1   -0.187504    0.282782    0.527531    11.00000    0.01807    0.02353      0.01797    0.00008   -0.00179    0.00036',
+            a)

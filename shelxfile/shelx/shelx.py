@@ -803,7 +803,7 @@ class Shelxfile():
         packed_atoms = sdm.packer(sdm, needsymm, with_qpeaks=with_qpeaks)
         return packed_atoms
 
-    def refine(self, cycles: Union[int, None] = None) -> bool:
+    def refine(self, cycles: Union[int, None] = None, backup_before: bool = True) -> bool:
         filen = self.resfile.stem
         # Go into path of resfile:
         os.chdir(self.resfile.parent)
@@ -814,7 +814,7 @@ class Shelxfile():
         ref = ShelxlRefine(self, self.resfile)
         ref.remove_acta_card(self.acta)
         self.write_shelx_file(filen + '.ins')
-        ref.run_shelxl()
+        ref.run_shelxl(backup_before=backup_before)
         self.reload()
         ref.restore_acta_card()
         # self.write_shelx_file(filen + '.res')

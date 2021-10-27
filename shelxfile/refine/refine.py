@@ -194,7 +194,7 @@ class ShelxlRefine():
         if 'finished at' in out:
             print(out, end='')
 
-    def run_shelxl(self, anis: bool = False) -> None:
+    def run_shelxl(self, anis: bool = False, backup_before: bool = True) -> None:
         """
         This method runs shelxl 2013 on the res file self.resfile_name
         """
@@ -214,7 +214,8 @@ class ShelxlRefine():
             sys.exit()
         command_line = ['{}'.format(self._shelx_command), "-b{}".format(self.get_b_array()),
                         '{}'.format(self.resfile_name)]
-        self.backup_shx_file()
+        if backup_before:
+            self.backup_shx_file()
         print(sep_line)
         print(' Running SHELXL with "{}" and "{}"'.format(' '.join(command_line), self.shx.cycles))
         with subprocess.Popen(command_line, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1,
