@@ -124,7 +124,7 @@ class Atom():
         """
         Returns True if the current atom is a hydrogen isotope.
         """
-        if self.element in {'H', 'D', 'T'}:
+        if self.element in ('H', 'D', 'T'):
             return True
         else:
             return False

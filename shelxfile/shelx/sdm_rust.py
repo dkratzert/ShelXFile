@@ -25,7 +25,7 @@ from shelxfile.shelx.cards import AFIX, RESI
 
 
 @dataclass
-class Atom:
+class RAtom:
     name: str
     x: float
     y: float
@@ -50,8 +50,7 @@ class SDMR():
         self.sdm_list = []  # list of sdmitems
         self.maxmol: int = 1
         self.cell = (
-            self.shx.cell.a, self.shx.cell.b, self.shx.cell.c, self.shx.cell.alpha, self.shx.cell.beta,
-            self.shx.cell.gamma)
+            self.shx.cell.a, self.shx.cell.b, self.shx.cell.c, self.shx.cell.alpha, self.shx.cell.beta, self.shx.cell.gamma)
         self.aga = self.shx.cell.a * self.shx.cell.b * self.shx.cell.cosga
         self.bbe = self.shx.cell.a * self.shx.cell.c * self.shx.cell.cosbe
         self.cal = self.shx.cell.b * self.shx.cell.c * self.shx.cell.cosal
@@ -66,26 +65,24 @@ class SDMR():
         self.bstar = (self.shx.cell.c * self.shx.cell.a * sin(radians(self.shx.cell.beta))) / self.shx.cell.V
         self.cstar = (self.shx.cell.a * self.shx.cell.b * sin(radians(self.shx.cell.gamma))) / self.shx.cell.V
 
-    def get_atoms(self) -> tuple[Union[Atom, Atom], ...]:
+    def get_atoms(self) -> tuple[Union[RAtom, RAtom], ...]:
         atoms = []
         for atom in self.shx.atoms:
             atoms.append(
-                Atom(name=atom.name, x=atom.x, y=atom.y, z=atom.z, element=atom.element, part=atom.part.n,
-                      symmgen=False, molindex=-1, qpeak=atom.qpeak, radius=atom.radius))
+                RAtom(name=atom.name, x=atom.x, y=atom.y, z=atom.z, element=atom.element, part=atom.part.n,
+                      symmgen=False, molindex=0, qpeak=atom.qpeak, radius=atom.radius))
         return tuple(atoms)
 
     def calc_sdm(self) -> list:
         t1 = time.perf_counter()
         symms = self.shx.symmcards._symmcards
-        need_symm = calc_sdm(self.all_atoms, symms, self.shx.cell)
-        # print(self.sdm_list)
-        # self.sdm_list.sort()
+        self.sdm_list = calc_sdm(self.all_atoms, symms, self.shx.cell)
+        self.sdm_list.sort()
         t2 = time.perf_counter()
         print('Zeit für sdm:', round(t2 - t1, 3), 's')
         self.sdmtime = t2 - t1
-        # self.calc_molindex(self.shx.atoms.all_atoms)
-        # print([x.molindex for x in self.shx.atoms.all_atoms])
-        # need_symm = self.collect_needed_symmetry(self.shx.atoms.all_atoms)
+        self.calc_molindex(self.shx.atoms.all_atoms)
+        need_symm = self.collect_needed_symmetry(self.shx.atoms.all_atoms)
         if DEBUG:
             print("The asymmetric unit contains {} fragments.".format(self.maxmol))
         return need_symm
@@ -101,14 +98,12 @@ class SDMR():
                     continue
                 prime_array = [Array(at1.frac_coords) * symop.matrix + symop.trans for symop in self.shx.symmcards]
                 for n, symop in enumerate(self.shx.symmcards):
-                    if at1.part != 0 and at2.part != 0 \
-                            and at1.part != at2.part:
+                    if at1.part != 0 and at2.part != 0 and at1.part != at2.part:
                         # both not part 0 and different part numbers
                         continue
                     # Both the same atomic number and number hydrogen:
                     if at1.element == at2.element and at1.is_hydrogen:
                         continue
-                    # prime = Array([at1.x, at1.y, at1.z]) * symop.matrix + symop.trans
                     D = prime_array[n] - Array([at2.x, at2.y, at2.z]) + Array((0.5, 0.5, 0.5))
                     floor_d = D.floor
                     if n == 0 and D.floor.values == (0, 0, 0):
@@ -125,6 +120,8 @@ class SDMR():
         return need_symm
 
     def calc_molindex(self, all_atoms):
+        # Start for George's "bring atoms together algorithm":
+        someleft = 1
         nextmol = 1
         for at in all_atoms:
             at.molindex = -1
@@ -192,7 +189,7 @@ class SDMR():
                                + Array(self.shx.symmcards[symm_num].trans) + Array([h, k, l]),
                         part=atom.part,
                         afix=AFIX(self.shx, (atom.afix).split()) if atom.afix else None,
-                        resi=RESI(self.shx, ('RESI ' + atom.resinum + atom.resiclass).split()) if atom.resi else None,
+                        resi=RESI(self.shx, ('RESI ' + str(atom.resinum) + atom.resiclass).split()) if atom.resi else None,
                         site_occupation=atom.sof,
                         uvals=uvals,
                         symmgen=True
@@ -304,19 +301,16 @@ if __name__ == "__main__":
     shx.read_file('shelxfile/tests/resources/p-31c.res')
     t1 = time.perf_counter()
     sdm = SDMR(shx)
-    packed_atoms = sdm.calc_sdm()
+    needsymm = sdm.calc_sdm()
     print('Zeit für sdm:', round(time.perf_counter() - t1, 3), 's')
-    print(packed_atoms, '#packed atoms#')
-    # packed_atoms = sdm.packer(sdm, needsymm)
+    print(needsymm)
+    packed_atoms = sdm.packer(sdm, needsymm)
     print(len(shx.atoms))
     print(len(packed_atoms))
-    # assert str(
-    #    needsymm) == "[[1, 5, 5, 5, 4], [1, 5, 5, 5, 5], [2, 6, 5, 5, 5], [3, 6, 6, 5, 5], [1, 5, 5, 5, 3], [2, 6, 6, 5, 3], [3, 5, 6, 5, 3], [2, 5, 5, 5, 4], [3, 5, 5, 5, 4]]"
-    # assert str(
-    #    needsymm) == "[[2, 6, 5, 5, 5], [3, 6, 6, 5, 5], [2, 6, 6, 5, 3], [3, 5, 6, 5, 3], [2, 5, 5, 5, 4], [3, 5, 5, 5, 4]]"
     assert str(packed_atoms[90]) == 'H2>>1_b 2   0.557744    0.080938   0.300634   21.00000   -1.30000'
     assert str(packed_atoms[
                    129]) == 'C15>>2_a  1    1.145639    0.497216    0.299794    11.00000    0.01803    0.01661      0.03458    0.00038   -0.00408    0.01187'
-    # "[[1, 5, 5, 5, 4], [1, 5, 5, 5, 5], [2, 6, 5, 5, 5], [3, 6, 6, 5, 5], [1, 5, 5, 5, 3], [2, 6, 6, 5, 3], [3, 5, 6, 5, 3], [2, 5, 5, 5, 4], [3, 5, 5, 5, 4]]"
+    # [[1, 5, 5, 5, 4], [1, 5, 5, 5, 5], [2, 6, 5, 5, 5], [3, 6, 6, 5, 5], [1, 5, 5, 5, 3], [2, 6, 6, 5, 3],
     # 88
     # 208
+

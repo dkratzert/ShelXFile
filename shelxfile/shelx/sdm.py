@@ -156,9 +156,6 @@ class SDM():
                         dddd = 1.8
                     if (dk > 0.001) and (dddd >= dk):
                         bs = [n + 1, (5 - floor_d[0]), (5 - floor_d[1]), (5 - floor_d[2]), sdm_item.atom1.molindex]
-                        # Does not work:
-                        # self.bondlist.append((sdm_item.a1, sdm_item.a2, sdm_item.atom1.name+'<',
-                        #                      sdm_item.atom2.name+'<', sdm_item.dist))
                         if bs not in need_symm:
                             need_symm.append(bs)
         return need_symm
@@ -352,6 +349,7 @@ if __name__ == "__main__":
     t1 = time.perf_counter()
     sdm = SDM(shx)
     needsymm = sdm.calc_sdm()
+    print('sdmlist:', len(sdm.sdm_list))
     print(needsymm)
     packed_atoms = sdm.packer(sdm, needsymm)
     print('Zeit für sdm:', round(time.perf_counter() - t1, 3), 's')
