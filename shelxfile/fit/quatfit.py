@@ -275,7 +275,7 @@ def qtrfit(source_xyz, target_xyz, maxsweeps):
     return quaternion, transpose(rotmat), maxsweeps
 
 
-def centroid(vectors: List[List[float]]) -> tuple[float, float, float]:
+def centroid(vectors: List[List[float]]) -> Tuple[float, float, float]:
     """
     Calculate the centroid from a vectorset X.
 
