@@ -1,5 +1,7 @@
 # Shelxfile
 
+[![Unit tests](https://github.com/dkratzert/ShelXFile/actions/workflows/python-package.yml/badge.svg)](https://github.com/dkratzert/ShelXFile/actions/workflows/python-package.yml)
+
 This is a full implementation of the SHELXL<sup>[[1](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)]</sup> file syntax. Additionally it is able to edit SHELX properties using Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
 Shelxfile may eventually become a new heart of DSR<sup>[[2](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)]</sup> and is already used as file parser in StructureFinder<sup>[[3](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)]</sup>.
