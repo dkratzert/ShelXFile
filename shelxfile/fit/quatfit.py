@@ -99,7 +99,8 @@ def jacobi(matrix, maxsweeps):
             dnorm += fabs(eigenval[j])
             for i in range(j):
                 onorm += fabs(matrix[i][j])
-        if onorm / dnorm <= 1.0e-12: break  # goto Exit_now;
+        if onorm / dnorm <= 1.0e-12:
+            break  # goto Exit_now;
         for j in range(1, 4):
             for i in range(j):
                 b = matrix[i][j]
@@ -163,7 +164,7 @@ def q2mat(quaternion):
     OUTPUT
       rotmat (u)      - the rotation matrix
     """
-    rotmat = [[float(0.0) for x in range(3)] for x in range(3)]
+    rotmat = [[float(0.0) for _ in range(3)] for _ in range(3)]
     rotmat[0][0] = quaternion[0] * quaternion[0] + quaternion[1] * quaternion[1] - quaternion[2] * quaternion[2] - \
                    quaternion[3] * quaternion[3]
     rotmat[1][0] = 2.0 * (quaternion[1] * quaternion[2] - quaternion[0] * quaternion[3])

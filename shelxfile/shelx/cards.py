@@ -36,7 +36,7 @@ DISP E f' f"[#] mu[#]
 EADP atomnames
 END
 EQIV $n symmetry operation
-EXTI x[0] 
+EXTI x[0]
 EXYZ atomnames
 FEND
 FLAT s[0.1] four or more atoms
@@ -79,8 +79,8 @@ SIMU s[0.04] st[0.08] dmax[2.0] atomnames
 SIZE dx dy dz
 SPEC del[0.2]
 STIR sres step[0.01]
-SUMP c sigma c1 m1 c2 m2 ... 
-SWAT g[0] U[2] 
+SUMP c sigma c1 m1 c2 m2 ...
+SWAT g[0] U[2]
 SYMM symmetry operation
 TEMP T[20]
 TITL [ ]
@@ -141,7 +141,7 @@ class Restraint(Residue):
         Individual atom names in an instruction may be followed by '_' and a residue number, but not by '_* ' or '_'
         and a residue class. If an atom name is not followed by a residue number, the current residue is
         assumed (unless overridden by a global residue number or class appended to the instruction
-        codeword). 
+        codeword).
         """
         self._spline = spline
         # TODO: check if suffix is a residue class and set instance variable accordingly
@@ -1550,7 +1550,7 @@ class SymmCards():
         self._symmcards.append(new_symm)
         for symm in self.shx.latt.latt_ops:
             latt_symm = new_symm.apply_latt_symm(symm)
-            if not latt_symm in self._symmcards:
+            if latt_symm not in self._symmcards:
                 self._symmcards.append(latt_symm)
         if self.shx.latt.centric:
             self._symmcards.append(SymmetryElement(symm_data, centric=True))
@@ -1726,7 +1726,7 @@ class SFACTable():
 
     def add_element(self, element: str):
         """
-        Adds an element to the SFAC list. 
+        Adds an element to the SFAC list.
         """
         if self.has_element(element):
             return
@@ -1854,7 +1854,7 @@ class WGHT(Command):
 
     def difference(self) -> List[float]:
         """
-        Returns a list with the weight differences of the parameters a and b. 
+        Returns a list with the weight differences of the parameters a and b.
         """
         try:
             adiff = abs(self.shx.wght.a - self.shx.wght_suggested.a)

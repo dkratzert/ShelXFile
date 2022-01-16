@@ -15,7 +15,7 @@ from math import sqrt, radians, cos, sin, acos, degrees, floor, tan
 from operator import sub, add
 from typing import List, Union
 
-from shelxfile.misc.misc import flatten
+from shelxfile.misc.misc import flatten, determinante
 
 
 class Array(object):
@@ -84,7 +84,7 @@ class Array(object):
 
     def __imul__(self, other):
         """
-        Currently supports multiplication by a number. 
+        Currently supports multiplication by a number.
         __imul__ means a *= b
         """
         if isinstance(other, (int, float)):
@@ -370,10 +370,7 @@ class Matrix(object):
         """
         Return determinant of 3x3 matrix.
         """
-        a = self.values
-        return (a[0][0] * (a[1][1] * a[2][2] - a[2][1] * a[1][2])
-                - a[1][0] * (a[0][1] * a[2][2] - a[2][1] * a[0][2])
-                + a[2][0] * (a[0][1] * a[1][2] - a[1][1] * a[0][2]))
+        return determinante(self.values)
 
     def power_iteration(self, num_simulations=10):
         """
@@ -538,7 +535,7 @@ class SymmetryElement(object):
             return 0, symm
 
 
-##### End of work by Jens Lübben #############
+# End of work by Jens Lübben #############
 
 
 def my_isnumeric(value: str):
@@ -606,8 +603,8 @@ def nalimov_test(data):
     Bibliographisches Institut, Mannheim 1972."
     """
     # q-values for degrees of freedom:
-    f = {1: 1.409, 2: 1.645, 3: 1.757, 4: 1.814, 5: 1.848, 6: 1.870, 7: 1.885, 8: 1.895,
-         9: 1.903, 10: 1.910, 11: 1.916, 12: 1.920, 13: 1.923, 14: 1.926, 15: 1.928,
+    f = {1 : 1.409, 2: 1.645, 3: 1.757, 4: 1.814, 5: 1.848, 6: 1.870, 7: 1.885, 8: 1.895,
+         9 : 1.903, 10: 1.910, 11: 1.916, 12: 1.920, 13: 1.923, 14: 1.926, 15: 1.928,
          16: 1.931, 17: 1.933, 18: 1.935, 19: 1.936, 20: 1.937, 30: 1.945}
     fact = sqrt(float(len(data)) / (len(data) - 1))
     fval = len(data) - 2
@@ -664,7 +661,7 @@ def atomic_distance(p1: list, p2: list, cell=None, shortest_dist=False):
         dy = (y1 - y2)
         dz = (z1 - z2)
     if cell:
-        return sqrt((a * dx) ** 2 + (b * dy) ** 2 + (c * dz) ** 2 + 2 * b * c * cos(al) * dy * dz + \
+        return sqrt((a * dx) ** 2 + (b * dy) ** 2 + (c * dz) ** 2 + 2 * b * c * cos(al) * dy * dz +
                     2 * dx * dz * a * c * cos(be) + 2 * dx * dy * a * b * cos(ga))
     else:
         return sqrt(dx ** 2 + dy ** 2 + dz ** 2)

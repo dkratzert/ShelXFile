@@ -457,12 +457,11 @@ def walkdir(rootdir, include="", exclude=""):
         if os.path.splitext(rootdir)[1] in exclude:
             return []
         return [rootdir]
-    for root, subFolders, files in os.walk(rootdir):
+    for root, sub_folders, files in os.walk(rootdir):
         for file in files:
             fullfilepath = os.path.join(root, file)
-            if exclude:
-                if os.path.splitext(fullfilepath)[1] in exclude:
-                    continue
+            if exclude and os.path.splitext(fullfilepath)[1] in exclude:
+                continue
             if include:
                 if os.path.splitext(fullfilepath)[1] in include:
                     results.append(os.path.normpath(fullfilepath).replace('\\', '/'))
