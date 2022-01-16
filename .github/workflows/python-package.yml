@@ -40,5 +40,10 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics  --ignore=E203
       - name: Test with Pytest
         run: |
+          # Install shelxl
+          echo ${HOME}/.local/bin >> $GITHUB_PATH
+          curl -o ${HOME}/.local/bin/shelxl https://dkratzert.de/files/shelx/shelxl
+          chmod a+x ${HOME}/.local/bin/shelxl
+          # run tests
           cd shelxfile
           pytest
