@@ -2,9 +2,9 @@
 
 [![Unit tests](https://github.com/dkratzert/ShelXFile/actions/workflows/python-package.yml/badge.svg)](https://github.com/dkratzert/ShelXFile/actions/workflows/python-package.yml)
 
-This is a full implementation of the SHELXL<sup>[[1](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)]</sup> file syntax. Additionally it is able to edit SHELX properties using Python.
+This is a full implementation of the SHELXL[[1](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)] file syntax. Additionally it is able to edit SHELX properties using Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
-Shelxfile may eventually become a new heart of DSR<sup>[[2](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)]</sup> and is already used as file parser in StructureFinder<sup>[[3](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)]</sup>.
+Shelxfile may eventually become a new heart of DSR[[2](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)] and is already used as file parser in StructureFinder[[3](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)].
 
 Shelxfile always keeps the file order intact. Every SHELX instruction like DFIX or an atom is stored as an class object in the list Shelxfile.\_reslist. When writing the Shelxfile content to disk, it wites the \_reslist content to disk.
 
