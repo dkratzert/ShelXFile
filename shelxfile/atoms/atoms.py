@@ -190,7 +190,7 @@ class Atoms():
 
         From the book of Camelo Giacovazzo:
         For a sequence of four atoms A, B, C, D, the torsion angle w(ABCD) is
-        defined as the angle between the normals to the planes ABC and BCD. 
+        defined as the angle between the normals to the planes ABC and BCD.
         By convention w is positive if the sense of rotation from BA to
         CD, viewed down BC, is clockwise, otherwise it is negative.
         """
@@ -209,9 +209,8 @@ class Atoms():
         direction = v1[0] * v2[1] * v3[2] - v1[2] * v1[1] * v3[0] + v1[2] * v2[0] * v3[1] - v1[0] \
                     * v2[2] * v3[1] + v1[1] * v2[2] * v3[0] - v1[1] * v2[0] * v3[2]
         # angle between plane normals:
-        ang = acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) /
-                   (sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) *
-                    sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2])))
+        ang = acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (
+                sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) * sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2])))
         return degrees(ang) if direction > 0 else degrees(-ang)
 
     def atoms_in_class(self, name: str) -> list:
@@ -223,5 +222,3 @@ class Atoms():
             if x.resiclass == name and x.name not in atoms:
                 atoms.append(x.name)
         return atoms
-
-

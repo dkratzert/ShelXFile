@@ -1,14 +1,16 @@
 from __future__ import division
+
 import sys
 import time
 from math import sin, cos, pi, sqrt
 
+from shelxfile import Shelxfile
 from shelxfile.atoms.atoms import Atoms
-from shelx.shelx import Shelxfile
 
 """
 This module is a fork from https://github.com/des4maisons/molecule-viewer
 """
+
 
 class Coordinate2D(object):
     def __init__(self, x, y):
@@ -82,8 +84,8 @@ class Coordinate(object):
 
     # project self onto 'onto'
     def project(self, onto):
-        len = onto.length()
-        scale_factor = self.dot(onto) / (len ** 2)
+        length = onto.length()
+        scale_factor = self.dot(onto) / (length ** 2)
         return onto * scale_factor
 
     # cross product
@@ -139,7 +141,7 @@ class Molecule(object):
 
     # dimensions is 2-tuple of the number of characters on x and y axis
     def draw(self, plane=None, dimensions=None):
-        if dimensions == None:
+        if dimensions is None:
             dimensions = (80, 29)
         screen = Screen(dimensions)
         flattened = [a.flatten(plane) for a in self.atoms]
@@ -168,7 +170,7 @@ class Screen(list):
         self.height = widthheight[0]
         for i in range(self.width):
             self.append([])
-            for j in range(self.height):
+            for _ in range(self.height):
                 self[i].append(" ")
 
     def set(self, index, val):
@@ -182,7 +184,6 @@ class Screen(list):
 
 
 if __name__ == "__main__":
-    #filename = sys.argv[1]
     shx = Shelxfile()
     shx.read_file('./tests/resources/p21c.res')
     try:
