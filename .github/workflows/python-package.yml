@@ -41,6 +41,7 @@ jobs:
       - name: Test with Pytest
         run: |
           # Install shelxl
+          mkdir -p ${HOME}/.local/bin
           echo ${HOME}/.local/bin >> $GITHUB_PATH
           curl -o ${HOME}/.local/bin/shelxl https://dkratzert.de/files/shelx/shelxl
           chmod a+x ${HOME}/.local/bin/shelxl
