@@ -15,10 +15,12 @@ import os
 import re
 import subprocess
 import sys
+from contextlib import suppress
 from pathlib import Path
 from shutil import which, copyfile
 
-from shelxfile import Shelxfile
+with suppress(ImportError):
+    from shelxfile import Shelxfile
 from shelxfile.misc.misc import remove_file, sep_line, find_line
 from shelxfile.shelx.cards import ACTA
 
