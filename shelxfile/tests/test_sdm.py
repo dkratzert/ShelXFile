@@ -1,16 +1,18 @@
 import unittest
-from collections import namedtuple
+from contextlib import suppress
 from pathlib import Path
 from unittest import TestCase
 
 from shelxfile.misc.misc import wrap_line
-from shelxfile.shelx.shelx import Shelxfile
 from shelxfile.shelx.sdm import SDM
+with suppress(ImportError):
+    from shelxfile.shelx.shelx import Shelxfile
+
 
 @unittest.skip("Rust version does not work atm.")
 class MySDMtest(TestCase):
     def setUp(self) -> None:
-        self.maxDiff=None
+        self.maxDiff = None
         self.head = """
 REM Solution 1  R1  0.081,  Alpha = 0.0146  in P31c
 REM Flack x = -0.072 ( 0.041 ) from Parsons' quotients
