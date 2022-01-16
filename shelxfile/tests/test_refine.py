@@ -37,7 +37,7 @@ class TestRefine(TestCase):
 
     def test_get_xl_version_string_with_real_path(self):
         shx = which('shelxl') if which('shelxl') else which('xl')
-        self.assertEqual('2018/3', get_xl_version_string(shx))
+        self.assertEqual('2019/2', get_xl_version_string(shx))
 
     def test_check_cycle_numbers(self):
         self.assertEqual('L.S. 10', str(self.shx.cycles))
