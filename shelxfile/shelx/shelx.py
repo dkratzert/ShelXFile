@@ -347,7 +347,8 @@ class Shelxfile():
                 self.resi.num = 0
                 if DEBUG:
                     print('RESI in line {} was not closed'.format(line_num + 1))
-                continue
+                # Do not continue here, otherwise HKLF is not parsed
+                # continue
             if line.startswith('RESI'):
                 self.resi = RESI(self, spline)
                 self.assign_card(self.resi, line_num)
@@ -359,7 +360,8 @@ class Shelxfile():
                 self.part.n = 0
                 if DEBUG:
                     print('PART in line {} was not closed'.format(line_num + 1))
-                continue
+                # Do not continue here, otherwise HKLF is not parsed
+                # continue
             if line.startswith('PART'):
                 self.part = PART(self, spline)
                 self.assign_card(self.part, line_num)
