@@ -1,4 +1,7 @@
 # Shelxfile
+<a href="https://repology.org/project/python:shelxfile/versions">
+    <img src="https://repology.org/badge/vertical-allrepos/python:shelxfile.svg" alt="Packaging status" align="right">
+</a>
 
 [![Unit tests](https://github.com/dkratzert/ShelXFile/actions/workflows/python-package.yml/badge.svg)](https://github.com/dkratzert/ShelXFile/actions/workflows/python-package.yml)
 
