@@ -4,6 +4,7 @@
 </a>
 
 [![Unit tests](https://github.com/dkratzert/ShelXFile/actions/workflows/python-package.yml/badge.svg)](https://github.com/dkratzert/ShelXFile/actions/workflows/python-package.yml)
+![Contributions](https://img.shields.io/badge/contributions-welcome-blue)
 
 This is a full implementation of the SHELXL[[1](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)] file syntax. Additionally it is able to edit SHELX properties using Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
