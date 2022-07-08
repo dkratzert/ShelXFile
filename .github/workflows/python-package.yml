@@ -46,5 +46,5 @@ jobs:
           curl -o ${HOME}/.local/bin/shelxl https://dkratzert.de/files/shelx/shelxl
           chmod a+x ${HOME}/.local/bin/shelxl
           # run tests
-          cd shelxfile
+          #cd shelxfile
           pytest -s
