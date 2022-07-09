@@ -123,7 +123,7 @@ class ShelxlRefine():
             return
         acta = ACTA(self.shx, self._acta_card.split())
         self.shx._reslist.insert(self.shx.unit.index + 1, ' ')
-        self.shx.acta = self.shx.assign_card(acta, self.shx.unit.index + 1)
+        self.shx.acta = self.shx._assign_card(acta, self.shx.unit.index + 1)
 
     def backup_shx_file(self):
         """

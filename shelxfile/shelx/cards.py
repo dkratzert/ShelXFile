@@ -1,6 +1,6 @@
 import re
 from math import cos, radians, sqrt
-from typing import List
+from typing import List, Union
 
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
@@ -245,6 +245,9 @@ class Command():
                 words.append(x)
         return numparams, words
 
+    def set(self, value):
+        self.__init__(self._shx, value.split())
+
     @property
     def index(self):
         return self._shx.index_of(self)
@@ -405,6 +408,8 @@ class AFIX(Command):
         p, _ = self._parse_line(spline)
         self.U = 10.08
         self.sof = 11.0
+        self.mn = None
+        self.d = None
         if len(p) > 0:
             self.mn = int(p[0])
         if len(p) > 1:
@@ -415,7 +420,7 @@ class AFIX(Command):
             self.U = p[3]
 
     def __bool__(self):
-        if self.mn > 0:
+        if self.mn and self.mn > 0:
             return True
         else:
             return False
@@ -634,6 +639,8 @@ class SHEL(Command):
         """
         super(SHEL, self).__init__(shx, spline)
         params, _ = self._parse_line(spline)
+        self.lowres = None
+        self.highres = None
         if len(params) > 0:
             self.lowres = params[0]
         if len(params) > 1:
@@ -676,6 +683,7 @@ class SPEC(Command):
         SPEC d[0.2]
         """
         super(SPEC, self).__init__(shx, spline)
+        self.d = None
         p, _ = self._parse_line(spline)
         if len(p) > 0:
             self.d = p[0]
@@ -690,6 +698,7 @@ class STIR(Command):
         super(STIR, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
         self.step = 0.01
+        self.sres = None
         if len(p) > 0:
             self.sres = p[0]
         if len(p) > 1:
@@ -745,14 +754,22 @@ class PLAN(Command):
         """
         PLAN npeaks[20] d1[#] d2[#]
         """
+        self.shx = shx
         super(PLAN, self).__init__(shx, spline)
+        self.npeaks = 20
+        self.d1 = None
+        self.d2 = None
         params, _ = self._parse_line(spline)
         if len(params) > 0:
-            self.npeaks = params[0]
+            self.npeaks = int(params[0])
         if len(params) > 1:
             self.d1 = params[1]
         if len(params) > 2:
             self.d2 = params[2]
+
+    def __repr__(self):
+        return f'PLAN {self.npeaks:,g}{" " if self.d1 else ""}{self.d1 if self.d1 is not None else ""}' \
+               f'{" " if self.d2 else ""}{self.d2 if self.d2 is not None else ""}'
 
 
 class FRAG(Command):
@@ -775,6 +792,8 @@ class FREE(Command):
         """
         super(FREE, self).__init__(shx, spline)
         _, atoms = self._parse_line(spline)
+        self.atom1 = None
+        self.atom2 = None
         try:
             self.atom1 = atoms[0]
             self.atom2 = atoms[1]
@@ -790,12 +809,15 @@ class FMAP(Command):
     def __init__(self, shx, spline: list):
         super(FMAP, self).__init__(shx, spline)
         params, _ = self._parse_line(spline)
+        self.code = None
+        self.axis = None
+        self.nl = None
         if len(params) > 0:
             self.code = params[0]
         if len(params) > 1:
             self.axis = params[1]
         if len(params) > 2:
-            self.axis = params[2]
+            self.nl = params[2]
 
 
 class MOVE(Command):
@@ -806,6 +828,8 @@ class MOVE(Command):
         """
         super(MOVE, self).__init__(shx, spline)
         params, _ = self._parse_line(spline)
+        self.dxdydz = None
+        self.sign = None
         if len(params) > 2:
             self.dxdydz = params[:3]
         if len(params) > 3:
@@ -834,6 +858,8 @@ class HTAB(Command):
         """
         super(HTAB, self).__init__(shx, spline)
         self.dh = None
+        self.donor = None
+        self.acceptor = None
         dh, atoms = self._parse_line(spline)
         if dh:
             self.dh = dh[0]
@@ -876,7 +902,7 @@ class ACTA(Command):
 
     def _as_str(self):
         if self.twotheta:
-            return "ACTA {:,g}".format(self.twotheta[0])
+            return f"ACTA {self.twotheta[0]:,g}"
         else:
             return "ACTA"
 
@@ -895,10 +921,12 @@ class BLOC(Command):
         """
         super(BLOC, self).__init__(shx, spline)
         params, self.atoms = self._parse_line(spline)
-        if len(params) > 1:
-            self.n2 = params[1]
+        self.n1 = None
+        self.n2 = None
         if len(params) > 0:
             self.n1 = params[0]
+        if len(params) > 1:
+            self.n2 = params[1]
         self.shx = shx
 
 
@@ -1406,8 +1434,8 @@ class HFIX(Command):
         self.params, self.atoms = self._parse_line(spline, intnums=True)
 
     def __repr__(self):
-        return "HFIX {} {}".format(" ".join([str(x) for x in self.params]) if self.params else '',
-                                   " ".join(self.atoms) if self.atoms else '')
+        return f"HFIX {' '.join([str(x) for x in self.params]) if self.params else ''} " \
+               f"{' '.join(self.atoms) if self.atoms else ''}"
 
 
 class HKLF(Command):
@@ -1741,6 +1769,8 @@ class SFACTable():
 
 class UNIT(Command):
 
+    values: list[Union[int, float]]
+
     def __init__(self, shx, spline: list):
         """
         UNIT n1 n2 ...
@@ -1775,6 +1805,7 @@ class BASF(Command):
     BASF scale factors
     BASF can occour in multiple lines.
     """
+    scale_factors: list[Union[int, float]]
 
     def __init__(self, shx, spline):
         super(BASF, self).__init__(shx, spline)
@@ -1821,7 +1852,7 @@ class WGHT(Command):
         w = q / [ σ²(Fo²) + (a*P)² + b*P + d + e*sin(θ)/$lambda; ]
 
         WGHT a[0.1] b[0] c[0] d[0] e[0] f[.33333]
-        Usually only WGHT a b
+        Usually only 'WGHT a b' is used
         """
         super(WGHT, self).__init__(shx, spline)
         self.shx = shx
