@@ -19,6 +19,7 @@ from shutil import get_terminal_size
 # Without DEBUG, the parser should only fail if the file is realy damaged. With DEBUG enabled, the parser
 # fails even in harmless cases.
 from time import time, perf_counter
+from typing import List
 
 DEBUG = False
 PROFILE = False
@@ -86,7 +87,7 @@ def remove_file(filename, exit_dsr=False):
         return True
 
 
-def find_line(inputlist: list, regex: str, start: int = None) -> int:
+def find_line(inputlist: List, regex: str, start: int = None) -> int:
     """
     returns the index number of the line where regex is found in the inputlist
     if stop is true, stop searching with first line found

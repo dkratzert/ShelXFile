@@ -149,6 +149,34 @@ class Atoms():
         return atoms
 
     @property
+    def hydrogen_atoms(self) -> List[Atom]:
+        return [x for x in self.shx.atoms.all_atoms if x.is_hydrogen]
+
+    @property
+    def n_hydrogen_atoms(self) -> int:
+        return len(self.hydrogen_atoms)
+
+    @property
+    def n_anisotropic_atoms(self) -> int:
+        return len([x for x in self.all_atoms if sum(x.uvals[1:]) > 0.00001])
+
+    @property
+    def n_isotropic_atoms(self) -> int:
+        return len([x for x in self.all_atoms if sum(x.uvals[1:]) == 0.0])
+
+    @property
+    def n_anisotropic_hydrogen_atoms(self) -> int:
+        return len([x for x in self.hydrogen_atoms if sum(x.uvals[1:]) > 0.0001])
+
+    @property
+    def n_hydrogen_atoms_with_constr_u_val(self) -> int:
+        return len([x for x in self.hydrogen_atoms if x.uvals[0] < -1.0])
+
+    @property
+    def riding_atoms(self) -> List[Atom]:
+        return [x for x in self.hydrogen_atoms if x.afix]
+
+    @property
     def residues(self) -> list:
         """
         Returns a list of the residue numbers in the shelx file.

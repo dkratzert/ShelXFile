@@ -353,16 +353,16 @@ def fit_fragment(fragment_atoms, source_atoms, target_atoms):
 
     Parameters
     ----------
-    fragment_atoms: list
+    fragment_atoms: List
         complete set of atoms of a fragment
-    source_atoms: list
+    source_atoms: List
         subsection of fragment atoms
-    target_atoms: list
+    target_atoms: List
         target position for source_atoms
 
     Returns
     -------
-    rotated_fragment: list
+    rotated_fragment: List
         list of coordinates from the fitted fragment
     rmsd: float
         RMSD (root mean square deviation)

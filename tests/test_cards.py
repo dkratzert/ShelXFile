@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest import TestCase
 
 from shelxfile.refine.refine import ShelxlRefine
-from shelxfile.shelx.cards import RESI, ANIS, ABIN, SADI, DFIX
+from shelxfile.shelx.cards import RESI, ANIS, ABIN, SADI, DFIX, AFIX
 from shelxfile.shelx.shelx import Shelxfile
 
 
@@ -118,6 +118,12 @@ class TestWGHT(TestCase):
     def test_wght_differene(self):
         self.assertEqual([0.0, 0.0], self.shx.wght.difference())
 
+    def test_wght_set(self):
+        self.shx.wght.set('WGHT 0.1 99')
+        self.assertEqual('WGHT   0.1 99.0', str(self.shx.wght))
+        self.assertEqual(0.1, self.shx.wght.a)
+        self.assertEqual(99.0, self.shx.wght.b)
+
 
 class TestANIS(TestCase):
 
@@ -203,3 +209,41 @@ class TestwithDEFS(TestCase):
         a = DFIX(self.shx, 'DFIX 1.45 0.022 C1 C2 C2 C3 C3 C4'.split())
         self.assertEqual(1.45, a.d)
         self.assertEqual(0.022, a.s)
+
+
+class TestPLAN(TestCase):
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/p21c.res')
+
+    def test_plan__repr__(self):
+        self.assertEqual('PLAN 20', self.shx.plan.__repr__())
+
+    def test_set_plan_value(self):
+        self.shx.plan.set('PLAN 23')
+        self.assertEqual('PLAN 23', self.shx.plan.__repr__())
+
+    def test_set_plan_all_values(self):
+        self.shx.plan.set('PLAN 23 1.34 1.1')
+        self.assertEqual('PLAN 23 1.34 1.1', self.shx.plan.__repr__())
+
+
+class TestAFIX(TestCase):
+
+    def test_afix_n(self):
+        a = AFIX(Shelxfile(), 'AFIX 33'.split())
+        self.assertEqual(33, a.mn)
+        self.assertEqual(None, a.d)
+        self.assertEqual(10.08, a.U)
+        self.assertEqual(11.0, a.sof)
+        self.assertEqual(True, a.__bool__())
+
+    def test_afix_zero(self):
+        a = AFIX(Shelxfile(), 'AFIX 0'.split())
+        self.assertEqual(0, a.mn)
+        self.assertEqual(False, a.__bool__())
+
+    def test_afix_empty(self):
+        a = AFIX(Shelxfile(), 'AFIX'.split())
+        self.assertEqual(None, a.mn)
+        self.assertEqual(False, a.__bool__())
