@@ -141,8 +141,9 @@ class TestAtoms(TestCase):
                          self.shx.atoms.get_atom_by_id(40).cart_coords)
 
     def test_cartesian_from_method(self):
-        self.assertEqual([round(x, 14) for x in frac_to_cart(self.shx.atoms.get_atom_by_id(40).frac_coords, list(self.shx.cell))],
-                          self.shx.atoms.get_atom_by_id(40).cart_coords)
+        self.assertEqual(
+            [round(x, 14) for x in frac_to_cart(self.shx.atoms.get_atom_by_id(40).frac_coords, list(self.shx.cell))],
+            self.shx.atoms.get_atom_by_id(40).cart_coords)
 
     def test_frac_coords(self):
         self.assertEqual((0.028576, 0.234542, 0.337234), self.shx.atoms.get_atom_by_id(40).frac_coords)
@@ -176,3 +177,46 @@ class TestAtoms(TestCase):
 
     def test_part_sof(self):
         self.assertEqual(-31.0, self.shx.atoms.get_atom_by_id(40).part.sof)
+
+    def test_get_pivot_atom(self):
+        self.assertEqual('C34', self.shx.atoms.all_atoms[45].get_pivot_atom().name)
+
+    def test_get_pivot_atom_of_fluorine(self):
+        # This atom should not have a pivot atom, because it is heavy and not in an AFIX:
+        self.assertEqual('F2', self.shx.atoms.all_atoms[4].name)
+        self.assertEqual(None, self.shx.atoms.all_atoms[4].get_pivot_atom())
+
+    def test_hydrogen_atoms(self):
+        self.assertEqual('[Atom ID: 134, Atom ID: 141, Atom ID: 148]', str(self.shx.atoms.hydrogen_atoms[:3]))
+
+    def test_riding_atoms(self):
+        self.assertEqual('[Atom ID: 134, Atom ID: 141, Atom ID: 148]', str(self.shx.atoms.riding_atoms[:3]))
+
+
+class TestRidingAtoms(TestCase):
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/sad-final.res')
+
+    def test_hydrogen_atoms(self):
+        # Returns the list of hydrogen atoms, regardless of their model
+        self.assertEqual('[Atom ID: 71, Atom ID: 75, Atom ID: 76]', str(self.shx.atoms.hydrogen_atoms[3:6]))
+
+    def test_riding_atoms(self):
+        # Returns only riding atoms, therefore different IDs than above
+        self.assertEqual('[Atom ID: 75, Atom ID: 76, Atom ID: 77]', str(self.shx.atoms.riding_atoms[3:6]))
+
+    def test_number_of_anisotropic_atoms(self):
+        self.assertEqual(79, self.shx.atoms.n_anisotropic_atoms)
+
+    def test_number_of_isotropic_atoms(self):
+        self.assertEqual(49, self.shx.atoms.n_isotropic_atoms)
+
+    def test_number_of_hydrogen_atoms(self):
+        self.assertEqual(49, self.shx.atoms.n_hydrogen_atoms)
+
+    def test_number_of_anisotropic_hydrogen_atoms(self):
+        self.assertEqual(0, self.shx.atoms.n_anisotropic_hydrogen_atoms)
+
+    def test_number_of_hydrogen_adtoms_with_constrained_u_values(self):
+        self.assertEqual(49, self.shx.atoms.n_hydrogen_atoms_with_constr_u_val)

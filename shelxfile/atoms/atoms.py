@@ -158,7 +158,11 @@ class Atoms():
 
     @property
     def n_anisotropic_atoms(self) -> int:
-        return len([x for x in self.all_atoms if sum(x.uvals[1:]) > 0.0001])
+        return len([x for x in self.all_atoms if sum(x.uvals[1:]) > 0.00001])
+
+    @property
+    def n_isotropic_atoms(self) -> int:
+        return len([x for x in self.all_atoms if sum(x.uvals[1:]) == 0.0])
 
     @property
     def n_anisotropic_hydrogen_atoms(self) -> int:
@@ -178,16 +182,6 @@ class Atoms():
         Returns a list of the residue numbers in the shelx file.
         """
         return list(set([x.resinum for x in self.all_atoms]))
-
-    def get_pivot_atom(self, riding_atom) -> Union[Atom, None]:
-        """
-        Returns the pivot atom (C1) of a riding hydrogen atom (H1, H2, or H3).
-           /H1
-        -C1--H2
-           \H3
-        """
-        pivots = riding_atom.find_atoms_around(dist=1.2)
-        return pivots[0] if pivots else None
 
     @property
     def q_peaks(self) -> list:
