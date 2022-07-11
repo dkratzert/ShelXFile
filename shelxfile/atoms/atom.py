@@ -157,7 +157,7 @@ class Atom():
         self.uvals = uvals
         self.symmgen = symmgen
 
-    def set_uvals(self, uvals: list):
+    def set_uvals(self, uvals: List):
         """
         Sets u values and checks if a free variable was used.
         """
@@ -173,7 +173,7 @@ class Atom():
                 fvar, uval = split_fvar_and_parameter(uvals[0])
                 self.shx.fvars.set_fvar_usage(fvar)
 
-    def parse_line(self, atline: list, list_of_lines: list, part: PART, afix: AFIX, resi: RESI):
+    def parse_line(self, atline: List, list_of_lines: List, part: PART, afix: AFIX, resi: RESI):
         """
         Parsers the text line of an atom from SHELXL to initialize the atom parameters.
         """
@@ -313,7 +313,7 @@ class Atom():
             return (self.x, self.y, self.z)
 
     @frac_coords.setter
-    def frac_coords(self, coords: list):
+    def frac_coords(self, coords: List):
         self.x, self.y, self.z = coords
 
     @property

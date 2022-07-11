@@ -634,7 +634,7 @@ def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
 
-def atomic_distance(p1: list, p2: list, cell=None, shortest_dist=False):
+def atomic_distance(p1: List, p2: List, cell=None, shortest_dist=False):
     """
     p1 and p2 are x, y , z coordinates as list ['x', 'y', 'z']
     cell are the cell parameters as list: ['a', 'b', 'c', 'alpha', 'beta', 'gamma']

@@ -306,7 +306,7 @@ class ANIS(Command):
 
 class MPLA(Command):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx, spline: List):
         """
         MPLA na atomnames
         """
@@ -318,7 +318,7 @@ class MPLA(Command):
 
 class MORE(Command):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx, spline: List):
         """
         MORE m[1]
         """
@@ -330,7 +330,7 @@ class MORE(Command):
 
 class CELL(Command):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx, spline: List):
         """
         CELL λ a b c α β γ
         """
@@ -379,7 +379,7 @@ class CELL(Command):
 
 class ZERR(Command):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx, spline: List):
         """
         ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
         """
@@ -1769,9 +1769,9 @@ class SFACTable():
 
 class UNIT(Command):
 
-    values: list[Union[int, float]]
+    values: List[Union[int, float]]
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx, spline: List):
         """
         UNIT n1 n2 ...
         """
@@ -1805,7 +1805,7 @@ class BASF(Command):
     BASF scale factors
     BASF can occour in multiple lines.
     """
-    scale_factors: list[Union[int, float]]
+    scale_factors: List[Union[int, float]]
 
     def __init__(self, shx, spline):
         super(BASF, self).__init__(shx, spline)
@@ -1817,7 +1817,7 @@ class BASF(Command):
 
 class TWIN(Command):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx, spline: List):
         """
         TWIN 3x3 matrix [-1 0 0 0 -1 0 0 0 -1] N[2]
         +N     -N  m = |N|
