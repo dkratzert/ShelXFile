@@ -39,11 +39,11 @@ CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 
 # You can overwrite any parameter in a shelx file:
 >>> shx.plan
-20
+PLAN 20
 
->>> shx.plan = 30
+>>> shx.plan.set('PLAN 30')
 >>> shx.plan
-30
+PLAN 30
 
 >>> shx.atoms
 O1     3    0.074835    0.238436    0.402457   -31.00000    0.01579    0.03095      0.01852   -0.00468   -0.00210    0.01153
@@ -51,6 +51,16 @@ C1     1    0.028576    0.234542    0.337234   -31.00000    0.02311    0.03617  
 C2     1    0.121540    0.194460    0.298291   -31.00000    0.02960    0.04586      0.01555   -0.00485   -0.00023    0.01102
 F
 ...
+
+>>> shx.atoms.hydrogen_atoms
+[Atom ID: 81, Atom ID: 88, Atom ID: 95, ... ]
+
+>>> shx.atoms.n_hydrogen_atoms
+24
+
+# Atoms with a riding model e.g. hydrogen atom riding on a carbon atom:
+>>> shx.atoms.riding_atoms
+[Atom ID: 81, Atom ID: 88, Atom ID: 95, ... ]
 
 >>> a = shx.atoms.get_atom_by_name('F1_2')  # Atom F1 in residue 2
 >>> a
