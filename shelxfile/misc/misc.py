@@ -98,14 +98,6 @@ def find_line(inputlist: List, regex: str, start: int = None) -> int:
     :param start: line number where to start the search
     :param start: start searching at line start
     :type start: string or int
-    >>> inp = ['Hallo blub', 'foo bar blub', '123', '1 blub 2 3 4']
-    >>> find_line(inp, '.*blub.*')
-    0
-    >>> inp = [['foo'],['bar']]
-    >>> find_line(inp, '.*blub.*') #doctest: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    TypeError: expected string or ...
     """
     if start:
         start = int(start)
