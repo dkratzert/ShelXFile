@@ -15,9 +15,6 @@ import textwrap
 from math import radians, cos, sin, sqrt
 from shutil import get_terminal_size
 
-# TODO: Add verbose mode that doesn't fail but gives output like debug mode.
-# Without DEBUG, the parser should only fail if the file is realy damaged. With DEBUG enabled, the parser
-# fails even in harmless cases.
 from time import time, perf_counter
 from typing import List
 
