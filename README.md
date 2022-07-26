@@ -41,6 +41,9 @@ CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 >>> shx.plan
 PLAN 20
 
+>>> shx.plan.npeaks
+20
+
 >>> shx.plan.set('PLAN 30')
 >>> shx.plan
 PLAN 30
