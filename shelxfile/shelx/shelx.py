@@ -1063,7 +1063,7 @@ class Shelxfile():
 if __name__ == "__main__":
     print(Path('.').resolve())
     # file = r'../shelxfile/tests/resources/p21c.res'
-    file = r'./shelxfile/tests/resources/p-31c.res'
+    file = r'tests/resources/p-31c.res'
     shx = Shelxfile()
     shx.read_file(file)
     print(shx.atoms)
@@ -1071,6 +1071,7 @@ if __name__ == "__main__":
     print(shx.sum_formula)
     print(shx.sum_formula_ex_dict())
     print(shx.restraints)
+    print(shx.atoms.nameslist)
     sys.exit()
 
     # noinspection PyUnreachableCode
