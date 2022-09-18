@@ -10,7 +10,7 @@
 # ----------------------------------------------------------------------------
 #
 from pathlib import Path
-from typing import Union, List
+from typing import Union, List, Optional
 
 from shelxfile.atoms.atom import Atom
 from shelxfile.atoms.atoms import Atoms
@@ -105,42 +105,42 @@ class Shelxfile():
             None, None, None, None, None, None, None
         self.cell: Union[CELL, None] = None
         self.ansc: List[float] = []
-        self.abin: Union[None, ABIN] = None
-        self.acta: Union[None, ACTA] = None
-        self.fmap: Union[None, FMAP] = None
-        self.xnpd: Union[None, XNPD] = None
-        self.wpdb: Union[None, WPDB] = None
-        self.wigl: Union[None, WIGL] = None
+        self.abin: Optional[ABIN] = None
+        self.acta: Optional[ACTA] = None
+        self.fmap: Optional[FMAP] = None
+        self.xnpd: Optional[XNPD] = None
+        self.wpdb: Optional[WPDB] = None
+        self.wigl: Optional[WIGL] = None
         self.temp: Union[int, float] = 20
         # TODO: Implement swat class:
         self.swat = None
-        self.stir: Union[None, STIR] = None
-        self.spec: Union[None, SPEC] = None
-        self.twst: Union[None, TWST] = None
-        self.plan: Union[None, PLAN] = None
-        self.prig: Union[None, PRIG] = None
-        self.merg: Union[None, MERG] = None
-        self.more: Union[None, MORE] = None
-        self.move: Union[None, MOVE] = None
-        self.defs: Union[None, DEFS] = None
-        self.zerr: Union[None, ZERR] = None
-        self.wght: Union[None, WGHT] = None
-        self.frag: Union[None, FRAG] = None
-        self.twin: Union[None, TWIN] = None
-        self.basf: Union[None, BASF] = None
-        self.latt: Union[None, LATT] = None
-        self.anis: Union[None, ANIS] = None
-        self.damp: Union[None, DAMP] = None
-        self.unit: Union[None, UNIT] = None
-        self.size: Union[None, SIZE] = None
-        self.htab: Union[None, HTAB] = None
-        self.shel: Union[None, SHEL] = None
-        self.mpla: Union[None, MPLA] = None
-        self.hklf: Union[None, HKLF] = None
-        self.grid: Union[None, GRID] = None
-        self.conn: Union[None, CONN] = None
-        self.conf: Union[None, CONF] = None
-        self.afix: Union[AFIX, None] = None
+        self.stir: Optional[STIR] = None
+        self.spec: Optional[SPEC] = None
+        self.twst: Optional[TWST] = None
+        self.plan: Optional[PLAN] = None
+        self.prig: Optional[PRIG] = None
+        self.merg: Optional[MERG] = None
+        self.more: Optional[MORE] = None
+        self.move: Optional[MOVE] = None
+        self.defs: Optional[DEFS] = None
+        self.zerr: Optional[ZERR] = None
+        self.wght: Optional[WGHT] = None
+        self.frag: Optional[FRAG] = None
+        self.twin: Optional[TWIN] = None
+        self.basf: Optional[BASF] = None
+        self.latt: Optional[LATT] = None
+        self.anis: Optional[ANIS] = None
+        self.damp: Optional[DAMP] = None
+        self.unit: Optional[UNIT] = None
+        self.size: Optional[SIZE] = None
+        self.htab: Optional[HTAB] = None
+        self.shel: Optional[SHEL] = None
+        self.mpla: Optional[MPLA] = None
+        self.hklf: Optional[HKLF] = None
+        self.grid: Optional[GRID] = None
+        self.conn: Optional[CONN] = None
+        self.conf: Optional[CONF] = None
+        self.afix: Optional[AFIX] = None
         self.rtab: List[RTAB] = []
         self.omit: List[str] = []
         self.free: List[FREE] = []
@@ -157,7 +157,7 @@ class Shelxfile():
         self.symmcards: SymmCards = SymmCards(self)
         self.hfixes: List[HFIX] = []
         self.sump: List[SUMP] = []
-        self.wght_suggested: Union[None, WGHT] = None
+        self.wght_suggested: Optional[WGHT] = None
         self.Z: int = 1
         self.titl = ""
         self.exti: float = 0.0
@@ -167,27 +167,27 @@ class Shelxfile():
         self.fvars: FVARs = FVARs(self)
         self.restraints: Restraints = Restraints()
         self.sfac_table: SFACTable = SFACTable(self)
-        self.cycles: Union[None, LSCycles] = None
-        self.R1: Union[None, float] = None
-        self.wr2: Union[None, float] = None
-        self.goof: Union[None, float] = None
-        self.rgoof: Union[None, float] = None
-        self.space_group: Union[None, str] = None
-        self.data: Union[None, int] = None
-        self.parameters: Union[None, int] = None
-        self.dat_to_param: Union[None, float] = None
-        self.num_restraints: Union[None, int] = None
-        self.highest_peak: Union[None, float] = None
-        self.deepest_hole: Union[None, float] = None
+        self.cycles: Optional[LSCycles] = None
+        self.R1: Optional[float] = None
+        self.wr2: Optional[float] = None
+        self.goof: Optional[float] = None
+        self.rgoof: Optional[float] = None
+        self.space_group: Optional[str] = None
+        self.data: Optional[int] = None
+        self.parameters: Optional[int] = None
+        self.dat_to_param: Optional[float] = None
+        self.num_restraints: Optional[int] = None
+        self.highest_peak: Optional[float] = None
+        self.deepest_hole: Optional[float] = None
         self.end: bool = False
         self.maxsof: float = 1.0
         self.delete_on_write: set = set()
         self.wavelen: float = 0.0
-        self.global_sadi: Union[None, int] = None
+        self.global_sadi: Optional[int] = None
         self.list: int = 0
         self.theta_full: float = 0.0
         self.error_line_num: int = -1  # Only used to tell the line number during an exception.
-        self.resfile: Union[Path, None] = None
+        self.resfile: Optional[Path] = None
         self._reslist: List = []
 
     def write_shelx_file(self, filename=None, verbose=False) -> None:
@@ -312,11 +312,6 @@ class Shelxfile():
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
             if line[:1] == ' ' or line == '':
                 continue
-            if not self.titl and line[:4] == 'TITL':
-                # TITL[]  ->  = and ! can be part of the TITL!
-                self.titl = line[5:76]
-                lastcard = 'TITL'
-                continue
             wrapindex = 0
             # This while loop makes wrapped lines look like they are not wrapped. The following lines are then
             # beginning with a space character and thus are ignored. The 'lines' list holds the line nnumbers where
@@ -337,7 +332,7 @@ class Shelxfile():
                 else:
                     multiline = False
                 self._reslist[line_num + wrapindex] = ''
-            # The current line splitted:
+            # The current line split:
             spline = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
             # The current line as string:
             line = line.upper().split('!')[0]  # Ignore comments with "!", see how this performes
@@ -421,7 +416,7 @@ class Shelxfile():
                 pass
             elif word == 'CELL':
                 # CELL λ a b c α β γ
-                if not lastcard == 'TITL' and DEBUG:
+                if lastcard != 'TITL' and DEBUG:
                     print('TITL is missing.')
                 self.cell = CELL(self, spline)
                 self._assign_card(self.cell, line_num)
@@ -431,7 +426,7 @@ class Shelxfile():
                 lastcard = 'CELL'
             elif word == "ZERR":
                 # ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
-                if not lastcard == 'CELL':
+                if lastcard != 'CELL':
                     if DEBUG:
                         print('*** Invalid SHELX file!')
                     raise ParseOrderError
@@ -452,7 +447,7 @@ class Shelxfile():
                 # negative is non-centrosymmetric
                 self.latt = LATT(self, spline)
                 self._assign_card(self.latt, line_num)
-                if not lastcard == 'ZERR' and DEBUG:
+                if lastcard != 'ZERR' and DEBUG:
                     print('*** ZERR instruction is missing! ***')
                 if self.latt.centric:
                     self.symmcards.set_centric(True)
@@ -497,7 +492,7 @@ class Shelxfile():
             elif word == 'UNIT':
                 # UNIT n1 n2 ...
                 # Number of atoms of each type in the unit-cell, in SFAC order.
-                if not lastcard == 'SFAC':
+                if lastcard != 'SFAC':
                     raise ParseOrderError
                 if self.sfac_table:
                     try:
@@ -590,7 +585,7 @@ class Shelxfile():
                 self._assign_card(self.defs, line_num)
             elif word == 'DISP':
                 # DISP E f' f"[#] mu[#]
-                if not lastcard == 'SFAC':
+                if lastcard != 'SFAC':
                     raise ParseOrderError
                 self._append_card(self.disp, DISP(self, spline), line_num)
             elif word == 'EQIV':
@@ -749,11 +744,14 @@ class Shelxfile():
                 pass
             elif line[:1] == '+':
                 pass
+            elif word == 'TITL':
+                self.titl = line[5:76]
+                lastcard = 'TITL'
             else:
                 if not line.strip():
                     continue
                 if DEBUG:
-                    print("Error in line: {} -> {}".format(line_num, line))
+                    print("Error in line: {} -> {}".format(line_num + 1, line))
                     raise ParseUnknownParam
 
     def add_atom(self, name: str = None, coordinates: list = None, element='C', uvals: list = None, part: int = 0,
