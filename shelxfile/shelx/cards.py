@@ -2,6 +2,7 @@ import re
 from math import cos, radians, sqrt
 from typing import List, Union
 
+from shelxfile.atoms.pairs import AtomPair
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, DEBUG, ParseSyntaxError
@@ -99,6 +100,7 @@ class Residue():
     def __init__(self):
         self.shx = None
         self._spline = None
+        self.residue_class = ''
 
     @property
     def residue_number(self):
@@ -112,7 +114,7 @@ class Residue():
                     return list(self.shx.residues.residue_numbers.keys())
                 else:
                     return [int(suffix)]
-        return [0]
+        return self.shx.residues.residue_classes[self.residue_class]
 
 
 class Restraint(Residue):
@@ -133,7 +135,7 @@ class Restraint(Residue):
     def index(self):
         return self.shx.index_of(self)
 
-    def _parse_line(self, spline, pairs=False):
+    def _parse_line(self, spline: str, pairs=False):
         """
         Residues may be referenced by any instruction that allows atom names; the reference takes
         the form of the character '_' followed by either the residue class or number without intervening
@@ -144,9 +146,10 @@ class Restraint(Residue):
         codeword).
         """
         self._spline = spline
-        # TODO: check if suffix is a residue class and set instance variable accordingly
         if '_' in spline[0]:
             self.name, suffix = spline[0].upper().split('_')
+            if len(suffix) > 0 and re.match(r'[a-zA-Z]', suffix):
+                self.residue_class = suffix
         else:
             self.name = spline[0].upper()
         self.set_defs_values()
@@ -159,9 +162,15 @@ class Restraint(Residue):
             else:
                 atoms.append(x)
         if pairs:
-            return params, chunks(atoms, 2)
+            return params, self.get_atompairs(atoms)
         else:
             return params, atoms
+
+    def get_atompairs(self, atoms: List[str]):
+        pairs = []
+        for p in chunks(atoms, 2):
+            pairs.append(AtomPair(*p))
+        return pairs
 
     def check_if_class_name_fits_to_command(self):
         if DEBUG and self.__class__.__name__ != self.name:
@@ -1097,13 +1106,12 @@ class DISP(Command):
 class Restraints():
     """
     Base class for the list of restraints.
-    :type _restraints: List[Restraint]
     """
 
     def __init__(self):
         """
         """
-        self._restraints = []
+        self._restraints: List[Restraint] = []
 
     def append(self, restr):
         self._restraints.append(restr)
@@ -1768,7 +1776,6 @@ class SFACTable():
 
 
 class UNIT(Command):
-
     values: List[Union[int, float]]
 
     def __init__(self, shx, spline: List):
