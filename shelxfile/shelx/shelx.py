@@ -212,6 +212,7 @@ class Shelxfile():
         """
         Read input from a file path.
         """
+        self.__init__()
         if isinstance(resfile, str):
             resfile = Path(resfile)
         self.resfile = resfile.resolve()
