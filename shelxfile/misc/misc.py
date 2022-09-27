@@ -18,7 +18,7 @@ from shutil import get_terminal_size
 from time import time, perf_counter
 from typing import List
 
-DEBUG = True
+DEBUG = False
 PROFILE = False
 
 dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)

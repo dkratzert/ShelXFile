@@ -245,6 +245,37 @@ class Shelxfile():
                 raise
             else:
                 return
+        self._assign_atoms_to_restraints()
+
+    def _assign_atoms_to_restraints(self):
+        for nr, restraint in enumerate(self.restraints):
+            # print(restraint)
+            bad_atoms = []
+            for nra, ratom in enumerate(restraint.atoms):
+                if ratom in ('>', '<', '='):
+                    continue
+                if restraint.residue_class:
+                    for num in restraint.residue_number:
+                        atom_name = f'{ratom}_{num}'
+                        a = self.atoms.get_atom_by_name(atom_name)
+                        if not a:
+                            bad_atoms.append(atom_name)
+                elif '_' in ratom:
+                    atom_name = f'{ratom}'
+                    a = self.atoms.get_atom_by_name(atom_name)
+                    if not a:
+                        bad_atoms.append(atom_name)
+                else:
+                    atom_name = f'{ratom}_{0}'
+                    a = self.atoms.get_atom_by_name(atom_name)
+                    if not a:
+                        bad_atoms.append(ratom)
+            if bad_atoms:
+                print(f'\nUnknown atom{"s" if len(bad_atoms) > 0 else ""} in restraint: {restraint}')
+                sorted_atoms = list(set(bad_atoms))
+                sorted_atoms.sort()
+                print(f'Atom list has no --> {", ".join(sorted_atoms)}')
+                bad_atoms.clear()
 
     def _test_if_file_is_valid(self, resfile):
         if len(self._reslist) < 20 and DEBUG:
@@ -334,7 +365,7 @@ class Shelxfile():
                     multiline = False
                 self._reslist[line_num + wrapindex] = ''
             # The current line split:
-            spline = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
+            spline: list = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
             # The current line as string:
             line = line.upper().split('!')[0]  # Ignore comments with "!", see how this performes
             word = line[:4]

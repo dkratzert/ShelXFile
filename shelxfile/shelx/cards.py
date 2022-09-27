@@ -1,12 +1,14 @@
 import re
 from math import cos, radians, sqrt
-from typing import List, Union
+from typing import List, Union, TYPE_CHECKING
 
 from shelxfile.atoms.pairs import AtomPair
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, DEBUG, ParseSyntaxError
 
+if TYPE_CHECKING:
+    from shelxfile import Shelxfile
 """
 SHELXL cards:
 
@@ -114,12 +116,12 @@ class Residue():
                     return list(self.shx.residues.residue_numbers.keys())
                 else:
                     return [int(suffix)]
-        return self.shx.residues.residue_classes[self.residue_class]
+        return self.shx.residues.residue_classes[self.residue_class] if self.residue_class else [0]
 
 
 class Restraint(Residue):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: list):
         """
         Base class for parsing restraints.
         TODO: resolve ranges like SADI_CCF3 O1 > F9
@@ -135,7 +137,7 @@ class Restraint(Residue):
     def index(self):
         return self.shx.index_of(self)
 
-    def _parse_line(self, spline: str, pairs=False):
+    def _parse_line(self, spline: list):
         """
         Residues may be referenced by any instruction that allows atom names; the reference takes
         the form of the character '_' followed by either the residue class or number without intervening
@@ -161,10 +163,10 @@ class Restraint(Residue):
                 params.append(float(x))
             else:
                 atoms.append(x)
-        if pairs:
-            return params, self.get_atompairs(atoms)
-        else:
-            return params, atoms
+        # if pairs:
+        #    return params, self.get_atompairs(atoms)
+        # else:
+        return params, atoms
 
     def get_atompairs(self, atoms: List[str]):
         pairs = []
@@ -202,7 +204,7 @@ class Restraint(Residue):
     def _paircheck(self):
         if not self.atoms:
             return
-        if len(self.atoms[-1]) != 2 and DEBUG:
+        if len(self.atoms) % 2 != 0 and DEBUG:
             print('*** Wrong number of numerical parameters ***')
             print('Instruction: {}'.format(self.textline))
             raise ParseNumError
@@ -216,6 +218,17 @@ class Restraint(Residue):
 
     def __str__(self):
         return self.textline
+        '''# print(self.atoms, self.residue_number)
+        s = self.s if hasattr(self, 's') else ''
+        s1 = self.s1 if hasattr(self, 's1') else ''
+        s2 = self.s2 if hasattr(self, 's2') else ''
+        st = self.st if hasattr(self, 'st') else ''
+        return f"{self.name}" \
+               f"{' ' if s else ''}{s}" \
+               f"{' ' if s1 else ''}{s1}" \
+               f"{' ' if s2 else ''}{s2}" \
+               f"{' ' if st else ''}{st} " \
+               f"{' '.join(self.atoms)}"'''
 
     def split(self):
         return self.textline.split()
@@ -1129,24 +1142,6 @@ class Restraints():
         else:
             return 'No Restraints in file.'
 
-    @staticmethod
-    def _resolve_atoms(shx, restr: Restraint):
-        atoms = restr.atoms
-        for atnum, ap in enumerate(atoms):
-            if not isinstance(ap, (list, tuple)):
-                # ignores all ranges: ['O1', '>', 'F9']
-                try:
-                    atoms[atnum] = shx.atoms.get_atom_by_name(ap)
-                except TypeError:
-                    continue
-                continue
-            for num, atname in enumerate(ap):
-                # without range: [['O1', 'C1'], ...]
-                try:
-                    atoms[atnum][num] = shx.atoms.get_atom_by_name(atname)
-                except TypeError:
-                    continue
-
 
 class DEFS(Restraint):
 
@@ -1192,7 +1187,7 @@ class NCSY(Restraint):
         self.sd = 0.1
         self.su = 0.05
         self.DN = None
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.DN = p[0]
         if len(p) > 1:
@@ -1258,7 +1253,7 @@ class DFIX(Restraint):
         """
         super(DFIX, self).__init__(shx, spline)
         self.s = 0.02
-        p, self.atoms = self._parse_line(spline, pairs=True)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.d = p[0]
         if len(p) > 1:
@@ -1293,7 +1288,7 @@ class DANG(Restraint):
 
 class SADI(Restraint):
 
-    def __init__(self, shx, spline):
+    def __init__(self, shx: 'Shelxfile', spline: list):
         """
         SADI s[0.02] pairs of atoms
         Instructions with only two atoms are ignored by SHELXL: SADI C3 C4
@@ -1302,7 +1297,7 @@ class SADI(Restraint):
         """
         super(SADI, self).__init__(shx, spline)
         self.s = 0.02
-        p, self.atoms = self._parse_line(spline, pairs=True)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s = p[0]
         self._paircheck()
@@ -1317,7 +1312,7 @@ class SAME(Restraint):
         super(SAME, self).__init__(shx, spline)
         self.s1 = 0.02
         self.s2 = 0.04
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s1 = p[0]
         if len(p) > 1:
@@ -1333,7 +1328,7 @@ class RIGU(Restraint):
         super(RIGU, self).__init__(shx, spline)
         self.s1 = 0.004
         self.s2 = 0.004
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s1 = p[0]
         if len(p) > 1:
@@ -1350,7 +1345,7 @@ class SIMU(Restraint):
         self.s = 0.04
         self.st = 0.08
         self.dmax = 2.0
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s = p[0]
         if len(p) > 1:
@@ -1368,7 +1363,7 @@ class DELU(Restraint):
         super(DELU, self).__init__(shx, spline)
         self.s1 = 0.01
         self.s2 = 0.01
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s1 = p[0]
         if len(p) > 1:

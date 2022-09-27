@@ -101,7 +101,8 @@ class Atoms():
         try:
             at = self.atomsdict[atom_name.upper()]
         except KeyError:
-            print("Atom {} not found in atom list.".format(atom_name))
+            if DEBUG:
+                print("Atom {} not found in atom list.".format(atom_name))
             return None
         return at
 
