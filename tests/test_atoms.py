@@ -126,7 +126,7 @@ class TestAtoms(TestCase):
 
     def test_get_coordinates(self):
         c = self.shx.atoms.get_atom_by_name('C1_4').cart_coords
-        self.assertEqual([-0.19777464582151, 4.902748697, 6.89776640065679], c)
+        self.assertEqual([-0.19777464582151, 4.902748697, 6.89776640065678], [round(x, 14) for x in c])
 
     def test_to_isotropic(self):
         # We have regular u values of atom 40
@@ -137,13 +137,13 @@ class TestAtoms(TestCase):
         self.assertEqual([0.04, 0.0, 0.0, 0.0, 0.0, 0.0], self.shx.atoms.get_atom_by_id(40).uvals)
 
     def test_cart_coords(self):
-        self.assertEqual([-0.19777464582151, 4.902748697, 6.89776640065679],
-                         self.shx.atoms.get_atom_by_id(40).cart_coords)
+        self.assertEqual([-0.19777464582151, 4.902748697, 6.89776640065678],
+                         [round(x, 14) for x in self.shx.atoms.get_atom_by_id(40).cart_coords])
 
     def test_cartesian_from_method(self):
         self.assertEqual(
-            [round(x, 14) for x in frac_to_cart(self.shx.atoms.get_atom_by_id(40).frac_coords, list(self.shx.cell))],
-            self.shx.atoms.get_atom_by_id(40).cart_coords)
+            [round(x, 13) for x in frac_to_cart(self.shx.atoms.get_atom_by_id(40).frac_coords, list(self.shx.cell))],
+            [round(x, 13) for x in self.shx.atoms.get_atom_by_id(40).cart_coords])
 
     def test_frac_coords(self):
         self.assertEqual((0.028576, 0.234542, 0.337234), self.shx.atoms.get_atom_by_id(40).frac_coords)

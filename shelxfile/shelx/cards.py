@@ -3,7 +3,7 @@ from math import cos, radians, sqrt
 from typing import List, Union, TYPE_CHECKING, Optional, Iterator
 
 from shelxfile.atoms.pairs import AtomPair
-from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement
+from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, DEBUG, ParseSyntaxError
 
@@ -374,6 +374,7 @@ class CELL(Command):
             self.cosal = cos(radians(self.alpha))
             self.cosbe = cos(radians(self.beta))
             self.cosga = cos(radians(self.gamma))
+            self.o = OrthogonalMatrix(self.a, self.b, self.c, self.alpha, self.beta, self.gamma)
         else:
             raise ParseSyntaxError
 

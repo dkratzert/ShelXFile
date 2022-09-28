@@ -230,7 +230,7 @@ class SDM():
                                + Array(self.shx.symmcards[symm_num].trans) + Array([h, k, l]),
                         part=atom.part,
                         afix=AFIX(self.shx, (atom.afix).split()) if atom.afix else None,
-                        resi=RESI(self.shx, ('RESI ' + atom.resinum + atom.resiclass).split()) if atom.resi else None,
+                        resi=RESI(self.shx, (f'RESI {atom.resinum} {atom.resiclass}').split()) if atom.resi else None,
                         site_occupation=atom.sof,
                         uvals=uvals,
                         symmgen=True

@@ -170,7 +170,7 @@ def flatten(lis):
     """
     new_lis = []
     for item in lis:
-        if isinstance(item, list):
+        if isinstance(item, (list, tuple)):
             new_lis.extend(flatten(item))
         else:
             new_lis.append(item)

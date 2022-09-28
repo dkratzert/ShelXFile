@@ -3,7 +3,7 @@ from typing import Union, List
 
 with suppress(Exception):
     from shelxfile import Shelxfile
-from shelxfile.misc.dsrmath import atomic_distance
+from shelxfile.misc.dsrmath import atomic_distance, Array
 from shelxfile.misc.elements import get_atomic_number, get_radius_from_element
 from shelxfile.misc.misc import split_fvar_and_parameter, DEBUG, ParseSyntaxError, frac_to_cart, ParseUnknownParam
 from shelxfile.shelx.cards import PART, AFIX, RESI, CELL, Restraints
@@ -212,15 +212,16 @@ class Atom():
             fvar, x = split_fvar_and_parameter(x)
             self.shx.fvars.set_fvar_usage(fvar)
         if abs(y) > 4:
-            fvar, x = split_fvar_and_parameter(y)
+            fvar, y = split_fvar_and_parameter(y)
             self.shx.fvars.set_fvar_usage(fvar)
         if abs(z) > 4:
-            fvar, x = split_fvar_and_parameter(z)
+            fvar, z = split_fvar_and_parameter(z)
             self.shx.fvars.set_fvar_usage(fvar)
         self.x = x
         self.y = y
         self.z = z
-        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, list(self.cell))
+        self.xc, self.yc, self.zc = self.cell.o * Array(self.frac_coords)
+        # frac_to_cart(self.frac_coords, list(self.cell))
         if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
             self.peak_height = uvals.pop()
             self.qpeak = True
@@ -290,24 +291,21 @@ class Atom():
                     return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
 
     @property
-    def index(self):
+    def index(self) -> int:
         # The position in the res file as index number (starting from 0).
         return self.shx.index_of(self)
 
     @property
-    def frac_coords(self, rounded=False) -> tuple:
-        if rounded:
-            return (round(self.x, 14), round(self.y, 14), round(self.z, 14))
-        else:
-            return (self.x, self.y, self.z)
+    def frac_coords(self) -> tuple:
+        return self.x, self.y, self.z
 
     @frac_coords.setter
-    def frac_coords(self, coords: List):
+    def frac_coords(self, coords: List[float]):
         self.x, self.y, self.z = coords
 
     @property
-    def cart_coords(self):
-        return [round(self.xc, 14), round(self.yc, 14), round(self.zc, 14)]
+    def cart_coords(self) -> tuple[float, float, float]:
+        return self.xc, self.yc, self.zc
 
     def delete(self):
         """
