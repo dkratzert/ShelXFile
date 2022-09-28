@@ -1,6 +1,6 @@
 import re
 from math import cos, radians, sqrt
-from typing import List, Union, TYPE_CHECKING
+from typing import List, Union, TYPE_CHECKING, Optional, Iterator
 
 from shelxfile.atoms.pairs import AtomPair
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement
@@ -9,6 +9,7 @@ from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
+    from shelxfile.atoms.atom import Atom
 """
 SHELXL cards:
 
@@ -105,7 +106,7 @@ class Residue():
         self.residue_class = ''
 
     @property
-    def residue_number(self):
+    def residue_number(self) -> list[int]:
         if '_' in self._spline[0]:
             _, suffix = self._spline[0].upper().split('_')
             if any([x.isalpha() for x in suffix]):
@@ -116,7 +117,7 @@ class Residue():
                     return list(self.shx.residues.residue_numbers.keys())
                 else:
                     return [int(suffix)]
-        return self.shx.residues.residue_classes[self.residue_class] if self.residue_class else [0]
+        return self.shx.residues.residue_classes.get(self.residue_class, [0])
 
 
 class Restraint(Residue):
@@ -127,17 +128,17 @@ class Restraint(Residue):
         TODO: resolve ranges like SADI_CCF3 O1 > F9
         """
         super().__init__()
-        self.shx = shx
-        self.residue_class = ''  # '' is the default class (with residue number 0)
-        self.textline = ' '.join(spline)
-        self.name = None
-        self.atoms = []
+        self.shx: 'Shelxfile' = shx
+        self.residue_class: str = ''  # '' is the default class (with residue number 0)
+        self.textline: str = ' '.join(spline)
+        self.name: Optional[str] = None
+        self.atoms: list[Atom] = []
 
     @property
-    def index(self):
+    def index(self) -> int:
         return self.shx.index_of(self)
 
-    def _parse_line(self, spline: list):
+    def _parse_line(self, spline: list[str]):
         """
         Residues may be referenced by any instruction that allows atom names; the reference takes
         the form of the character '_' followed by either the residue class or number without intervening
@@ -150,8 +151,9 @@ class Restraint(Residue):
         self._spline = spline
         if '_' in spline[0]:
             self.name, suffix = spline[0].upper().split('_')
+            # a residue class has to start with a letter, but can contain numbers:
             if len(suffix) > 0 and re.match(r'[a-zA-Z]', suffix):
-                self.residue_class = suffix
+                self.residue_class: str = suffix
         else:
             self.name = spline[0].upper()
         self.set_defs_values()
@@ -168,18 +170,18 @@ class Restraint(Residue):
         # else:
         return params, atoms
 
-    def get_atompairs(self, atoms: List[str]):
+    def get_atompairs(self, atoms: List[str]) -> list[list[str]]:
         pairs = []
         for p in chunks(atoms, 2):
             pairs.append(AtomPair(*p))
         return pairs
 
-    def check_if_class_name_fits_to_command(self):
+    def check_if_class_name_fits_to_command(self) -> None:
         if DEBUG and self.__class__.__name__ != self.name:
             print('*** Trying to parse restraint with wrong class ***')
             raise ParseSyntaxError
 
-    def set_defs_values(self):
+    def set_defs_values(self) -> None:
         # Beware! DEFS changes only the non-defined default values:
         # DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
         if self.shx.defs:  # and self.shx.defs.active:
@@ -209,14 +211,14 @@ class Restraint(Residue):
             print('Instruction: {}'.format(self.textline))
             raise ParseNumError
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         for x in self.textline.split():
             yield x
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.textline
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.textline
         '''# print(self.atoms, self.residue_number)
         s = self.s if hasattr(self, 's') else ''
@@ -452,8 +454,8 @@ class Residues():
 
     def __init__(self, shx):
         self.shx = shx
-        self.all_residues = []
-        self.residue_classes = {}  # class: numbers
+        self.all_residues: list = []
+        self.residue_classes: dict = {}  # class: numbers
         # self.residue_numbers = {}  # number: class
 
     def append(self, resi: 'RESI') -> None:
@@ -1126,17 +1128,18 @@ class Restraints():
         """
         self._restraints: List[Restraint] = []
 
-    def append(self, restr):
+    def append(self, restr: Restraint):
         self._restraints.append(restr)
 
     def __iter__(self):
+        x: Restraint
         for x in self._restraints:
             yield x
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: int) -> Restraint:
         return self._restraints[item]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self._restraints:
             return "\n".join([str(x) for x in self._restraints])
         else:
@@ -1222,7 +1225,7 @@ class FLAT(Restraint):
     def __init__(self, shx, spline: list):
         super(FLAT, self).__init__(shx, spline)
         self.s = 0.1
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s = p[0]
         # TODO: Have to resolve ranges first:
@@ -1393,7 +1396,7 @@ class EADP(Restraint):
 
     def __init__(self, shx, spline: list) -> None:
         super(EADP, self).__init__(shx, spline)
-        _, self.atoms = self._parse_line(spline, pairs=False)
+        _, self.atoms = self._parse_line(spline)
 
 
 class EXYZ(Restraint):
@@ -1403,7 +1406,7 @@ class EXYZ(Restraint):
 
     def __init__(self, shx, spline: list) -> None:
         super(EXYZ, self).__init__(shx, spline)
-        _, self.atoms = self._parse_line(spline, pairs=False)
+        _, self.atoms = self._parse_line(spline)
 
 
 class DAMP(Command):

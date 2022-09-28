@@ -152,29 +152,29 @@ class TestSADI(TestCase):
 
     def test_sadi_normal(self):
         a = SADI(self.shx, 'SADI C1 C2 C2 C3 C3 C4'.split())
-        self.assertEqual([['C1', 'C2'], ['C2', 'C3'], ['C3', 'C4']], a.atoms)
+        self.assertEqual(['C1', 'C2', 'C2', 'C3', 'C3', 'C4'], a.atoms)
         self.assertEqual('', a.residue_class)
         self.assertEqual([0], a.residue_number)
 
     def test_sadi_normal_with_resinum(self):
         a = SADI(self.shx, 'SADI_1 C1 C2 C2 C3 C3 C4'.split())
-        self.assertEqual([['C1', 'C2'], ['C2', 'C3'], ['C3', 'C4']], a.atoms)
+        self.assertEqual(['C1', 'C2', 'C2', 'C3', 'C3', 'C4'], a.atoms)
         self.assertEqual('', a.residue_class)
         self.assertEqual([1], a.residue_number)
 
     def test_sadi_normal_with_resinum_on_atoms(self):
         a = SADI(self.shx, 'SADI C1_1 C2_1 C2_2 C3_2 C3_2 C4_2'.split())
-        self.assertEqual([['C1_1', 'C2_1'], ['C2_2', 'C3_2'], ['C3_2', 'C4_2']], a.atoms)
+        self.assertEqual(['C1_1', 'C2_1', 'C2_2', 'C3_2', 'C3_2', 'C4_2'], a.atoms)
         self.assertEqual('', a.residue_class)
         self.assertEqual([0], a.residue_number)
 
     def test_sadi_normal_with_name(self):
         a = SADI(self.shx, 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
-        self.assertEqual([['C1', 'C2'], ['C2', 'C3'], ['C3', 'C4']], a.atoms)
+        self.assertEqual(['C1', 'C2', 'C2', 'C3', 'C3', 'C4'], a.atoms)
 
     def test_sadi_with_name_2(self):
         a = SADI(self.shx, 'SADI_CCF3 C1 C2 C2 C3 C3 C4'.split())
-        self.assertEqual('', a.residue_class)
+        self.assertEqual('CCF3', a.residue_class)
         self.assertEqual([0], a.residue_number)
 
     def test_sadi_with_name_3(self):

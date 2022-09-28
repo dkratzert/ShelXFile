@@ -1,6 +1,8 @@
 from math import acos, sqrt, degrees
-from typing import Union, List
+from typing import Union, List, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from shelxfile import Shelxfile
 from shelxfile.atoms.atom import Atom
 from shelxfile.misc.dsrmath import atomic_distance, Array
 from shelxfile.misc.misc import DEBUG
@@ -16,7 +18,7 @@ class Atoms():
     All atoms from a SHELXL file with their properties.
     """
 
-    def __init__(self, shx):
+    def __init__(self, shx: 'Shelxfile'):
         self.shx = shx
         self.all_atoms: List[Atom] = []
 
