@@ -221,7 +221,6 @@ class Atom():
         self.y = y
         self.z = z
         self.xc, self.yc, self.zc = self.cell.o * Array(self.frac_coords)
-        # frac_to_cart(self.frac_coords, list(self.cell))
         if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
             self.peak_height = uvals.pop()
             self.qpeak = True

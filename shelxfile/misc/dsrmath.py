@@ -13,8 +13,7 @@ import random
 import string
 from math import sqrt, radians, cos, sin, acos, degrees, floor
 from operator import sub, add
-from typing import List, Union, Optional
-import numpy as np
+from typing import List, Union, Optional, Iterable
 
 from shelxfile.misc.misc import flatten, determinante
 
@@ -40,7 +39,7 @@ class Array(object):
     def __init__(self, values: Union[list, tuple]):
         self.values = values
 
-    def __iter__(self) -> iter:
+    def __iter__(self) -> Iterable[Union[int, float]]:
         for v in self.values:
             yield v
 
@@ -225,7 +224,7 @@ class Matrix(object):
         Matrix addition
         """
         if isinstance(other, Array):
-            if not len(self) == len(other):
+            if len(self) != len(other):
                 raise ValueError('Matrix and Array are not of equal length.')
             return Matrix(
                 [[sum(e1, e2) for e1, e2 in zip(row1, row2)] for row1, row2 in zip(self.values, other.values)])
@@ -252,8 +251,9 @@ class Matrix(object):
     def __len__(self):
         return self.shape[1]
 
-    def __iter__(self) -> list:
-        return [n for n in self.values]
+    def __iter__(self) -> Iterable[list[float]]:
+        for n in self.values:
+            yield n
 
     def __eq__(self, other):
         """
@@ -308,11 +308,8 @@ class Matrix(object):
         """
         Dot product of two matrices.
         """
-        new_a = []
-        for i, col in enumerate(self.transposed.values):
-            s = sum([v * o for v, o in zip(col, other)])
-            new_a.append(s)
-        return Matrix(new_a)
+        result = [[sum(a * b for a, b in zip(x_row, y_col)) for y_col in zip(*other)] for x_row in self]
+        return Matrix(result)
 
     @staticmethod
     def zero(m: int, n: int) -> 'Matrix':
@@ -400,7 +397,7 @@ class SymmetryElement(object):
     Class representing a symmetry operation.
     """
     symm_id = 1
-    __slots__ = ['centric', 'symms', 'ID', 'matrix', 'trans', 'matrix_iter', 'trans_iter']
+    __slots__ = ['centric', 'symms', 'ID', 'matrix', 'trans']
 
     def __init__(self, symms, centric=False):
         """
@@ -418,8 +415,6 @@ class SymmetryElement(object):
             trans.append(t)
         self.matrix = Matrix(lines).transposed
         self.trans = Array(trans)
-        self.matrix_iter = Matrix(lines).transposed.values
-        self.trans_iter = Array(trans).values
         if centric:
             self.matrix *= -1
             self.trans *= -1
@@ -793,7 +788,9 @@ class OrthogonalMatrix():
     """
     Orthogonalization matrix used to convert fractional coordinates to cartesian.
     """
+
     def __init__(self, a, b, c, alpha, beta, gamma):
+        import numpy as np
         self.a, self.b, self.c = a, b, c
         self.V = vol_unitcell(a, b, c, alpha, beta, gamma)
         self.alpha = radians(alpha)
@@ -803,7 +800,7 @@ class OrthogonalMatrix():
                          (0, self.b * sin(self.gamma),
                           (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))),
                          (0, 0, self.V / (self.a * self.b * sin(self.gamma)))))
-        self.metrix_matrix = np.array(self.transposed.values).dot(self.m.values)
+        self.metric_matrix = self.transposed.dot(self.m)
         self._inversed: Optional[Matrix] = None
 
     def __mul__(self, other: Array) -> Array:
@@ -827,6 +824,7 @@ class OrthogonalMatrix():
     def transposed(self):
         return self.m.transposed
 
+    # noinspection PyPep8Naming
     @property
     def T(self):
         return self.m.transposed

@@ -453,7 +453,7 @@ class Shelxfile():
                 self.cell = CELL(self, spline)
                 self._assign_card(self.cell, line_num)
                 self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell
-                self.orthogonal_matrix = OrthogonalMatrix(*self.cell)
+                self.orthogonal_matrix = self.cell.o
                 self.wavelen = self.cell.wavelen
                 lastcard = 'CELL'
             elif word == "ZERR":
