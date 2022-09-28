@@ -7,11 +7,6 @@ from shelxfile.atoms.atom import Atom
 from shelxfile.misc.dsrmath import atomic_distance, Array
 from shelxfile.misc.misc import DEBUG
 
-"""
-TODO:
-
-"""
-
 
 class Atoms():
     """

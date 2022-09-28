@@ -289,17 +289,6 @@ class Atom():
                 except IndexError:
                     return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
 
-    def resolve_restraints(self):
-        """
-        This method should generate a list of restraints objects for each restraints involved with this atom.
-        TODO: Make this work
-        """
-        for num, r in enumerate(self.shx.restraints):
-            for at in r.atoms:
-                # print(r.residue_number, self.resinum, r.residue_class, self.resiclass, self.name, at)
-                if r.residue_number == self.resinum and r.residue_class == self.resiclass and self.name == at:
-                    self.restraints.append(r)
-
     @property
     def index(self):
         # The position in the res file as index number (starting from 0).
