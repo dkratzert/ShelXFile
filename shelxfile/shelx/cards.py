@@ -486,6 +486,7 @@ class RESI(Command):
         """
         RESI class[ ] number[0] alias
         """
+        super().__init__(shx, spline)
         self.shx = shx
         self.residue_class = ''
         self.residue_number: int = 0

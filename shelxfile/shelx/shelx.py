@@ -109,8 +109,7 @@ class Shelxfile():
         self.wpdb: Optional[WPDB] = None
         self.wigl: Optional[WIGL] = None
         self.temp: Union[int, float] = 20
-        # TODO: Implement swat class:
-        self.swat = None
+        self.swat: Optional[SWAT] = None
         self.stir: Optional[STIR] = None
         self.spec: Optional[SPEC] = None
         self.twst: Optional[TWST] = None
@@ -244,14 +243,15 @@ class Shelxfile():
                 return
         self._assign_atoms_to_restraints()
 
-    def _assign_atoms_to_restraints(self):
+    def _assign_atoms_to_restraints(self) -> List[str]:
+        warnings = []
         for nr, restraint in enumerate(self.restraints):
             # print(restraint)
             bad_atoms = []
             for nra, ratom in enumerate(restraint.atoms):
                 if ratom in ('>', '<', '='):
                     continue
-                if restraint.residue_class:
+                if (restraint.residue_class or sum(restraint.residue_number)) and not '_' in ratom:
                     for num in restraint.residue_number:
                         atom_name = f'{ratom}_{num}'
                         a = self.atoms.get_atom_by_name(atom_name)
@@ -268,11 +268,16 @@ class Shelxfile():
                     if not a:
                         bad_atoms.append(ratom)
             if bad_atoms:
-                print(f'\nUnknown atom{"s" if len(bad_atoms) > 0 else ""} in restraint: {restraint}')
                 sorted_atoms = list(set(bad_atoms))
                 sorted_atoms.sort()
-                print(f'Atom list has no --> {", ".join(sorted_atoms)}')
+                warnings.append(f'*** Unknown atom{"s" if len(bad_atoms) > 0 else ""} in restraint: {restraint} ***')
+                warnings.append(f'*** Atom list has no --> {", ".join(sorted_atoms)} ***')
                 bad_atoms.clear()
+            if restraint.residue_class and sum(restraint.residue_number) == 0:
+                warnings.append(f"*** Restraint '{restraint}' has a residue class, but no residues are defined. ***")
+        if DEBUG:
+            print('\n'.join(warnings))
+        return warnings
 
     def _test_if_file_is_valid(self, resfile):
         if len(self._reslist) < 20 and DEBUG:
