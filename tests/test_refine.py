@@ -24,7 +24,7 @@ class TestRefine(TestCase):
             self.skipTest('SHELXL not found')
         res = Path('tests/resources/complete_run/p21c.res')
         shutil.copy(res, '.')
-        self.shx = Shelxfile()
+        self.shx = Shelxfile(debug=True)
         self.shx.read_file('./p21c.res')
 
     def tearDown(self) -> None:

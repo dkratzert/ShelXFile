@@ -71,7 +71,7 @@ except():
 sep_line = (width - 1) * '-'
 
 
-def remove_file(filename, exit_dsr=False):
+def remove_file(filename):
     """
     removes the file "filename" from disk
     program exits when exit is true
@@ -85,27 +85,22 @@ def remove_file(filename, exit_dsr=False):
         return True
 
 
-def find_line(inputlist: List, regex: str, start: int = None) -> int:
+def find_line(inputlist: List[str], regex: str, start: int = None) -> int:
     """
     returns the index number of the line where regex is found in the inputlist
     if stop is true, stop searching with first line found
-    :param inputlist: list of strings
-    :type inputlist: list
+
     :param regex: regular expression to search
-    :type regex: string
     :param start: line number where to start the search
-    :param start: start searching at line start
-    :type start: string or int
     """
+    regc = re.compile(regex, re.IGNORECASE)
     if start:
-        start = int(start)
-        inputlist_slice = inputlist[start:]
-        for i, string in enumerate(inputlist_slice, start):
-            if re.match(regex, string, re.IGNORECASE):
+        for i, string in enumerate(inputlist[start:], start):
+            if regc.match(string):
                 return i  # returns the index number if regex found
     else:
         for i, string in enumerate(inputlist):
-            if re.match(regex, string, re.IGNORECASE):
+            if regc.match(string):
                 return i  # returns the index number if regex found
     return -1  # returns -1 if no regex found
 

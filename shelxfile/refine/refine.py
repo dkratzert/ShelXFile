@@ -21,7 +21,7 @@ from shutil import which, copyfile
 
 with suppress(ImportError):
     from shelxfile import Shelxfile
-from shelxfile.misc.misc import remove_file, sep_line, find_line
+from shelxfile.misc.misc import remove_file, sep_line, find_line, DEBUG
 from shelxfile.shelx.cards import ACTA
 
 
@@ -226,6 +226,9 @@ class ShelxlRefine():
             for line in p.stdout.readlines():
                 # output only the most importand things from shelxl:
                 self.pretty_shx_output(line)
+        lstfile = Path(f'{self.resfile_name}.lst')
+        if lstfile.exists() and lstfile.is_file():
+            self.check_refinement_results(lstfile.read_text('latin1').splitlines(keepends=False))
         # Go back to the path before
         os.chdir(current_path)
         if p.returncode != 0:
@@ -245,39 +248,26 @@ class ShelxlRefine():
         Does some checks if the refinement makes sense e.g. if the data to parameter
         ratio is in an acceptable range.
         """
-        is_resfile_there = os.path.exists(self.resfile_name + '.res')
-        if is_resfile_there and is_resfile_there == 'zero':
-            print('Something failed in SHELXL. Please check your .ins and .lst file!')
-            self.restore_shx_file()
-            try:
-                remove_file(self.backup_file)
-            except IOError:
-                print('Unable to delete backup file {}.'.format(self.backup_file))
-            sys.exit()
-        if not is_resfile_there:
-            print('Something failed in SHELXL. Please check your .ins and .lst file!')
-            self.restore_shx_file()
-            try:
-                remove_file(self.backup_file)
-            except IOError:
-                print('Unable to delete backup file {}.'.format(self.backup_file))
-            sys.exit()
         regex_final = r' Final Structure Factor Calculation.*\n'
         final_results = find_line(list_file, regex_final)
         # find data and parameters:
         try:
-            dataobj = re.search(r'[0-9]+\s+data', list_file[final_results + 4])
+            dataobj = re.search(r'\d+\s+data', list_file[final_results + 4])
             data = float(dataobj.group(0).split()[0])
-            parameterobj = re.search(r'[0-9]+\s+parameters', list_file[final_results + 4])
+            parameterobj = re.search(r'\d+\s+parameters', list_file[final_results + 4])
             parameters = float(parameterobj.group(0).split()[0])
-            restrobj = re.search(r'[0-9]+\s+restraints', list_file[find_line(list_file, r" GooF = S =.*")])
+            restrobj = re.search(r'\d+\s+restraints', list_file[find_line(list_file, r" GooF = S =.*")])
             restraints = float(restrobj.group(0).split()[0])
         except AttributeError:
+            if DEBUG:
+                raise
             return False
         try:
             data_to_parameter_ratio = data / parameters
             restr_ratio = ((data + restraints) / parameters)
         except ZeroDivisionError:
+            if DEBUG:
+                raise
             return False
         lattline = find_line(list_file, r'^ LATT.*')
         centro = None
@@ -298,10 +288,6 @@ class ShelxlRefine():
             print('*** Warning! The data/parameter ratio is getting low (ratio = {:.1f})! ***'
                   '\n*** but consider (data+restraints)/parameter = {:.1f} ***'
                   .format(data_to_parameter_ratio, restr_ratio))
-        try:
-            remove_file(self.backup_file)
-        except IOError:
-            print('Unable to delete backup file {}.'.format(self.backup_file))
 
 
 if __name__ == '__main__':
