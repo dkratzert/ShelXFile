@@ -223,9 +223,10 @@ class ShelxlRefine():
         print(' Running SHELXL with "{}" and "{}"'.format(' '.join(command_line), self.shx.cycles))
         with subprocess.Popen(command_line, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1,
                               universal_newlines=True) as p:
-            for line in p.stdout:
+            for line in p.stdout.readlines():
                 # output only the most importand things from shelxl:
                 self.pretty_shx_output(line)
+        # Go back to the path before
         os.chdir(current_path)
         if p.returncode != 0:
             status = False

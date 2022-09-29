@@ -800,21 +800,19 @@ class Shelxfile():
         return packed_atoms
 
     def refine(self, cycles: Union[int, None] = None, backup_before: bool = True) -> bool:
-        filen = self.resfile.stem
-        # Go into path of resfile:
-        os.chdir(self.resfile.parent)
-        # so that shelxl can use the filename as parameter only (It does not like long names)
-        if cycles is not None:
-            self.cycles.number = cycles
-        # shutil.copyfile(filen+'.res', filen+'.ins')
-        ref = ShelxlRefine(self, self.resfile)
-        ref.remove_acta_card(self.acta)
-        self.write_shelx_file(filen + '.ins')
-        ref.run_shelxl(backup_before=backup_before)
-        self.reload()
-        ref.restore_acta_card()
-        # self.write_shelx_file(filen + '.res')
-        return True
+        if self.resfile:
+            filen = self.resfile.stem
+            if cycles is not None:
+                self.cycles.number = cycles
+            ref = ShelxlRefine(self, self.resfile)
+            ref.remove_acta_card(self.acta)
+            self.write_shelx_file(filen + '.ins')
+            ref.run_shelxl(backup_before=backup_before)
+            self.reload()
+            ref.restore_acta_card()
+            # self.write_shelx_file(filen + '.res')
+            return True
+        return False
 
     def refine_weight_convergence(self, stop_after: int = 10):
         """

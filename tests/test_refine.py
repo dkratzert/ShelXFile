@@ -22,14 +22,14 @@ class TestRefine(TestCase):
     def setUp(self) -> None:
         if not find_shelxl_exe():
             self.skipTest('SHELXL not found')
-        os.chdir(Path(__file__).parent.parent)
+        #os.chdir(Path(__file__).parent.parent)
         res = Path('tests/resources/complete_run/p21c.res')
         shutil.copy(res, '.')
         self.shx = Shelxfile()
         self.shx.read_file('./p21c.res')
 
     def tearDown(self) -> None:
-        os.chdir(Path(__file__).parent.parent)
+        #os.chdir(Path(__file__).parent.parent)
         clean_refine_files('p21c')
 
     def test_get_xl_version_string_with_no_path(self):
@@ -65,7 +65,7 @@ class TestRefineFinishedmodel(TestCase):
     def setUp(self) -> None:
         if not find_shelxl_exe():
             self.skipTest('SHELXL not found')
-        os.chdir(Path(__file__).parent.parent)
+        #os.chdir(Path(__file__).parent.parent)
         res = Path('tests/resources/model_finished/p21c.res')
         hkl = Path('tests/resources/model_finished/p21c.hkl')
         shutil.copy(res, '.')
@@ -74,7 +74,7 @@ class TestRefineFinishedmodel(TestCase):
         self.shx.read_file('./p21c.res')
 
     def tearDown(self) -> None:
-        os.chdir(Path(__file__).parent.parent)
+        #os.chdir(Path(__file__).parent.parent)
         clean_refine_files('p21c')
 
     def test_refine_with_cycle_number_set_to_4_in_LScycles(self):
