@@ -1,5 +1,5 @@
 from math import acos, sqrt, degrees
-from typing import Union, List, TYPE_CHECKING, Tuple
+from typing import Union, List, TYPE_CHECKING, Tuple, Optional
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
@@ -94,14 +94,11 @@ class Atoms():
         if '_' not in atom_name:
             if atom_name == ">" or atom_name == "<":
                 return None
-            atom_name += '_0'
-        try:
-            at = self.atomsdict[atom_name.upper()]
-        except KeyError:
-            if DEBUG:
-                print("Atom {} not found in atom list.".format(atom_name))
-            return None
-        return at
+            atom_name = f'{atom_name}_0'
+        atom = self.atomsdict.get(atom_name.upper(), None)
+        if not atom and DEBUG:
+            print("Atom {} not found in atom list.".format(atom_name))
+        return atom
 
     def get_multi_atnames(self, atom_name, residue_class):
         atoms = []

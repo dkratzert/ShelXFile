@@ -246,28 +246,18 @@ class Shelxfile():
 
     def _assign_atoms_to_restraints(self) -> List[str]:
         warnings = []
-        for nr, restraint in enumerate(self.restraints):
-            # print(restraint)
+        for restraint in self.restraints:
             bad_atoms = []
-            for nra, ratom in enumerate(restraint.atoms):
-                if ratom in ('>', '<', '='):
+            for restraint_atom in restraint.atoms:
+                if restraint_atom in ('>', '<', '='):
                     continue
-                if (restraint.residue_class or sum(restraint.residue_number)) and not '_' in ratom:
+                if (restraint.residue_class or sum(restraint.residue_number) > 0) and '_' not in restraint_atom:
                     for num in restraint.residue_number:
-                        atom_name = f'{ratom}_{num}'
-                        a = self.atoms.get_atom_by_name(atom_name)
-                        if not a:
-                            bad_atoms.append(atom_name)
-                elif '_' in ratom:
-                    atom_name = f'{ratom}'
-                    a = self.atoms.get_atom_by_name(atom_name)
-                    if not a:
-                        bad_atoms.append(atom_name)
+                        self.does_atom_exist(f'{restraint_atom}_{num}', bad_atoms, f'{restraint_atom}_{num}')
+                elif '_' in restraint_atom:
+                    self.does_atom_exist(f'{restraint_atom}', bad_atoms, restraint_atom)
                 else:
-                    atom_name = f'{ratom}_{0}'
-                    a = self.atoms.get_atom_by_name(atom_name)
-                    if not a:
-                        bad_atoms.append(ratom)
+                    self.does_atom_exist(f'{restraint_atom}_{0}', bad_atoms, restraint_atom)
             if bad_atoms:
                 sorted_atoms = list(set(bad_atoms))
                 sorted_atoms.sort()
@@ -279,6 +269,11 @@ class Shelxfile():
         if DEBUG or VERBOSE:
             print('\n'.join(warnings))
         return warnings
+
+    def does_atom_exist(self, atom_name: str, bad_atoms: List[str], restraint_atom: str):
+        a = self.atoms.get_atom_by_name(atom_name)
+        if not a:
+            bad_atoms.append(restraint_atom)
 
     def _test_if_file_is_valid(self, resfile):
         if len(self._reslist) < 20 and (DEBUG or VERBOSE):
@@ -444,9 +439,6 @@ class Shelxfile():
                     self.dsrline_nums.extend(list_of_lines)
                 self._append_card(self.rem, REM(self, spline), line_num)
                 self._get_residuals(spline, line)
-            elif word == 'AFIX':
-                # nothing to do
-                pass
             elif word == 'CELL':
                 # CELL λ a b c α β γ
                 if lastcard != 'TITL' and (DEBUG or VERBOSE):
