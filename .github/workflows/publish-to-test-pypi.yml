@@ -3,7 +3,7 @@
 
 name: shelxfile_tests_pypi_github
 
-on: push
+on: label
 
 jobs:
   build-n-publish:
