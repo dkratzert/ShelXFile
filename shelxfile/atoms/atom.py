@@ -1,5 +1,5 @@
 from contextlib import suppress
-from typing import Union, List
+from typing import Union, List, Tuple
 
 with suppress(Exception):
     from shelxfile import Shelxfile
@@ -79,7 +79,7 @@ class Atom():
         return self.resi.residue_number
 
     @property
-    def chain_id(self) -> str:
+    def chain_id(self) -> int:
         return self.resi.chain_id
 
     @property
@@ -138,7 +138,7 @@ class Atom():
     def ishydrogen(self) -> bool:
         return self.is_hydrogen
 
-    def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None,
+    def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: List[float] = None, part: PART = None,
                             afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0,
                             uvals: (list, tuple) = None,
                             symmgen: bool = True):
@@ -157,7 +157,7 @@ class Atom():
         self.uvals = uvals
         self.symmgen = symmgen
 
-    def set_uvals(self, uvals: List):
+    def set_uvals(self, uvals: List[float]) -> None:
         """
         Sets u values and checks if a free variable was used.
         """
@@ -173,7 +173,7 @@ class Atom():
                 fvar, uval = split_fvar_and_parameter(uvals[0])
                 self.shx.fvars.set_fvar_usage(fvar)
 
-    def parse_line(self, atline: List, list_of_lines: List, part: PART, afix: AFIX, resi: RESI):
+    def parse_line(self, atline: List, list_of_lines: List, part: PART, afix: AFIX, resi: RESI) -> None:
         """
         Parses the text line of an atom from SHELXL to initialize the atom parameters.
         """
@@ -197,7 +197,7 @@ class Atom():
         self.sfac_num = int(atline[1])
         self.shx.fvars.set_fvar_usage(self.fvar)
 
-    def _get_part_and_occupation(self, atline):
+    def _get_part_and_occupation(self, atline: List[str]) -> None:
         # TODO: test all variants of PART and AFIX sof combinations:
         if self.part.sof != 11.0:
             if self.afix and self.afix.sof:  # handles position of afix and part:
@@ -214,7 +214,7 @@ class Atom():
         else:
             self.sof = float(atline[5])
 
-    def _get_atom_coordinates(self, atline):
+    def _get_atom_coordinates(self, atline: List[str]) -> Tuple[float, float, float]:
         try:
             x, y, z = [float(x) for x in atline[2:5]]
         except ValueError as e:
@@ -243,13 +243,13 @@ class Atom():
         return self.shx.sfac2elem(self.sfac_num).capitalize()
 
     @property
-    def an(self):
+    def an(self) -> int:
         return get_atomic_number(self.element)
 
     @element.setter
     def element(self, new_element: str) -> None:
         """
-        Sets the element type of an atom.
+        Sets the element type of atom.
         """
         self.sfac_num = self.shx.elem2sfac(new_element)
 

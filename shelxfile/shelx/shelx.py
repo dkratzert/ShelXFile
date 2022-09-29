@@ -179,7 +179,7 @@ class Shelxfile():
         self.theta_full: float = 0.0
         self.error_line_num: int = -1  # Only used to tell the line number during an exception.
         self.resfile: Optional[Path] = None
-        self._reslist: List[str, Command, SFACTable, FVARs] = []
+        self._reslist: List[str, Command, SFACTable, FVARs, Atom] = []
 
     def write_shelx_file(self, filename=None, verbose=False) -> None:
         if not filename:
