@@ -106,7 +106,7 @@ class Residue():
         self.residue_class: str = ''  # '' is the default class (with residue number 0)
 
     @property
-    def residue_number(self) -> list[int]:
+    def residue_number(self) -> List[int]:
         if '_' in self._spline[0] and not '$' in self._spline[0]:
             _, suffix = self._spline[0].upper().split('_')
             if suffix.isdigit():
@@ -129,13 +129,13 @@ class Restraint(Residue):
         self.shx: 'Shelxfile' = shx
         self.textline: str = ' '.join(spline)
         self.name: Optional[str] = None
-        self.atoms: list[Atom] = []
+        self.atoms: List[Atom] = []
 
     @property
     def index(self) -> int:
         return self.shx.index_of(self)
 
-    def _parse_line(self, spline: list[str]):
+    def _parse_line(self, spline: List[str]):
         """
         Residues may be referenced by any instruction that allows atom names; the reference takes
         the form of the character '_' followed by either the residue class or number without intervening
@@ -167,7 +167,7 @@ class Restraint(Residue):
         # else:
         return params, atoms
 
-    def _get_atompairs(self, atoms: List[str]) -> list[AtomPair]:
+    def _get_atompairs(self, atoms: List[str]) -> List[AtomPair]:
         pairs = []
         for p in chunks(atoms, 2):
             pairs.append(AtomPair(*p))
@@ -1158,7 +1158,7 @@ class NCSY(Restraint):
 
 class ISOR(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: list[str]):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]):
         """
         ISOR s[0.1] st[0.2] atomnames
         """
@@ -1444,9 +1444,9 @@ class SUMP(Command):
         self.c = p.pop(0)
         self.sigma = p.pop(0)
         # this is to have integer free variables
-        _fvars: list[int] = [int(x) for x in p[1::2]]
-        _times: list[Union[int, float]] = [x for x in p[0::2]]
-        self.fvars: list[list[Union[int, float]]] = [[x, y] for x, y in zip(_times, _fvars)]
+        _fvars: List[int] = [int(x) for x in p[1::2]]
+        _times: List[Union[int, float]] = [x for x in p[0::2]]
+        self.fvars: List[list[Union[int, float]]] = [[x, y] for x, y in zip(_times, _fvars)]
 
     def __getitem__(self, item):
         return self.fvars[item]
@@ -1458,7 +1458,7 @@ class SWAT(Command):
     Allows two variables g and U to be refined in order to model diffuse solvent
     """
 
-    def __init__(self, shx: 'Shelxfile', spline: list[str]):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]):
         super().__init__(shx, spline)
         p, _ = self._parse_line(spline)
         if len(p) > 1:

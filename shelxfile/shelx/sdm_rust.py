@@ -45,7 +45,7 @@ class SDMR():
 
     def __init__(self, shx: 'Shelxfile'):
         self.shx = shx
-        # self.sdm_list: list[SDMItem]
+        # self.sdm_list: List[SDMItem]
         self.all_atoms = self.get_atoms()
         self.sdm_list = []  # list of sdmitems
         self.maxmol: int = 1
