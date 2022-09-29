@@ -23,7 +23,7 @@ Examples:
 pip install shelxfile
 
 >>> from shelxfile import Shelxfile
->>> shx = Shelxfile()
+>>> shx = Shelxfile(verbose=True) # or debug=True, debug will halt on errors.
 >>> shx.read_file('src/tests/resources/p21c.res')  # or .read_string() 
 >>> shx.cell
 CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
@@ -57,6 +57,9 @@ F
 
 >>> shx.atoms.hydrogen_atoms
 [Atom ID: 81, Atom ID: 88, Atom ID: 95, ... ]
+
+>>> shx.atoms.hydrogen_atoms[1].name
+'H32'
 
 >>> shx.atoms.n_hydrogen_atoms
 24
@@ -146,6 +149,11 @@ str(shx.restraints[1])
 shx.restraints[1].residue_class
 'CCF3'
 
+# The residue class 'CCF3' has three residues with these numbers: 
+>>> shx.restraints[1].residue_number
+[4, 1, 2]
+
+# The esd of the SADI restraint:
 shx.restraints[1].s
 0.02
 
