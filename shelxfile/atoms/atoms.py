@@ -1,5 +1,5 @@
 from math import acos, sqrt, degrees
-from typing import Union, List, TYPE_CHECKING
+from typing import Union, List, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
@@ -24,8 +24,8 @@ class Atoms():
         self.all_atoms.append(atom)
 
     @property
-    def nameslist(self):
-        return [at.fullname.upper() for at in self.all_atoms]
+    def nameslist(self) -> Tuple[str]:
+        return tuple([at.fullname.upper() for at in self.all_atoms])
 
     def __repr__(self) -> str:
         if self.all_atoms:

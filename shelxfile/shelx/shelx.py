@@ -93,11 +93,6 @@ class Shelxfile():
     _spgrp_regex = re.compile(r'^REM\s+\S+\s+in\s+\S+', re.IGNORECASE)
 
     def __init__(self):
-        """
-        Reads the shelx file and extracts information.
-
-        :param resfile: file path
-        """
         self.temp_in_kelvin: float = 0.0
         self.shelx_max_line_length: int = 79  # maximum character lenth per line in SHELXL
         self.cell: Union[CELL, None] = None
@@ -184,7 +179,7 @@ class Shelxfile():
         self.theta_full: float = 0.0
         self.error_line_num: int = -1  # Only used to tell the line number during an exception.
         self.resfile: Optional[Path] = None
-        self._reslist: List[Union[str, Command, SFACTable, FVARs]] = []
+        self._reslist: List[str, Command, SFACTable, FVARs] = []
 
     def write_shelx_file(self, filename=None, verbose=False) -> None:
         if not filename:
@@ -336,6 +331,7 @@ class Shelxfile():
         """
         if DEBUG:
             print('loading file:', self.resfile)
+        self.__init__()
         self.read_file(self.resfile.resolve())
 
     def _parse_cards(self):
@@ -958,12 +954,12 @@ class Shelxfile():
         The sum formula of the structure with all atom occupancies summed together as string.
         """
         formstring = ''
-        sumdict = self.sum_formula_ex_dict()
+        sumdict = self.sum_formula_exact_as_dict()
         for el in sumdict:
-            formstring += "{}{:,g} ".format(el.capitalize(), round(sumdict[el], 2))
+            formstring += f"{el.capitalize()}{round(sumdict[el], 2):,g} "
         return formstring.strip()
 
-    def sum_formula_ex_dict(self) -> dict:
+    def sum_formula_exact_as_dict(self) -> dict:
         """
         The sum formula of the structure with all atom occupancies summed together as dictionary.
         """
@@ -1068,7 +1064,7 @@ if __name__ == "__main__":
     print(shx.atoms)
     print(shx.sum_formula_exact)
     print(shx.sum_formula)
-    print(shx.sum_formula_ex_dict())
+    print(shx.sum_formula_exact_as_dict())
     print(shx.restraints)
     print(shx.atoms.nameslist)
     sys.exit()
