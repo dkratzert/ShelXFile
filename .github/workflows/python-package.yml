@@ -47,4 +47,4 @@ jobs:
           chmod a+x ${HOME}/.local/bin/shelxl
           # run tests
           #cd shelxfile
-          pytest -s
+          pytest .

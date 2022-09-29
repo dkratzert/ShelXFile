@@ -1,11 +1,15 @@
 import re
 from math import cos, radians, sqrt
-from typing import List, Union
+from typing import List, Union, TYPE_CHECKING, Optional, Iterator, Tuple
 
-from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement
+from shelxfile.atoms.pairs import AtomPair
+from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, DEBUG, ParseSyntaxError
 
+if TYPE_CHECKING:
+    from shelxfile import Shelxfile
+    from shelxfile.atoms.atom import Atom
 """
 SHELXL cards:
 
@@ -97,43 +101,41 @@ ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
 
 class Residue():
     def __init__(self):
-        self.shx = None
-        self._spline = None
+        self.shx: Optional['Shelxfile'] = None
+        self._spline: str = ''
+        self.residue_class: str = ''  # '' is the default class (with residue number 0)
 
     @property
-    def residue_number(self):
-        if '_' in self._spline[0]:
+    def residue_number(self) -> List[int]:
+        if '_' in self._spline[0] and not '$' in self._spline[0]:
             _, suffix = self._spline[0].upper().split('_')
-            if any([x.isalpha() for x in suffix]):
-                self.residue_class = suffix
-            else:
+            if suffix.isdigit():
                 # TODO: implement _+, _- and _*
                 if '*' in suffix:
                     return list(self.shx.residues.residue_numbers.keys())
                 else:
                     return [int(suffix)]
-        return [0]
+        return self.shx.residues.residue_classes.get(self.residue_class, [0])
 
 
 class Restraint(Residue):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: list):
         """
         Base class for parsing restraints.
         TODO: resolve ranges like SADI_CCF3 O1 > F9
         """
         super().__init__()
-        self.shx = shx
-        self.residue_class = ''  # '' is the default class (with residue number 0)
-        self.textline = ' '.join(spline)
-        self.name = None
-        self.atoms = []
+        self.shx: 'Shelxfile' = shx
+        self.textline: str = ' '.join(spline)
+        self.name: Optional[str] = None
+        self.atoms: List[Atom] = []
 
     @property
-    def index(self):
+    def index(self) -> int:
         return self.shx.index_of(self)
 
-    def _parse_line(self, spline, pairs=False):
+    def _parse_line(self, spline: List[str]):
         """
         Residues may be referenced by any instruction that allows atom names; the reference takes
         the form of the character '_' followed by either the residue class or number without intervening
@@ -144,13 +146,15 @@ class Restraint(Residue):
         codeword).
         """
         self._spline = spline
-        # TODO: check if suffix is a residue class and set instance variable accordingly
         if '_' in spline[0]:
             self.name, suffix = spline[0].upper().split('_')
+            # a residue class has to start with a letter, but can contain numbers:
+            if len(suffix) > 0 and re.match(r'[a-zA-Z]', suffix):
+                self.residue_class: str = suffix
         else:
             self.name = spline[0].upper()
-        self.set_defs_values()
-        self.check_if_class_name_fits_to_command()
+        self._set_defs_values()
+        self._check_if_class_name_fits_to_command()
         params = []
         atoms = []
         for x in spline[1:]:
@@ -158,17 +162,23 @@ class Restraint(Residue):
                 params.append(float(x))
             else:
                 atoms.append(x)
-        if pairs:
-            return params, chunks(atoms, 2)
-        else:
-            return params, atoms
+        # if pairs:
+        #    return params, self.get_atompairs(atoms)
+        # else:
+        return params, atoms
 
-    def check_if_class_name_fits_to_command(self):
+    def _get_atompairs(self, atoms: List[str]) -> List[AtomPair]:
+        pairs = []
+        for p in chunks(atoms, 2):
+            pairs.append(AtomPair(*p))
+        return pairs
+
+    def _check_if_class_name_fits_to_command(self) -> None:
         if DEBUG and self.__class__.__name__ != self.name:
             print('*** Trying to parse restraint with wrong class ***')
             raise ParseSyntaxError
 
-    def set_defs_values(self):
+    def _set_defs_values(self) -> None:
         # Beware! DEFS changes only the non-defined default values:
         # DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
         if self.shx.defs:  # and self.shx.defs.active:
@@ -193,20 +203,31 @@ class Restraint(Residue):
     def _paircheck(self):
         if not self.atoms:
             return
-        if len(self.atoms[-1]) != 2 and DEBUG:
+        if len(self.atoms) % 2 != 0 and DEBUG:
             print('*** Wrong number of numerical parameters ***')
             print('Instruction: {}'.format(self.textline))
             raise ParseNumError
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         for x in self.textline.split():
             yield x
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.textline
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.textline
+        '''# print(self.atoms, self.residue_number)
+        s = self.s if hasattr(self, 's') else ''
+        s1 = self.s1 if hasattr(self, 's1') else ''
+        s2 = self.s2 if hasattr(self, 's2') else ''
+        st = self.st if hasattr(self, 'st') else ''
+        return f"{self.name}" \
+               f"{' ' if s else ''}{s}" \
+               f"{' ' if s1 else ''}{s1}" \
+               f"{' ' if s2 else ''}{s2}" \
+               f"{' ' if st else ''}{st} " \
+               f"{' '.join(self.atoms)}"'''
 
     def split(self):
         return self.textline.split()
@@ -217,17 +238,17 @@ class Command():
     A class to parse all general commands except restraints.
     """
 
-    def __init__(self, shx, spline: list):
-        self._shx = shx
-        self._spline = spline
-        self.residue_class = ''
-        self._textline = ' '.join(spline)
+    def __init__(self, shx: 'Shelxfile', spline: List[str]):
+        self._shx: 'Shelxfile' = shx
+        self._spline: List[str] = spline
+        self.residue_class: str = ''
+        self._textline: str = ' '.join(spline)
 
-    def _parse_line(self, spline, intnums=False):
+    def _parse_line(self, spline: List[str], intnums: bool = False) -> Tuple[List[Union[int, float]], List[str]]:
         """
-        :param spline: Splitted shelxl line
+        :param spline: Split shelxl line
         :param intnums: if numerical parameters should be integer
-        :return: numerical parameters and words
+        :return: Tuple of (numerical parameter, words)
         """
         if '_' in spline[0]:
             self._card_name, suffix = spline[0].upper().split('_')
@@ -350,6 +371,7 @@ class CELL(Command):
             self.cosal = cos(radians(self.alpha))
             self.cosbe = cos(radians(self.beta))
             self.cosga = cos(radians(self.gamma))
+            self.o = OrthogonalMatrix(self.a, self.b, self.c, self.alpha, self.beta, self.gamma)
         else:
             raise ParseSyntaxError
 
@@ -430,8 +452,8 @@ class Residues():
 
     def __init__(self, shx):
         self.shx = shx
-        self.all_residues = []
-        self.residue_classes = {}  # class: numbers
+        self.all_residues: list = []
+        self.residue_classes: dict = {}  # class: numbers
         # self.residue_numbers = {}  # number: class
 
     def append(self, resi: 'RESI') -> None:
@@ -458,27 +480,28 @@ class Residues():
         return dict((x.residue_number, x.residue_class) for x in self.shx.residues.all_residues)
 
 
-class RESI():
+class RESI(Command):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]):
         """
         RESI class[ ] number[0] alias
         """
+        super().__init__(shx, spline)
         self.shx = shx
         self.residue_class = ''
-        self.residue_number = 0
-        self.alias = None
-        self.chain_id = None
-        self.textline = ' '.join(spline)
+        self.residue_number: int = 0
+        self.alias: Optional[int] = None
+        self.chain_id: Optional[int] = None
+        self._textline: str = ' '.join(spline)
         if len(spline) < 2 and DEBUG:
             print('*** Wrong RESI definition found! Check your RESI instructions ***')
             raise ParseParamError
-        self.get_resi_definition(spline)
+        self._get_resi_definition(spline)
         if self.residue_number < -999 or self.residue_number > 9999:
             print('*** Invalid residue number given. ****')
             raise ParseSyntaxError
 
-    def get_resi_definition(self, resi: list) -> tuple:
+    def _get_resi_definition(self, resi: List[str]) -> Tuple[str, int, str, int]:
         """
         RESI class[ ] number[0] alias
 
@@ -510,51 +533,7 @@ class RESI():
                         self.residue_number = 0
         return self.residue_class, self.residue_number, self.chain_id, self.alias
 
-    def _parse_line(self, spline, intnums=False):
-        """
-        :param spline: Splitted shelxl line
-        :param intnums: if numerical parameters should be integer
-        :return: numerical parameters and words
-        """
-        if '_' in spline[0]:
-            self.card_name, suffix = spline[0].upper().split('_')
-            if any([x.isalpha() for x in suffix]):
-                self.residue_class = suffix
-            else:
-                # TODO: implement _+, _- and _*
-                self.residue_number = int(suffix)
-        else:
-            self.card_name = spline[0].upper()
-        numparams = []
-        words = []
-        for x in spline[1:]:  # all values after SHELX card
-            if str.isdigit(x[0]) or x[0] in '+-':
-                if intnums:
-                    numparams.append(int(x))
-                else:
-                    numparams.append(float(x))
-            else:
-                words.append(x)
-        return numparams, words
-
-    @property
-    def index(self):
-        return self.shx.index_of(self)
-
-    def __iter__(self):
-        for x in self.__repr__().split():
-            yield x
-
-    def split(self):
-        return self.textline.split()
-
-    def __str__(self):
-        return self.textline
-
-    def __repr__(self):
-        return self.textline
-
-    def __bool__(self):
+    def __bool__(self) -> bool:
         if self.residue_number > 0:
             return True
         else:
@@ -894,10 +873,10 @@ class ACTA(Command):
 
     def __init__(self, shx, spline: list):
         """
-        ACTA 2θfull[#]
+        ACTA 2θfull[#] (NOHKL)
         """
         super(ACTA, self).__init__(shx, spline)
-        self.twotheta, _ = self._parse_line(spline)
+        self.twotheta, self.nohkl = self._parse_line(spline)
         self.shx = shx
 
     def _as_str(self):
@@ -1097,47 +1076,29 @@ class DISP(Command):
 class Restraints():
     """
     Base class for the list of restraints.
-    :type _restraints: List[Restraint]
     """
 
     def __init__(self):
         """
         """
-        self._restraints = []
+        self._restraints: List[Restraint] = []
 
-    def append(self, restr):
+    def append(self, restr: Restraint):
         self._restraints.append(restr)
 
     def __iter__(self):
+        x: Restraint
         for x in self._restraints:
             yield x
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: int) -> Restraint:
         return self._restraints[item]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self._restraints:
             return "\n".join([str(x) for x in self._restraints])
         else:
             return 'No Restraints in file.'
-
-    @staticmethod
-    def _resolve_atoms(shx, restr: Restraint):
-        atoms = restr.atoms
-        for atnum, ap in enumerate(atoms):
-            if not isinstance(ap, (list, tuple)):
-                # ignores all ranges: ['O1', '>', 'F9']
-                try:
-                    atoms[atnum] = shx.atoms.get_atom_by_name(ap)
-                except TypeError:
-                    continue
-                continue
-            for num, atname in enumerate(ap):
-                # without range: [['O1', 'C1'], ...]
-                try:
-                    atoms[atnum][num] = shx.atoms.get_atom_by_name(atname)
-                except TypeError:
-                    continue
 
 
 class DEFS(Restraint):
@@ -1184,7 +1145,7 @@ class NCSY(Restraint):
         self.sd = 0.1
         self.su = 0.05
         self.DN = None
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.DN = p[0]
         if len(p) > 1:
@@ -1197,14 +1158,14 @@ class NCSY(Restraint):
 
 class ISOR(Restraint):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]):
         """
         ISOR s[0.1] st[0.2] atomnames
         """
         super(ISOR, self).__init__(shx, spline)
         self.s = 0.1
         self.st = 0.2
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s = p[0]
         if len(p) > 1:
@@ -1219,7 +1180,7 @@ class FLAT(Restraint):
     def __init__(self, shx, spline: list):
         super(FLAT, self).__init__(shx, spline)
         self.s = 0.1
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s = p[0]
         # TODO: Have to resolve ranges first:
@@ -1228,14 +1189,18 @@ class FLAT(Restraint):
 
 
 class BUMP(Restraint):
-
+    """
+    'Anti-bumping' restraints are generated automatically for all distances involving
+    two non-bonded C, N, O and S atoms (based on the SFAC type) that are shorter than
+    the expected shortest non-bonded distances, allowing for the possibility of hydrogen bonds.
+    """
     def __init__(self, shx, spline):
         """
         BUMP s [0.02]
         """
         super(BUMP, self).__init__(shx, spline)
         self.s = 0.02
-        p, _ = self._parse_line(spline, pairs=False)
+        p, _ = self._parse_line(spline)
         if len(p) > 0:
             self.s = p[0]
         if _:
@@ -1250,7 +1215,7 @@ class DFIX(Restraint):
         """
         super(DFIX, self).__init__(shx, spline)
         self.s = 0.02
-        p, self.atoms = self._parse_line(spline, pairs=True)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.d = p[0]
         if len(p) > 1:
@@ -1271,7 +1236,7 @@ class DANG(Restraint):
         """
         super(DANG, self).__init__(shx, spline)
         self.s = 0.04
-        p, self.atoms = self._parse_line(spline, pairs=True)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.d = p[0]
         if len(p) > 1:
@@ -1285,7 +1250,7 @@ class DANG(Restraint):
 
 class SADI(Restraint):
 
-    def __init__(self, shx, spline):
+    def __init__(self, shx: 'Shelxfile', spline: list):
         """
         SADI s[0.02] pairs of atoms
         Instructions with only two atoms are ignored by SHELXL: SADI C3 C4
@@ -1294,7 +1259,7 @@ class SADI(Restraint):
         """
         super(SADI, self).__init__(shx, spline)
         self.s = 0.02
-        p, self.atoms = self._parse_line(spline, pairs=True)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s = p[0]
         self._paircheck()
@@ -1309,7 +1274,7 @@ class SAME(Restraint):
         super(SAME, self).__init__(shx, spline)
         self.s1 = 0.02
         self.s2 = 0.04
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s1 = p[0]
         if len(p) > 1:
@@ -1325,7 +1290,7 @@ class RIGU(Restraint):
         super(RIGU, self).__init__(shx, spline)
         self.s1 = 0.004
         self.s2 = 0.004
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s1 = p[0]
         if len(p) > 1:
@@ -1342,7 +1307,7 @@ class SIMU(Restraint):
         self.s = 0.04
         self.st = 0.08
         self.dmax = 2.0
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s = p[0]
         if len(p) > 1:
@@ -1360,7 +1325,7 @@ class DELU(Restraint):
         super(DELU, self).__init__(shx, spline)
         self.s1 = 0.01
         self.s2 = 0.01
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.s1 = p[0]
         if len(p) > 1:
@@ -1376,7 +1341,7 @@ class CHIV(Restraint):
         super(CHIV, self).__init__(shx, spline)
         self.s = 0.1
         self.V = 0.0
-        p, self.atoms = self._parse_line(spline, pairs=False)
+        p, self.atoms = self._parse_line(spline)
         if len(p) > 0:
             self.V = p[0]
         if len(p) > 1:
@@ -1390,7 +1355,7 @@ class EADP(Restraint):
 
     def __init__(self, shx, spline: list) -> None:
         super(EADP, self).__init__(shx, spline)
-        _, self.atoms = self._parse_line(spline, pairs=False)
+        _, self.atoms = self._parse_line(spline)
 
 
 class EXYZ(Restraint):
@@ -1400,7 +1365,7 @@ class EXYZ(Restraint):
 
     def __init__(self, shx, spline: list) -> None:
         super(EXYZ, self).__init__(shx, spline)
-        _, self.atoms = self._parse_line(spline, pairs=False)
+        _, self.atoms = self._parse_line(spline)
 
 
 class DAMP(Command):
@@ -1477,15 +1442,28 @@ class SUMP(Command):
         super(SUMP, self).__init__(shx, spline)
         p, _ = self._parse_line(spline)
         self.c = p.pop(0)
-        self.fvars = {}
         self.sigma = p.pop(0)
         # this is to have integer free variables
-        fvars = [int(x) for x in p[1::2]]
-        times = [x for x in p[0::2]]
-        self.fvars = [[x, y] for x, y in zip(times, fvars)]
+        _fvars: List[int] = [int(x) for x in p[1::2]]
+        _times: List[Union[int, float]] = [x for x in p[0::2]]
+        self.fvars: List[list[Union[int, float]]] = [[x, y] for x, y in zip(_times, _fvars)]
 
     def __getitem__(self, item):
         return self.fvars[item]
+
+
+class SWAT(Command):
+    """
+    SWAT g[0] U[2]
+    Allows two variables g and U to be refined in order to model diffuse solvent
+    """
+
+    def __init__(self, shx: 'Shelxfile', spline: List[str]):
+        super().__init__(shx, spline)
+        p, _ = self._parse_line(spline)
+        if len(p) > 1:
+            self.g = p.pop(0)
+            self.U = p.pop(0)
 
 
 class LATT(Command):
@@ -1768,7 +1746,6 @@ class SFACTable():
 
 
 class UNIT(Command):
-
     values: List[Union[int, float]]
 
     def __init__(self, shx, spline: List):

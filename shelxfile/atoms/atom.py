@@ -1,9 +1,9 @@
 from contextlib import suppress
-from typing import Union, List
+from typing import Union, List, Tuple
 
 with suppress(Exception):
     from shelxfile import Shelxfile
-from shelxfile.misc.dsrmath import atomic_distance
+from shelxfile.misc.dsrmath import atomic_distance, Array
 from shelxfile.misc.elements import get_atomic_number, get_radius_from_element
 from shelxfile.misc.misc import split_fvar_and_parameter, DEBUG, ParseSyntaxError, frac_to_cart, ParseUnknownParam
 from shelxfile.shelx.cards import PART, AFIX, RESI, CELL, Restraints
@@ -79,7 +79,7 @@ class Atom():
         return self.resi.residue_number
 
     @property
-    def chain_id(self) -> str:
+    def chain_id(self) -> int:
         return self.resi.chain_id
 
     @property
@@ -129,7 +129,7 @@ class Atom():
         """
         Returns True if the current atom is a hydrogen isotope.
         """
-        if self.element in ('H', 'D', 'T'):
+        if self.element in {'H', 'D', 'T'}:
             return True
         else:
             return False
@@ -138,7 +138,7 @@ class Atom():
     def ishydrogen(self) -> bool:
         return self.is_hydrogen
 
-    def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: list = None, part: PART = None,
+    def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: List[float] = None, part: PART = None,
                             afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0,
                             uvals: (list, tuple) = None,
                             symmgen: bool = True):
@@ -157,7 +157,7 @@ class Atom():
         self.uvals = uvals
         self.symmgen = symmgen
 
-    def set_uvals(self, uvals: List):
+    def set_uvals(self, uvals: List[float]) -> None:
         """
         Sets u values and checks if a free variable was used.
         """
@@ -173,9 +173,9 @@ class Atom():
                 fvar, uval = split_fvar_and_parameter(uvals[0])
                 self.shx.fvars.set_fvar_usage(fvar)
 
-    def parse_line(self, atline: List, list_of_lines: List, part: PART, afix: AFIX, resi: RESI):
+    def parse_line(self, atline: List, list_of_lines: List, part: PART, afix: AFIX, resi: RESI) -> None:
         """
-        Parsers the text line of an atom from SHELXL to initialize the atom parameters.
+        Parses the text line of an atom from SHELXL to initialize the atom parameters.
         """
         uvals = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.name = atline[0][:4]  # Atom names are limited to 4 characters
@@ -187,6 +187,17 @@ class Atom():
         self.part = part
         self.afix = afix
         self.resi = resi
+        self._get_part_and_occupation(atline)
+        self._get_atom_coordinates(atline)
+        if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
+            self.peak_height = uvals.pop()
+            self.qpeak = True
+        if self.shx.end:  # After 'END' can only be Q-peaks!
+            self.qpeak = True
+        self.sfac_num = int(atline[1])
+        self.shx.fvars.set_fvar_usage(self.fvar)
+
+    def _get_part_and_occupation(self, atline: List[str]) -> None:
         # TODO: test all variants of PART and AFIX sof combinations:
         if self.part.sof != 11.0:
             if self.afix and self.afix.sof:  # handles position of afix and part:
@@ -202,6 +213,8 @@ class Atom():
                 self.sof = self.afix.sof
         else:
             self.sof = float(atline[5])
+
+    def _get_atom_coordinates(self, atline: List[str]) -> Tuple[float, float, float]:
         try:
             x, y, z = [float(x) for x in atline[2:5]]
         except ValueError as e:
@@ -212,22 +225,15 @@ class Atom():
             fvar, x = split_fvar_and_parameter(x)
             self.shx.fvars.set_fvar_usage(fvar)
         if abs(y) > 4:
-            fvar, x = split_fvar_and_parameter(y)
+            fvar, y = split_fvar_and_parameter(y)
             self.shx.fvars.set_fvar_usage(fvar)
         if abs(z) > 4:
-            fvar, x = split_fvar_and_parameter(z)
+            fvar, z = split_fvar_and_parameter(z)
             self.shx.fvars.set_fvar_usage(fvar)
         self.x = x
         self.y = y
         self.z = z
-        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, list(self.cell))
-        if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
-            self.peak_height = uvals.pop()
-            self.qpeak = True
-        if self.shx.end:  # After 'END' can only be Q-peaks!
-            self.qpeak = True
-        self.sfac_num = int(atline[1])
-        self.shx.fvars.set_fvar_usage(self.fvar)
+        self.xc, self.yc, self.zc = self.cell.o * Array(self.frac_coords)
 
     @property
     def element(self) -> str:
@@ -237,13 +243,13 @@ class Atom():
         return self.shx.sfac2elem(self.sfac_num).capitalize()
 
     @property
-    def an(self):
+    def an(self) -> int:
         return get_atomic_number(self.element)
 
     @element.setter
     def element(self, new_element: str) -> None:
         """
-        Sets the element type of an atom.
+        Sets the element type of atom.
         """
         self.sfac_num = self.shx.elem2sfac(new_element)
 
@@ -289,36 +295,22 @@ class Atom():
                 except IndexError:
                     return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
 
-    def resolve_restraints(self):
-        """
-        This method should generate a list of restraints objects for each restraints involved with this atom.
-        TODO: Make this work
-        """
-        for num, r in enumerate(self.shx.restraints):
-            for at in r.atoms:
-                # print(r.residue_number, self.resinum, r.residue_class, self.resiclass, self.name, at)
-                if r.residue_number == self.resinum and r.residue_class == self.resiclass and self.name == at:
-                    self.restraints.append(r)
-
     @property
-    def index(self):
+    def index(self) -> int:
         # The position in the res file as index number (starting from 0).
         return self.shx.index_of(self)
 
     @property
-    def frac_coords(self, rounded=False) -> tuple:
-        if rounded:
-            return (round(self.x, 14), round(self.y, 14), round(self.z, 14))
-        else:
-            return (self.x, self.y, self.z)
+    def frac_coords(self) -> tuple:
+        return self.x, self.y, self.z
 
     @frac_coords.setter
-    def frac_coords(self, coords: List):
+    def frac_coords(self, coords: List[float]):
         self.x, self.y, self.z = coords
 
     @property
-    def cart_coords(self):
-        return [round(self.xc, 14), round(self.yc, 14), round(self.zc, 14)]
+    def cart_coords(self) -> Tuple[float, float, float]:
+        return self.xc, self.yc, self.zc
 
     def delete(self):
         """

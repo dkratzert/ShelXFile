@@ -10,7 +10,7 @@
 # ----------------------------------------------------------------------------
 #
 from pathlib import Path
-from typing import Union, List
+from typing import Union, List, Optional
 
 from shelxfile.atoms.atom import Atom
 from shelxfile.atoms.atoms import Atoms
@@ -34,8 +34,8 @@ from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
-    RESI, ABIN, ANIS, Residues
-from shelxfile.misc.dsrmath import Array, OrthogonalMatrix
+    RESI, ABIN, ANIS, Residues, SWAT, Command, Restraint
+from shelxfile.misc.dsrmath import Array
 from shelxfile.misc.misc import DEBUG, ParseOrderError, ParseNumError, ParseUnknownParam, \
     multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 
@@ -93,54 +93,45 @@ class Shelxfile():
     _spgrp_regex = re.compile(r'^REM\s+\S+\s+in\s+\S+', re.IGNORECASE)
 
     def __init__(self):
-        """
-        Reads the shelx file and extracts information.
-
-        :param resfile: file path
-        """
-        self.temp_in_kelvin = 0.0
-        self.shelx_max_line_length = 79  # maximum character lenth per line in SHELXL
-        self.nohkl = False
-        self._a, self._b, self._c, self._alpha, self._beta, self._gamma, self.V = \
-            None, None, None, None, None, None, None
+        self.temp_in_kelvin: float = 0.0
+        self.shelx_max_line_length: int = 79  # maximum character lenth per line in SHELXL
         self.cell: Union[CELL, None] = None
         self.ansc: List[float] = []
-        self.abin: Union[None, ABIN] = None
-        self.acta: Union[None, ACTA] = None
-        self.fmap: Union[None, FMAP] = None
-        self.xnpd: Union[None, XNPD] = None
-        self.wpdb: Union[None, WPDB] = None
-        self.wigl: Union[None, WIGL] = None
+        self.abin: Optional[ABIN] = None
+        self.acta: Optional[ACTA] = None
+        self.fmap: Optional[FMAP] = None
+        self.xnpd: Optional[XNPD] = None
+        self.wpdb: Optional[WPDB] = None
+        self.wigl: Optional[WIGL] = None
         self.temp: Union[int, float] = 20
-        # TODO: Implement swat class:
-        self.swat = None
-        self.stir: Union[None, STIR] = None
-        self.spec: Union[None, SPEC] = None
-        self.twst: Union[None, TWST] = None
-        self.plan: Union[None, PLAN] = None
-        self.prig: Union[None, PRIG] = None
-        self.merg: Union[None, MERG] = None
-        self.more: Union[None, MORE] = None
-        self.move: Union[None, MOVE] = None
-        self.defs: Union[None, DEFS] = None
-        self.zerr: Union[None, ZERR] = None
-        self.wght: Union[None, WGHT] = None
-        self.frag: Union[None, FRAG] = None
-        self.twin: Union[None, TWIN] = None
-        self.basf: Union[None, BASF] = None
-        self.latt: Union[None, LATT] = None
-        self.anis: Union[None, ANIS] = None
-        self.damp: Union[None, DAMP] = None
-        self.unit: Union[None, UNIT] = None
-        self.size: Union[None, SIZE] = None
-        self.htab: Union[None, HTAB] = None
-        self.shel: Union[None, SHEL] = None
-        self.mpla: Union[None, MPLA] = None
-        self.hklf: Union[None, HKLF] = None
-        self.grid: Union[None, GRID] = None
-        self.conn: Union[None, CONN] = None
-        self.conf: Union[None, CONF] = None
-        self.afix: Union[AFIX, None] = None
+        self.swat: Optional[SWAT] = None
+        self.stir: Optional[STIR] = None
+        self.spec: Optional[SPEC] = None
+        self.twst: Optional[TWST] = None
+        self.plan: Optional[PLAN] = None
+        self.prig: Optional[PRIG] = None
+        self.merg: Optional[MERG] = None
+        self.more: Optional[MORE] = None
+        self.move: Optional[MOVE] = None
+        self.defs: Optional[DEFS] = None
+        self.zerr: Optional[ZERR] = None
+        self.wght: Optional[WGHT] = None
+        self.frag: Optional[FRAG] = None
+        self.twin: Optional[TWIN] = None
+        self.basf: Optional[BASF] = None
+        self.latt: Optional[LATT] = None
+        self.anis: Optional[ANIS] = None
+        self.damp: Optional[DAMP] = None
+        self.unit: Optional[UNIT] = None
+        self.size: Optional[SIZE] = None
+        self.htab: Optional[HTAB] = None
+        self.shel: Optional[SHEL] = None
+        self.mpla: Optional[MPLA] = None
+        self.hklf: Optional[HKLF] = None
+        self.grid: Optional[GRID] = None
+        self.conn: Optional[CONN] = None
+        self.conf: Optional[CONF] = None
+        self.afix: Optional[AFIX] = None
         self.rtab: List[RTAB] = []
         self.omit: List[str] = []
         self.free: List[FREE] = []
@@ -157,9 +148,9 @@ class Shelxfile():
         self.symmcards: SymmCards = SymmCards(self)
         self.hfixes: List[HFIX] = []
         self.sump: List[SUMP] = []
-        self.wght_suggested: Union[None, WGHT] = None
+        self.wght_suggested: Optional[WGHT] = None
         self.Z: int = 1
-        self.titl = ""
+        self.titl: str = ""
         self.exti: float = 0.0
         self.ansr: float = 0.001
         self.rem: List[REM] = []
@@ -167,28 +158,28 @@ class Shelxfile():
         self.fvars: FVARs = FVARs(self)
         self.restraints: Restraints = Restraints()
         self.sfac_table: SFACTable = SFACTable(self)
-        self.cycles: Union[None, LSCycles] = None
-        self.R1: Union[None, float] = None
-        self.wr2: Union[None, float] = None
-        self.goof: Union[None, float] = None
-        self.rgoof: Union[None, float] = None
-        self.space_group: Union[None, str] = None
-        self.data: Union[None, int] = None
-        self.parameters: Union[None, int] = None
-        self.dat_to_param: Union[None, float] = None
-        self.num_restraints: Union[None, int] = None
-        self.highest_peak: Union[None, float] = None
-        self.deepest_hole: Union[None, float] = None
+        self.cycles: Optional[LSCycles] = None
+        self.R1: Optional[float] = None
+        self.wr2: Optional[float] = None
+        self.goof: Optional[float] = None
+        self.rgoof: Optional[float] = None
+        self.space_group: Optional[str] = None
+        self.data: Optional[int] = None
+        self.parameters: Optional[int] = None
+        self.dat_to_param: Optional[float] = None
+        self.num_restraints: Optional[int] = None
+        self.highest_peak: Optional[float] = None
+        self.deepest_hole: Optional[float] = None
         self.end: bool = False
         self.maxsof: float = 1.0
         self.delete_on_write: set = set()
         self.wavelen: float = 0.0
-        self.global_sadi: Union[None, int] = None
+        self.global_sadi: Optional[int] = None
         self.list: int = 0
         self.theta_full: float = 0.0
         self.error_line_num: int = -1  # Only used to tell the line number during an exception.
-        self.resfile: Union[Path, None] = None
-        self._reslist: List = []
+        self.resfile: Optional[Path] = None
+        self._reslist: List[str, Command, SFACTable, FVARs, Atom] = []
 
     def write_shelx_file(self, filename=None, verbose=False) -> None:
         if not filename:
@@ -212,6 +203,7 @@ class Shelxfile():
         """
         Read input from a file path.
         """
+        self.__init__()
         if isinstance(resfile, str):
             resfile = Path(resfile)
         self.resfile = resfile.resolve()
@@ -244,6 +236,43 @@ class Shelxfile():
                 raise
             else:
                 return
+        self._assign_atoms_to_restraints()
+
+    def _assign_atoms_to_restraints(self) -> List[str]:
+        warnings = []
+        for nr, restraint in enumerate(self.restraints):
+            # print(restraint)
+            bad_atoms = []
+            for nra, ratom in enumerate(restraint.atoms):
+                if ratom in ('>', '<', '='):
+                    continue
+                if (restraint.residue_class or sum(restraint.residue_number)) and not '_' in ratom:
+                    for num in restraint.residue_number:
+                        atom_name = f'{ratom}_{num}'
+                        a = self.atoms.get_atom_by_name(atom_name)
+                        if not a:
+                            bad_atoms.append(atom_name)
+                elif '_' in ratom:
+                    atom_name = f'{ratom}'
+                    a = self.atoms.get_atom_by_name(atom_name)
+                    if not a:
+                        bad_atoms.append(atom_name)
+                else:
+                    atom_name = f'{ratom}_{0}'
+                    a = self.atoms.get_atom_by_name(atom_name)
+                    if not a:
+                        bad_atoms.append(ratom)
+            if bad_atoms:
+                sorted_atoms = list(set(bad_atoms))
+                sorted_atoms.sort()
+                warnings.append(f'*** Unknown atom{"s" if len(bad_atoms) > 0 else ""} in restraint: {restraint} ***')
+                warnings.append(f'*** Atom list has no --> {", ".join(sorted_atoms)} ***')
+                bad_atoms.clear()
+            if restraint.residue_class and sum(restraint.residue_number) == 0:
+                warnings.append(f"*** Restraint '{restraint}' has a residue class, but no residues are defined. ***")
+        if DEBUG:
+            print('\n'.join(warnings))
+        return warnings
 
     def _test_if_file_is_valid(self, resfile):
         if len(self._reslist) < 20 and DEBUG:
@@ -312,11 +341,6 @@ class Shelxfile():
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
             if line[:1] == ' ' or line == '':
                 continue
-            if not self.titl and line[:4] == 'TITL':
-                # TITL[]  ->  = and ! can be part of the TITL!
-                self.titl = line[5:76]
-                lastcard = 'TITL'
-                continue
             wrapindex = 0
             # This while loop makes wrapped lines look like they are not wrapped. The following lines are then
             # beginning with a space character and thus are ignored. The 'lines' list holds the line nnumbers where
@@ -337,8 +361,8 @@ class Shelxfile():
                 else:
                     multiline = False
                 self._reslist[line_num + wrapindex] = ''
-            # The current line splitted:
-            spline = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
+            # The current line split:
+            spline: list = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
             # The current line as string:
             line = line.upper().split('!')[0]  # Ignore comments with "!", see how this performes
             word = line[:4]
@@ -349,9 +373,8 @@ class Shelxfile():
                     print('RESI in line {} was not closed'.format(line_num + 1))
                 # Do not continue here, otherwise HKLF is not parsed
                 # continue
-            if line.startswith('RESI'):
-                self.resi = RESI(self, spline)
-                self._assign_card(self.resi, line_num)
+            if word == 'RESI':
+                self.resi = self._assign_card(RESI(self, spline), line_num)
                 if self.resi.residue_number > 0:
                     self.residues.append(self.resi)
                 continue
@@ -362,18 +385,16 @@ class Shelxfile():
                     print('PART in line {} was not closed'.format(line_num + 1))
                 # Do not continue here, otherwise HKLF is not parsed
                 # continue
-            if line.startswith('PART'):
-                self.part = PART(self, spline)
-                self._assign_card(self.part, line_num)
+            if word == 'PART':
+                self.part = self._assign_card(PART(self, spline), line_num)
                 continue
             # collect AFIX:
             if line.startswith(('END', 'HKLF')) and self.afix:
                 self.afix.mn = 0
                 if DEBUG:
                     print('AFIX in line {} was not closed'.format(line_num + 1))
-            elif line.startswith('AFIX'):
-                self.afix = AFIX(self, spline)
-                self._assign_card(self.afix, line_num)
+            elif word == 'AFIX':
+                self.afix = self._assign_card(AFIX(self, spline), line_num)
             elif self.is_atom(line):
                 # A SHELXL atom:
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
@@ -421,38 +442,34 @@ class Shelxfile():
                 pass
             elif word == 'CELL':
                 # CELL λ a b c α β γ
-                if not lastcard == 'TITL' and DEBUG:
+                if lastcard != 'TITL' and DEBUG:
                     print('TITL is missing.')
-                self.cell = CELL(self, spline)
-                self._assign_card(self.cell, line_num)
-                self._a, self._b, self._c, self._alpha, self._beta, self._gamma = self.cell
-                self.orthogonal_matrix = OrthogonalMatrix(*self.cell)
+                self.cell = self._assign_card(CELL(self, spline), line_num)
+                self.orthogonal_matrix = self.cell.o
                 self.wavelen = self.cell.wavelen
                 lastcard = 'CELL'
             elif word == "ZERR":
                 # ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
-                if not lastcard == 'CELL':
+                if lastcard != 'CELL':
                     if DEBUG:
                         print('*** Invalid SHELX file!')
                     raise ParseOrderError
                 if not self.cell:
                     raise ParseOrderError('*** Cell parameters missing! ***')
                 if len(spline) >= 8:
-                    self.zerr = ZERR(self, spline)
+                    self.zerr: ZERR = self._assign_card(ZERR(self, spline), line_num)
                     self.Z = self.zerr.Z
                     if self.Z < 1:
                         self.Z = 1
                         if DEBUG:
                             print('Z value is zero.')
-                    self._assign_card(self.zerr, line_num)
                 lastcard = 'ZERR'
             elif word == "LATT":
                 # LATT N[1]
                 # 1=P, 2=I, 3=rhombohedral obverse on hexagonal axes, 4=F, 5=A, 6=B, 7=C.
                 # negative is non-centrosymmetric
-                self.latt = LATT(self, spline)
-                self._assign_card(self.latt, line_num)
-                if not lastcard == 'ZERR' and DEBUG:
+                self.latt = self._assign_card(LATT(self, spline), line_num)
+                if lastcard != 'ZERR' and DEBUG:
                     print('*** ZERR instruction is missing! ***')
                 if self.latt.centric:
                     self.symmcards.set_centric(True)
@@ -497,7 +514,7 @@ class Shelxfile():
             elif word == 'UNIT':
                 # UNIT n1 n2 ...
                 # Number of atoms of each type in the unit-cell, in SFAC order.
-                if not lastcard == 'SFAC':
+                if lastcard != 'SFAC':
                     raise ParseOrderError
                 if self.sfac_table:
                     try:
@@ -531,8 +548,7 @@ class Shelxfile():
             elif word == 'ANIS':
                 # ANIS n or ANIS names
                 # Must be before Atom(), to know which atom is anis.
-                self.anis = ANIS(self, spline)
-                self._assign_card(self.anis, line_num)
+                self.anis = self._assign_card(ANIS(self, spline), line_num)
             elif word == 'WGHT':
                 # WGHT a[0.1] b[0] c[0] d[0] e[0] f[.33333]
                 if self.end:
@@ -541,16 +557,13 @@ class Shelxfile():
                 self.wght = self._assign_card(WGHT(self, spline), line_num)
             elif word == 'ACTA':
                 # ACTA 2θfull[#] -> optional parameter NOHKL
-                self.acta = ACTA(self, spline)
-                self._assign_card(self.acta, line_num)
+                self.acta = self._assign_card(ACTA(self, spline), line_num)
             elif word == 'DAMP':
                 # DAMP damp[0.7] limse[15]
-                self.damp = DAMP(self, spline)
-                self._assign_card(self.damp, line_num)
+                self.damp = self._assign_card(DAMP(self, spline), line_num)
             elif word == 'ABIN':
                 # ABIN n1 n2
-                self.abin = ABIN(self, spline)
-                self._assign_card(self.abin, line_num)
+                self.abin = self._assign_card(ABIN(self, spline), line_num)
             elif word == 'ANSC':
                 # ANSC six coefficients
                 if len(spline) == 7:
@@ -571,26 +584,23 @@ class Shelxfile():
                 self._append_card(self.bonds, BOND(self, spline), line_num)
             elif word == 'BUMP':
                 # BUMP s [0.02]
-                self._append_card(self.restraints, BUMP(self, spline), line_num)
+                self._assign_card(BUMP(self, spline), line_num)
             elif word == 'CHIV':
                 # CHIV V[0] s[0.1] atomnames
                 self._append_card(self.restraints, CHIV(self, spline), line_num)
             elif word == 'CONF':
                 # CONF atomnames max_d[1.9] max_a[170]
-                self.conf = CONF(self, spline)
-                self._assign_card(self.conf, line_num)
+                self.conf = self._assign_card(CONF(self, spline), line_num)
             elif word == 'CONN':
                 # CONN bmax[12] r[#] atomnames or CONN bmax[12]
                 # bonded are d < (r1 + r2 + 0.5) Å
-                self.conn = CONN(self, spline)
-                self._assign_card(self.conn, line_num)
+                self.conn = self._assign_card(CONN(self, spline), line_num)
             elif word == 'DEFS':
                 # DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
-                self.defs = DEFS(self, spline)
-                self._assign_card(self.defs, line_num)
+                self.defs = self._assign_card(DEFS(self, spline), line_num)
             elif word == 'DISP':
                 # DISP E f' f"[#] mu[#]
-                if not lastcard == 'SFAC':
+                if lastcard != 'SFAC':
                     raise ParseOrderError
                 self._append_card(self.disp, DISP(self, spline), line_num)
             elif word == 'EQIV':
@@ -607,8 +617,7 @@ class Shelxfile():
             elif word == 'FRAG':
                 # FRAG code[17] a[1] b[1] c[1] α[90] β[90] γ[90]
                 if len(spline) == 8:
-                    self.frag = FRAG(self, spline)
-                    self._assign_card(self.frag, line_num)
+                    self.frag = self._assign_card(FRAG(self, spline), line_num)
             elif word == 'FEND':
                 # FEND (must follow FRAG)
                 if not self.frag:
@@ -622,19 +631,16 @@ class Shelxfile():
                 self._append_card(self.free, FREE(self, spline), line_num)
             elif word == 'GRID':
                 # GRID sl[#] sa[#] sd[#] dl[#] da[#] dd[#]
-                self.grid = GRID(self, spline)
-                self._assign_card(self.grid, line_num)
+                self.grid = self._assign_card(GRID(self, spline), line_num)
             elif word == 'HKLF':
                 # HKLF N[0] S[1] r11...r33[1 0 0 0 1 0 0 0 1] sm[1] m[0]
-                self.hklf = HKLF(self, spline)
-                self._assign_card(self.hklf, line_num)
+                self.hklf = self._assign_card(HKLF(self, spline), line_num)
             elif line.startswith('END'):
                 # END (after HKLF or ends an include file)
                 self.end = True
             elif word == 'HTAB':
                 # HTAB dh[2.0]  or  HTAB donor-atom acceptor-atom
-                self.htab = HTAB(self, spline)
-                self._assign_card(self.htab, line_num)
+                self.htab = self._assign_card(HTAB(self, spline), line_num)
             elif word == 'ISOR':
                 # ISOR s[0.1] st[0.2] atomnames
                 self._append_card(self.restraints, ISOR(self, spline), line_num)
@@ -644,29 +650,25 @@ class Shelxfile():
                 continue
             elif word == 'MERG':
                 # MERG n[2]
-                self.merg = MERG(self, spline)
-                self._assign_card(self.merg, line_num)
+                self.merg = self._assign_card(MERG(self, spline), line_num)
             elif word == 'MORE':
                 # MORE m[1]
-                self.more = MORE(self, spline)
-                self._assign_card(self.more, line_num)
+                self.more = self._assign_card(MORE(self, spline), line_num)
             elif word == 'FMAP':
                 # FMAP code[2] axis[#] nl[53]
-                self.fmap = FMAP(self, spline)
-                self._assign_card(self.fmap, line_num)
+                self.fmap = self._assign_card(FMAP(self, spline), line_num)
             elif word == 'MOVE':
                 # MOVE dx[0] dy[0] dz[0] sign[1]
-                self.move = MOVE(self, spline)
-                self._assign_card(self.move, line_num)
+                self.move = self._assign_card(MOVE(self, spline), line_num)
             elif word == 'MPLA':
                 # MPLA na atomnames
-                self.mpla = MPLA(self, spline)
-                self._assign_card(self.mpla, line_num)
+                self.mpla = self._assign_card(MPLA(self, spline), line_num)
             elif word == 'NCSY':
                 # NCSY DN sd[0.1] su[0.05] atoms
                 self._append_card(self.restraints, NCSY(self, spline), line_num)
             elif word == 'NEUT':
                 # NEUT
+                # TODO: Implement NEUT class
                 if not lastcard == 'SYMM':
                     raise ParseOrderError
             elif word == 'OMIT':
@@ -675,12 +677,10 @@ class Shelxfile():
                 self.omit.append(spline[1:])
             elif word == 'PLAN':
                 # PLAN npeaks[20] d1[#] d2[#]
-                self.plan = PLAN(self, spline)
-                self._assign_card(self.plan, line_num)
+                self.plan = self._assign_card(PLAN(self, spline), line_num)
             elif word == 'PRIG':
                 # PRIG p[#]
-                self.prig = PRIG(self, spline)
-                self._assign_card(self.prig, line_num)
+                self.prig = self._assign_card(PRIG(self, spline), line_num)
             elif word == 'RTAB':
                 # RTAB codename atomnames  -->  codename: e.g. 'omeg' gets tabualted in the lst
                 self._append_card(self.rtab, RTAB(self, spline), line_num)
@@ -689,52 +689,43 @@ class Shelxfile():
                 self._append_card(self.restraints, SAME(self, spline), line_num)
             elif word == 'SHEL':
                 # SHEL lowres[infinite] highres[0]
-                self.shel = SHEL(self, spline)
-                self._assign_card(self.shel, line_num)
+                self.shel = self._assign_card(SHEL(self, spline), line_num)
             elif word == 'SIZE':
                 # SIZE dx dy dz
-                self.size = SIZE(self, spline)
-                self._assign_card(self.size, line_num)
+                self.size = self._assign_card(SIZE(self, spline), line_num)
             elif word == 'SPEC':
                 # SPEC del[0.2]
                 if len(spline) > 1:
-                    self.spec = SPEC(self, spline)
-                    self._assign_card(self.spec, line_num)
+                    self.spec = self._assign_card(SPEC(self, spline), line_num)
             elif word == 'STIR':
                 # STIR sres step[0.01]   -> stepwise improvement in the resolution sres
-                self.stir = STIR(self, spline)
-                self._assign_card(self.stir, line_num)
+                self.stir = self._assign_card(STIR(self, spline), line_num)
             elif word == 'SUMP':
                 # SUMP c sigma c1 m1 c2 m2 ...
                 self._append_card(self.sump, SUMP(self, spline), line_num)
             elif word == 'SWAT':
                 # SWAT g[0] U[2]
-                self.swat = spline[1:]
+                self.swat = self._assign_card(SWAT(self, spline), line_num)
             elif word == 'TEMP':
                 # TEMP T[20]  -> in Celsius
                 self.temp = float(spline[1].split('(')[0])
                 self.temp_in_kelvin = self.temp + 273.15
             elif word == 'TWIN':
                 # TWIN 3x3 matrix [-1 0 0 0 -1 0 0 0 -1] N[2]
-                self.twin = TWIN(self, spline)
-                self._assign_card(self.twin, line_num)
+                self.twin = self._assign_card(TWIN(self, spline), line_num)
             elif word == 'TWST':
                 # TWST N[0] (N[1] after SHELXL-2018/3)
                 if len(spline) > 1:
-                    self.twst = TWST(self, spline)
-                    self._assign_card(self.twst, line_num)
+                    self.twst = self._assign_card(TWST(self, spline), line_num)
             elif word == 'WIGL':
                 # WIGL del[0.2] dU[0.2]
-                self.wigl = WIGL(self, spline)
-                self._assign_card(self.wigl, line_num)
+                self.wigl = self._assign_card(WIGL(self, spline), line_num)
             elif word == 'WPDB':
                 # WPDB n[1]
-                self.wpdb = WPDB(self, spline)
-                self._assign_card(self.wpdb, line_num)
+                self.wpdb = self._assign_card(WPDB(self, spline), line_num)
             elif word == 'XNPD':
                 # XNPD Umin[-0.001]
-                self.xnpd = XNPD(self, spline)
-                self._assign_card(self.xnpd, line_num)
+                self.xnpd = self._assign_card(XNPD(self, spline), line_num)
             elif word == 'BEDE':
                 # Later...
                 continue
@@ -749,11 +740,14 @@ class Shelxfile():
                 pass
             elif line[:1] == '+':
                 pass
+            elif word == 'TITL':
+                self.titl = line[5:76]
+                lastcard = 'TITL'
             else:
                 if not line.strip():
                     continue
                 if DEBUG:
-                    print("Error in line: {} -> {}".format(line_num, line))
+                    print("Error in line: {} -> {}".format(line_num + 1, line))
                     raise ParseUnknownParam
 
     def add_atom(self, name: str = None, coordinates: list = None, element='C', uvals: list = None, part: int = 0,
@@ -806,21 +800,19 @@ class Shelxfile():
         return packed_atoms
 
     def refine(self, cycles: Union[int, None] = None, backup_before: bool = True) -> bool:
-        filen = self.resfile.stem
-        # Go into path of resfile:
-        os.chdir(self.resfile.parent)
-        # so that shelxl can use the filename as parameter only (It does not like long names)
-        if cycles is not None:
-            self.cycles.number = cycles
-        # shutil.copyfile(filen+'.res', filen+'.ins')
-        ref = ShelxlRefine(self, self.resfile)
-        ref.remove_acta_card(self.acta)
-        self.write_shelx_file(filen + '.ins')
-        ref.run_shelxl(backup_before=backup_before)
-        self.reload()
-        ref.restore_acta_card()
-        # self.write_shelx_file(filen + '.res')
-        return True
+        if self.resfile:
+            filen = self.resfile.stem
+            if cycles is not None:
+                self.cycles.number = cycles
+            ref = ShelxlRefine(self, self.resfile)
+            ref.remove_acta_card(self.acta)
+            self.write_shelx_file(filen + '.ins')
+            ref.run_shelxl(backup_before=backup_before)
+            self.reload()
+            ref.restore_acta_card()
+            # self.write_shelx_file(filen + '.res')
+            return True
+        return False
 
     def refine_weight_convergence(self, stop_after: int = 10):
         """
@@ -838,10 +830,10 @@ class Shelxfile():
         print("Maximum number of refinement cycles reached, but no WGHT convergence.")
         return False
 
-    def _weight_converged(self, diff):
+    def _weight_converged(self, diff: List[float]) -> bool:
         return diff == [0.0, 0.0]
 
-    def _append_card(self, obj, card, line_num):
+    def _append_card(self, obj, card, line_num: int) -> Command:
         """
         Appends SHELX card to an object list, e.g. self.restraints and
         assigns the line_num in reslist with the card instance.
@@ -850,7 +842,7 @@ class Shelxfile():
         self._reslist[line_num] = card
         return card
 
-    def _assign_card(self, card, line_num):
+    def _assign_card(self, card, line_num: int):
         self._reslist[line_num] = card
         return card
 
@@ -959,12 +951,12 @@ class Shelxfile():
         The sum formula of the structure with all atom occupancies summed together as string.
         """
         formstring = ''
-        sumdict = self.sum_formula_ex_dict()
+        sumdict = self.sum_formula_exact_as_dict()
         for el in sumdict:
-            formstring += "{}{:,g} ".format(el.capitalize(), round(sumdict[el], 2))
+            formstring += f"{el.capitalize()}{round(sumdict[el], 2):,g} "
         return formstring.strip()
 
-    def sum_formula_ex_dict(self) -> dict:
+    def sum_formula_exact_as_dict(self) -> dict:
         """
         The sum formula of the structure with all atom occupancies summed together as dictionary.
         """
@@ -1069,7 +1061,7 @@ if __name__ == "__main__":
     print(shx.atoms)
     print(shx.sum_formula_exact)
     print(shx.sum_formula)
-    print(shx.sum_formula_ex_dict())
+    print(shx.sum_formula_exact_as_dict())
     print(shx.restraints)
     print(shx.atoms.nameslist)
     sys.exit()

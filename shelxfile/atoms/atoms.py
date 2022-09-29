@@ -1,14 +1,11 @@
 from math import acos, sqrt, degrees
-from typing import Union, List
+from typing import Union, List, TYPE_CHECKING, Tuple
 
+if TYPE_CHECKING:
+    from shelxfile import Shelxfile
 from shelxfile.atoms.atom import Atom
 from shelxfile.misc.dsrmath import atomic_distance, Array
 from shelxfile.misc.misc import DEBUG
-
-"""
-TODO:
-
-"""
 
 
 class Atoms():
@@ -16,7 +13,7 @@ class Atoms():
     All atoms from a SHELXL file with their properties.
     """
 
-    def __init__(self, shx):
+    def __init__(self, shx: 'Shelxfile'):
         self.shx = shx
         self.all_atoms: List[Atom] = []
 
@@ -27,8 +24,8 @@ class Atoms():
         self.all_atoms.append(atom)
 
     @property
-    def nameslist(self):
-        return [at.fullname.upper() for at in self.all_atoms]
+    def nameslist(self) -> Tuple[str]:
+        return tuple([at.fullname.upper() for at in self.all_atoms])
 
     def __repr__(self) -> str:
         if self.all_atoms:
@@ -101,7 +98,8 @@ class Atoms():
         try:
             at = self.atomsdict[atom_name.upper()]
         except KeyError:
-            print("Atom {} not found in atom list.".format(atom_name))
+            if DEBUG:
+                print("Atom {} not found in atom list.".format(atom_name))
             return None
         return at
 

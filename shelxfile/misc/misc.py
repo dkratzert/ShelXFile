@@ -18,7 +18,7 @@ from shutil import get_terminal_size
 from time import time, perf_counter
 from typing import List
 
-DEBUG = False
+DEBUG = True
 PROFILE = False
 
 dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)
@@ -170,7 +170,7 @@ def flatten(lis):
     """
     new_lis = []
     for item in lis:
-        if isinstance(item, list):
+        if isinstance(item, (list, tuple)):
             new_lis.extend(flatten(item))
         else:
             new_lis.append(item)
