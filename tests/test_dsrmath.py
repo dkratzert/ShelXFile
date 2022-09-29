@@ -55,7 +55,7 @@ class Testdsrmath(TestCase):
 
 class TestSymmetryElement(TestCase):
     def setUp(self) -> None:
-        self.shx = Shelxfile()
+        self.shx = Shelxfile(debug=True)
         self.shx.read_file('tests/resources/p21c.res')
 
     def test_to_shelxl(self):

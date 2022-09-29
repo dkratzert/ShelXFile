@@ -18,7 +18,8 @@ from shutil import get_terminal_size
 from time import time, perf_counter
 from typing import List
 
-DEBUG = True
+DEBUG = False
+VERBOSE = False
 PROFILE = False
 
 dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)
@@ -26,7 +27,7 @@ dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)
 
 class ParseOrderError(Exception):
     def __init__(self, arg=None):
-        if DEBUG:
+        if DEBUG or VERBOSE:
             if arg:
                 print(arg)
             else:
@@ -35,7 +36,7 @@ class ParseOrderError(Exception):
 
 class ParseNumError(Exception):
     def __init__(self, arg=None):
-        if DEBUG:
+        if DEBUG or VERBOSE:
             if arg:
                 print(arg)
             print("*** WRONG NUMBER OF NUMERICAL PARAMETERS ***")
@@ -43,7 +44,7 @@ class ParseNumError(Exception):
 
 class ParseParamError(Exception):
     def __init__(self, arg=None):
-        if DEBUG:
+        if DEBUG or VERBOSE:
             if arg:
                 print(arg)
             print("*** WRONG NUMBER OF PARAMETERS ***")
@@ -51,7 +52,7 @@ class ParseParamError(Exception):
 
 class ParseUnknownParam(Exception):
     def __init__(self, arg=None):
-        if DEBUG:
+        if DEBUG or VERBOSE:
             if arg:
                 print(arg)
             print("*** UNKNOWN PARAMETER ***")
@@ -59,7 +60,7 @@ class ParseUnknownParam(Exception):
 
 class ParseSyntaxError(Exception):
     def __init__(self):
-        if DEBUG:
+        if DEBUG or VERBOSE:
             print("*** Syntax Error ***")
 
 
@@ -225,19 +226,14 @@ def time_this_method(f):
     """
     Rather promitive way of timing a method. More advanced would be the profilehooks module.
     """
-    if PROFILE:
-        from functools import wraps
-
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            t1 = perf_counter()
-            result = f(*args, **kwargs)
-            t2 = perf_counter()
-            if PROFILE:
-                print('Time for "{}": {:5.3} ms\n'.format(f.__name__ + '()', (t2 - t1) * 1000))
-            return result
-    else:
-        wrapper = f
+    from functools import wraps
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        t1 = perf_counter()
+        result = f(*args, **kwargs)
+        t2 = perf_counter()
+        print(f'Time for "{f.__name__ + "()"}": {(t2 - t1) * 1000:5.3} ms\n')
+        return result
     return wrapper
 
 

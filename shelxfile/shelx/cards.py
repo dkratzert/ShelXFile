@@ -5,7 +5,7 @@ from typing import List, Union, TYPE_CHECKING, Optional, Iterator, Tuple
 from shelxfile.atoms.pairs import AtomPair
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
-    ParseOrderError, DEBUG, ParseSyntaxError
+    ParseOrderError, DEBUG, ParseSyntaxError, VERBOSE
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
@@ -112,10 +112,10 @@ class Residue():
             if suffix.isdigit():
                 # TODO: implement _+, _- and _*
                 if '*' in suffix:
-                    return list(self.shx.residues.residue_numbers.keys())
+                    return list(self.shx.residues.residue_numbers.keys())  # type: ignore
                 else:
                     return [int(suffix)]
-        return self.shx.residues.residue_classes.get(self.residue_class, [0])
+        return self.shx.residues.residue_classes.get(self.residue_class, [0])  # type: ignore
 
 
 class Restraint(Residue):
@@ -203,10 +203,11 @@ class Restraint(Residue):
     def _paircheck(self):
         if not self.atoms:
             return
-        if len(self.atoms) % 2 != 0 and DEBUG:
+        if len(self.atoms) % 2 != 0 and (DEBUG or VERBOSE):
             print('*** Wrong number of numerical parameters ***')
             print('Instruction: {}'.format(self.textline))
-            raise ParseNumError
+            if DEBUG:
+                raise ParseNumError
 
     def __iter__(self) -> Iterator[str]:
         for x in self.textline.split():
@@ -467,9 +468,10 @@ class Residues():
         else:
             self.residue_classes[resi.residue_class] = [resi.residue_number]
         """
+        # TODO:
         # Collect dict with number: classes
         if resi.residue_number in self.residue_numbers:
-            if DEBUG:
+            if DEBUG or VERBOSE:
                 print('*** Duplicate residue number {} found! ***'.format(resi.residue_number))
         else:
             self.residue_numbers[resi.residue_number] = resi.residue_class
@@ -493,13 +495,15 @@ class RESI(Command):
         self.alias: Optional[int] = None
         self.chain_id: Optional[int] = None
         self._textline: str = ' '.join(spline)
-        if len(spline) < 2 and DEBUG:
+        if len(spline) < 2 and (DEBUG or VERBOSE):
             print('*** Wrong RESI definition found! Check your RESI instructions ***')
             raise ParseParamError
         self._get_resi_definition(spline)
         if self.residue_number < -999 or self.residue_number > 9999:
-            print('*** Invalid residue number given. ****')
-            raise ParseSyntaxError
+            if DEBUG or VERBOSE:
+                print('*** Invalid residue number given. ****')
+            if DEBUG:
+                raise ParseSyntaxError
 
     def _get_resi_definition(self, resi: List[str]) -> Tuple[str, int, str, int]:
         """
@@ -553,10 +557,11 @@ class PART(Command):
         try:
             self.n = int(p[0])
         except(ValueError, IndexError):
-            if DEBUG:
+            if DEBUG or VERBOSE:
                 print('*** Wrong PART definition in line {} found! '
                       'Check your PART instructions ***'.format(shx.error_line_num))
-                raise
+                if DEBUG:
+                    raise
             self.n = 0
         if len(p) > 1:
             self.sof = float(p[1])
@@ -988,8 +993,10 @@ class FVARs():
         fvarnum = abs(fvarnum)
         if len(self.fvars) >= abs(fvarnum):
             self.fvars[fvarnum - 1].usage += times
-        elif fvarnum > 1 and DEBUG:
+        elif fvarnum > 1 and (DEBUG or VERBOSE):
             print('*** Free variable {} is not defined but used! ***'.format(fvarnum))
+            if DEBUG:
+                raise ParseParamError
 
     def get_fvar_usage(self, fvarnum):
         """
@@ -1223,7 +1230,7 @@ class DFIX(Restraint):
         self._paircheck()
         if not self.d:
             raise ParseNumError
-        if DEBUG and 0.0001 < self.d <= self.s:
+        if (DEBUG or VERBOSE) and 0.0001 < self.d <= self.s:
             print('*** WRONG ODER of INSTRUCTIONS. d is smaller than s ***')
             print("{}".format(self.textline))
 

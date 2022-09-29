@@ -5,7 +5,8 @@ with suppress(Exception):
     from shelxfile import Shelxfile
 from shelxfile.misc.dsrmath import atomic_distance, Array
 from shelxfile.misc.elements import get_atomic_number, get_radius_from_element
-from shelxfile.misc.misc import split_fvar_and_parameter, DEBUG, ParseSyntaxError, frac_to_cart, ParseUnknownParam
+from shelxfile.misc.misc import split_fvar_and_parameter, DEBUG, ParseSyntaxError, frac_to_cart, ParseUnknownParam, \
+    VERBOSE
 from shelxfile.shelx.cards import PART, AFIX, RESI, CELL, Restraints
 
 
@@ -109,6 +110,8 @@ class Atom():
             occ = 1.0
             if DEBUG:
                 raise ParseSyntaxError
+            if VERBOSE:
+                print(f'*** Could not get occupancy of free variable {self.fvar} ***')
         return occ
 
     def _get_positive_occupancy(self, occ):
@@ -118,6 +121,8 @@ class Atom():
             occ = 1.0  # Happens if the self.fvar is not defined
             if DEBUG:
                 raise ParseSyntaxError
+            if VERBOSE:
+                print(f'*** Could not get occupancy of free variable {self.fvar} ***')
         return occ
 
     @occupancy.setter
@@ -188,7 +193,8 @@ class Atom():
         self.afix = afix
         self.resi = resi
         self._get_part_and_occupation(atline)
-        self._get_atom_coordinates(atline)
+        self.x, self.y, self.z = self._get_atom_coordinates(atline)
+        self.xc, self.yc, self.zc = self.cell.o * Array(self.frac_coords)
         if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
             self.peak_height = uvals.pop()
             self.qpeak = True
@@ -218,9 +224,11 @@ class Atom():
         try:
             x, y, z = [float(x) for x in atline[2:5]]
         except ValueError as e:
-            if DEBUG:
+            if DEBUG or VERBOSE:
                 print(e, 'Line:', self._line_numbers[-1])
-            raise ParseUnknownParam
+                raise ParseUnknownParam
+            else:
+                x, y, z = 0.1, 0.1, 0.1
         if abs(x) > 4:
             fvar, x = split_fvar_and_parameter(x)
             self.shx.fvars.set_fvar_usage(fvar)
@@ -230,10 +238,7 @@ class Atom():
         if abs(z) > 4:
             fvar, z = split_fvar_and_parameter(z)
             self.shx.fvars.set_fvar_usage(fvar)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.xc, self.yc, self.zc = self.cell.o * Array(self.frac_coords)
+        return x, y, z
 
     @property
     def element(self) -> str:
