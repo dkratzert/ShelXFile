@@ -175,7 +175,7 @@ class Atom():
 
     def parse_line(self, atline: List, list_of_lines: List, part: PART, afix: AFIX, resi: RESI):
         """
-        Parsers the text line of an atom from SHELXL to initialize the atom parameters.
+        Parses the text line of an atom from SHELXL to initialize the atom parameters.
         """
         uvals = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.name = atline[0][:4]  # Atom names are limited to 4 characters
@@ -187,6 +187,17 @@ class Atom():
         self.part = part
         self.afix = afix
         self.resi = resi
+        self._get_part_and_occupation(atline)
+        self._get_atom_coordinates(atline)
+        if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
+            self.peak_height = uvals.pop()
+            self.qpeak = True
+        if self.shx.end:  # After 'END' can only be Q-peaks!
+            self.qpeak = True
+        self.sfac_num = int(atline[1])
+        self.shx.fvars.set_fvar_usage(self.fvar)
+
+    def _get_part_and_occupation(self, atline):
         # TODO: test all variants of PART and AFIX sof combinations:
         if self.part.sof != 11.0:
             if self.afix and self.afix.sof:  # handles position of afix and part:
@@ -202,6 +213,8 @@ class Atom():
                 self.sof = self.afix.sof
         else:
             self.sof = float(atline[5])
+
+    def _get_atom_coordinates(self, atline):
         try:
             x, y, z = [float(x) for x in atline[2:5]]
         except ValueError as e:
@@ -221,13 +234,6 @@ class Atom():
         self.y = y
         self.z = z
         self.xc, self.yc, self.zc = self.cell.o * Array(self.frac_coords)
-        if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
-            self.peak_height = uvals.pop()
-            self.qpeak = True
-        if self.shx.end:  # After 'END' can only be Q-peaks!
-            self.qpeak = True
-        self.sfac_num = int(atline[1])
-        self.shx.fvars.set_fvar_usage(self.fvar)
 
     @property
     def element(self) -> str:
