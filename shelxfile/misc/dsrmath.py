@@ -790,7 +790,6 @@ class OrthogonalMatrix():
     """
 
     def __init__(self, a, b, c, alpha, beta, gamma):
-        import numpy as np
         self.a, self.b, self.c = a, b, c
         self.V = vol_unitcell(a, b, c, alpha, beta, gamma)
         self.alpha = radians(alpha)
