@@ -48,10 +48,7 @@ TODO:
 - Write out parts and afix in grow mode
 - Delete atoms (H) in AFIX -> delete entire afix group
 - Is backup file and reccovery from failed refinement working?
-- check if atoms in restraints are also in structure
-- restraints involved with an atom should also be part of the atoms properties
 ------------------------------------------------------------
-- deleting atoms should also remove them from restraints
 - add remove_hydrogen_atoms(atom) method.
 - shx.remove_all_H([list of atoms], or all)
 - bond list
@@ -82,8 +79,6 @@ SHX_CARDS = ('TITL', 'CELL', 'ZERR', 'LATT', 'SYMM', 'SFAC', 'UNIT', 'LIST', 'L.
 class Shelxfile():
     """
     Class for data from a SHELXL res file. Includes Atoms, cards and unit cell.
-
-    :type restraints: List[Restraint]
     """
     _r1_regex = re.compile(r'^REM\s+R1\s+=', re.IGNORECASE)
     _wr2_regex = re.compile(r'^REM\s+wR2\s+=', re.IGNORECASE)
