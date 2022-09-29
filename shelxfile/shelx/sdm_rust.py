@@ -13,7 +13,7 @@ import time
 from dataclasses import dataclass
 from math import sqrt, radians, sin
 from string import ascii_letters
-from typing import Union
+from typing import Union, Tuple
 
 # noinspection PyUnresolvedReferences
 from shelxfile.shelx.sdm_complete import calc_sdm
@@ -65,7 +65,7 @@ class SDMR():
         self.bstar = (self.shx.cell.c * self.shx.cell.a * sin(radians(self.shx.cell.beta))) / self.shx.cell.V
         self.cstar = (self.shx.cell.a * self.shx.cell.b * sin(radians(self.shx.cell.gamma))) / self.shx.cell.V
 
-    def get_atoms(self) -> tuple[Union[RAtom, RAtom], ...]:
+    def get_atoms(self) -> Tuple[Union[RAtom, RAtom], ...]:
         atoms = []
         for atom in self.shx.atoms:
             atoms.append(

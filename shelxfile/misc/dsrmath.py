@@ -251,7 +251,7 @@ class Matrix(object):
     def __len__(self):
         return self.shape[1]
 
-    def __iter__(self) -> Iterable[list[float]]:
+    def __iter__(self) -> Iterable[List[float]]:
         for n in self.values:
             yield n
 

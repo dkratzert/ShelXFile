@@ -309,7 +309,7 @@ class Atom():
         self.x, self.y, self.z = coords
 
     @property
-    def cart_coords(self) -> tuple[float, float, float]:
+    def cart_coords(self) -> Tuple[float, float, float]:
         return self.xc, self.yc, self.zc
 
     def delete(self):
