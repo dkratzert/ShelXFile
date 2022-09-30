@@ -18,7 +18,8 @@ from shutil import get_terminal_size
 from time import time, perf_counter
 from typing import List
 
-DEBUG = True
+DEBUG = False
+VERBOSE = False
 PROFILE = False
 
 dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)
@@ -26,7 +27,7 @@ dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)
 
 class ParseOrderError(Exception):
     def __init__(self, arg=None):
-        if DEBUG:
+        if DEBUG or VERBOSE:
             if arg:
                 print(arg)
             else:
@@ -35,7 +36,7 @@ class ParseOrderError(Exception):
 
 class ParseNumError(Exception):
     def __init__(self, arg=None):
-        if DEBUG:
+        if DEBUG or VERBOSE:
             if arg:
                 print(arg)
             print("*** WRONG NUMBER OF NUMERICAL PARAMETERS ***")
@@ -43,7 +44,7 @@ class ParseNumError(Exception):
 
 class ParseParamError(Exception):
     def __init__(self, arg=None):
-        if DEBUG:
+        if DEBUG or VERBOSE:
             if arg:
                 print(arg)
             print("*** WRONG NUMBER OF PARAMETERS ***")
@@ -51,7 +52,7 @@ class ParseParamError(Exception):
 
 class ParseUnknownParam(Exception):
     def __init__(self, arg=None):
-        if DEBUG:
+        if DEBUG or VERBOSE:
             if arg:
                 print(arg)
             print("*** UNKNOWN PARAMETER ***")
@@ -59,7 +60,7 @@ class ParseUnknownParam(Exception):
 
 class ParseSyntaxError(Exception):
     def __init__(self):
-        if DEBUG:
+        if DEBUG or VERBOSE:
             print("*** Syntax Error ***")
 
 
@@ -70,7 +71,7 @@ except():
 sep_line = (width - 1) * '-'
 
 
-def remove_file(filename, exit_dsr=False):
+def remove_file(filename):
     """
     removes the file "filename" from disk
     program exits when exit is true
@@ -84,27 +85,22 @@ def remove_file(filename, exit_dsr=False):
         return True
 
 
-def find_line(inputlist: List, regex: str, start: int = None) -> int:
+def find_line(inputlist: List[str], regex: str, start: int = None) -> int:
     """
     returns the index number of the line where regex is found in the inputlist
     if stop is true, stop searching with first line found
-    :param inputlist: list of strings
-    :type inputlist: list
+
     :param regex: regular expression to search
-    :type regex: string
     :param start: line number where to start the search
-    :param start: start searching at line start
-    :type start: string or int
     """
+    regc = re.compile(regex, re.IGNORECASE)
     if start:
-        start = int(start)
-        inputlist_slice = inputlist[start:]
-        for i, string in enumerate(inputlist_slice, start):
-            if re.match(regex, string, re.IGNORECASE):
+        for i, string in enumerate(inputlist[start:], start):
+            if regc.match(string):
                 return i  # returns the index number if regex found
     else:
         for i, string in enumerate(inputlist):
-            if re.match(regex, string, re.IGNORECASE):
+            if regc.match(string):
                 return i  # returns the index number if regex found
     return -1  # returns -1 if no regex found
 
@@ -225,19 +221,14 @@ def time_this_method(f):
     """
     Rather promitive way of timing a method. More advanced would be the profilehooks module.
     """
-    if PROFILE:
-        from functools import wraps
-
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            t1 = perf_counter()
-            result = f(*args, **kwargs)
-            t2 = perf_counter()
-            if PROFILE:
-                print('Time for "{}": {:5.3} ms\n'.format(f.__name__ + '()', (t2 - t1) * 1000))
-            return result
-    else:
-        wrapper = f
+    from functools import wraps
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        t1 = perf_counter()
+        result = f(*args, **kwargs)
+        t2 = perf_counter()
+        print(f'Time for "{f.__name__ + "()"}": {(t2 - t1) * 1000:5.3} ms\n')
+        return result
     return wrapper
 
 

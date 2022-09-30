@@ -1,17 +1,11 @@
 import unittest
 
 from shelxfile import Shelxfile
-from shelxfile.atoms import atoms
-from shelxfile.misc import misc
-from shelxfile.shelx import shelx
 
 
 class TestRestraintsWarnings(unittest.TestCase):
     def setUp(self) -> None:
-        misc.DEBUG = False
-        shelx.DEBUG = False
-        atoms.DEBUG = False
-        self.shx = Shelxfile()
+        self.shx = Shelxfile(debug=True)
 
     def test_class_and_number_on_restr_and_atoms_but_wrong(self):
         self.shx.read_file('tests/resources/restraint_tests/class_and_number_on_restr_and_atoms_but_wrong.res')
