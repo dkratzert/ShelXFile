@@ -1,9 +1,12 @@
 from contextlib import suppress
 from typing import Union, List, Tuple
 
+import numpy
+from numpy import trace
+
 with suppress(Exception):
     from shelxfile import Shelxfile
-from shelxfile.misc.dsrmath import atomic_distance, Array
+from shelxfile.misc.dsrmath import atomic_distance, Array, Matrix
 from shelxfile.misc.elements import get_atomic_number, get_radius_from_element
 from shelxfile.misc.misc import split_fvar_and_parameter, DEBUG, ParseSyntaxError, frac_to_cart, ParseUnknownParam, \
     VERBOSE
@@ -27,7 +30,7 @@ class Atom():
 
     def __init__(self, shx: 'Shelxfile') -> None:
         self.shx = shx
-        self.cell: CELL = shx.cell
+        self._cell: CELL = shx.cell
         self.sfac_num: int = 1
         self.resi: Union[RESI, None] = None
         self.part: PART = PART(shx, ['PART', '0'])
@@ -154,7 +157,7 @@ class Atom():
         self.sfac_num = sfac_num
         self.frac_coords = coords
         self.x, self.y, self.z = coords[0], coords[1], coords[2]
-        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, list(self.cell))
+        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, list(self._cell))
         self.part = part
         self.afix = afix
         self.resi = resi
@@ -194,14 +197,28 @@ class Atom():
         self.resi = resi
         self._get_part_and_occupation(atline)
         self.x, self.y, self.z = self._get_atom_coordinates(atline)
-        self.xc, self.yc, self.zc = self.cell.o * Array(self.frac_coords)
+        self.xc, self.yc, self.zc = self._cell.o * Array(self.frac_coords)
         if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
-            self.peak_height = uvals.pop()
+            self.peak_height = uvals[0]
             self.qpeak = True
         if self.shx.end:  # After 'END' can only be Q-peaks!
             self.qpeak = True
         self.sfac_num = int(atline[1])
         self.shx.fvars.set_fvar_usage(self.fvar)
+        # U(star) = N * U(cif) * N.T
+        # U(cart) = A * U(star) * A.T
+        # U(star) = R * U(star) * R^t
+        # U(cif) = N^-1 * U(star) * (N^-1).T
+        # U(star) = A^-1 * U(cart) * A^-1.T
+        self.u_cart = self._cell.o * Array(self.uvals)
+        print(self.name, uvals)
+        self.Ucif = Matrix(((uvals[0], uvals[1], uvals[3]),
+                            (uvals[1], uvals[2], uvals[4]),
+                            (uvals[3], uvals[4], uvals[5])))
+        self.Ustar = self._cell.N * self.Ucif * self._cell.N.T
+        self.Ucart = self._cell.o * self.Ustar * self._cell.o.T
+        #print(self.Ustar)
+        print(self.Ucart.trace/3, '###1')
 
     def _get_part_and_occupation(self, atline: List[str]) -> None:
         # TODO: test all variants of PART and AFIX sof combinations:
@@ -335,8 +352,8 @@ class Atom():
         """
         found = []
         for at in self.shx.atoms:
-            if atomic_distance([self.x, self.y, self.z], [at.x, at.y, at.z], self.cell) < dist \
-                    and not self == at and at.part.n == only_part and not at.qpeak:
+            if atomic_distance([self.x, self.y, self.z], [at.x, at.y, at.z], self._cell) < dist \
+                    and self != at and at.part.n == only_part and not at.qpeak:
                 # only in special part and no q-peaks:
                 found.append(at)
         return found

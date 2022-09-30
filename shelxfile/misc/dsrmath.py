@@ -304,6 +304,10 @@ class Matrix(object):
             rows.append([r[i] for r in self.values])
         return Matrix(rows)
 
+    @property
+    def trace(self):
+        return self.values[0][0] + self.values[1][1] + self.values[2][2]
+
     def dot(self, other):
         """
         Dot product of two matrices.
