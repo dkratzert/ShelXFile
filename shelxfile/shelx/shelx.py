@@ -100,7 +100,7 @@ class Shelxfile():
             VERBOSE = True
         self.temp_in_kelvin: float = 0.0
         self.shelx_max_line_length: int = 79  # maximum character lenth per line in SHELXL
-        self.cell: Union[CELL, None] = None
+        self.cell: Optional[CELL] = None
         self.ansc: List[float] = []
         self.abin: Optional[ABIN] = None
         self.acta: Optional[ACTA] = None
@@ -184,7 +184,7 @@ class Shelxfile():
         self.theta_full: float = 0.0
         self.error_line_num: int = -1  # Only used to tell the line number during an exception.
         self.resfile: Optional[Path] = None
-        self._reslist: List[str, Command, SFACTable, FVARs, Atom, SYMM] = []
+        self._reslist: List[Union[str, Command, SFACTable, FVARs, Atom, SYMM]] = []
 
     def write_shelx_file(self, filename=None, verbose=False) -> None:
         if not filename:

@@ -30,7 +30,7 @@ class Atom():
         self.cell: CELL = shx.cell
         self.sfac_num: int = 1
         self.resi: Union[RESI, None] = None
-        self.part: Union[PART, None] = None
+        self.part: PART = PART(shx, ['PART', '0'])
         self.afix: Union[AFIX, None] = None
         self.name = 'name'  # Name without residue number like "C1"
         # Site occupation factor including free variable like 31.0
