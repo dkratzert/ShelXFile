@@ -212,9 +212,14 @@ class Atom():
         # U(star) = A^-1 * U(cart) * A^-1.T
         self.u_cart = self._cell.o * Array(self.uvals)
         print(self.name, uvals)
-        self.Ucif = Matrix(((uvals[0], uvals[1], uvals[3]),
-                            (uvals[1], uvals[2], uvals[4]),
-                            (uvals[3], uvals[4], uvals[5])))
+        #self.Ucif = Matrix(((uvals[0], uvals[1], uvals[3]),
+        #                    (uvals[1], uvals[2], uvals[4]),
+        #                    (uvals[3], uvals[4], uvals[5])))
+        U11, U22, U33, U23, U13, U12 = uvals
+        U21 = U12
+        U32 = U23
+        U31 = U13
+        self.Ucif = Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
         self.Ustar = self._cell.N * self.Ucif * self._cell.N.T
         self.Ucart = self._cell.o * self.Ustar * self._cell.o.T
         #print(self.Ustar)
