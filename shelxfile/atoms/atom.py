@@ -205,25 +205,39 @@ class Atom():
             self.qpeak = True
         self.sfac_num = int(atline[1])
         self.shx.fvars.set_fvar_usage(self.fvar)
+        # SHELXL uses U(cif)
         # U(star) = N * U(cif) * N.T
         # U(cart) = A * U(star) * A.T
         # U(star) = R * U(star) * R^t
         # U(cif) = N^-1 * U(star) * (N^-1).T
         # U(star) = A^-1 * U(cart) * A^-1.T
-        self.u_cart = self._cell.o * Array(self.uvals)
-        print(self.name, uvals)
-        #self.Ucif = Matrix(((uvals[0], uvals[1], uvals[3]),
-        #                    (uvals[1], uvals[2], uvals[4]),
-        #                    (uvals[3], uvals[4], uvals[5])))
+
         U11, U22, U33, U23, U13, U12 = uvals
         U21 = U12
         U32 = U23
         U31 = U13
         self.Ucif = Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
-        self.Ustar = self._cell.N * self.Ucif * self._cell.N.T
-        self.Ucart = self._cell.o * self.Ustar * self._cell.o.T
-        #print(self.Ustar)
-        print(self.Ucart.trace/3, '###1')
+        # als Spaltenvektoren:
+        # self.Ucif = Matrix([[U11, U21, U31], [U12, U22, U32], [U13, U23, U33]])
+        # Dies ist korrekt:
+        self.Ustar = self.Ucif * self._cell.N * self._cell.N.T
+        self.Ucart = self.Ustar * self._cell.o * self._cell.o.T
+        self.Ueq = self.Ucart.trace / 3
+        self.Uiso = self.Ueq
+        symmetry_number = 4
+        transformed_u = self.transform_u_by_symmetry(symmetry_number)
+        print(self.name, [round(x, 6) for x in transformed_u])
+
+    def transform_u_by_symmetry(self,symmetry_number: int):
+        R = self.shx.symmcards[symmetry_number].matrix
+        R_t = self.shx.symmcards[symmetry_number].matrix.transposed
+        Ustar_n = self.Ustar * R * R.transposed
+        Ucif_n = Ustar_n * self._cell.N.inversed * self._cell.N.inversed.T
+        uvals = Ucif_n
+        upper_diagonal = uvals.values[0][0], uvals.values[1][1], uvals.values[2][2], \
+                         uvals.values[1][2], uvals.values[0][2], \
+                         uvals.values[0][1]
+        return upper_diagonal
 
     def _get_part_and_occupation(self, atline: List[str]) -> None:
         # TODO: test all variants of PART and AFIX sof combinations:

@@ -295,7 +295,8 @@ class Matrix(object):
         """
         return Matrix(list(zip(*self.values)))
 
-    def transpose_alt(self):
+    @property
+    def transposed_alt(self) -> 'Matrix':
         """
         Transposes the current matrix.
         """
@@ -832,6 +833,9 @@ class OrthogonalMatrix():
     def T(self):
         return self.m.transposed
 
+    @property
+    def values(self):
+        return self.m.values
 
 def almost_equal(a: Union[int, float], b: Union[int, float], places=3) -> float:
     """

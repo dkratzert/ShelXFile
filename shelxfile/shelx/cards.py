@@ -376,7 +376,7 @@ class CELL(Command):
             self.o = OrthogonalMatrix(self.a, self.b, self.c, self.alpha, self.beta, self.gamma)
             # calculate reciprocal lattice vectors:
             self.astar = (self.b * self.c * sin(radians(self.alpha))) / self.V
-            self.bstar = (self.c * self.a * sin(radians(self.beta))) / self.V
+            self.bstar = (self.a * self.c * sin(radians(self.beta))) / self.V
             self.cstar = (self.a * self.b * sin(radians(self.gamma))) / self.V
             # matrix with the reciprocal lattice vectors:
             self.N = Matrix([[self.astar, 0, 0],
