@@ -336,6 +336,7 @@ class Shelxfile():
         self.read_file(self.resfile.resolve())
 
     def _parse_cards(self):
+        last_nonhydrogen_atom = None
         lastcard = ''
         fvarnum = 1
         for line_num, line in enumerate(self._reslist):
@@ -402,7 +403,12 @@ class Shelxfile():
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
                 #            0.03649  -0.00522  -0.01212   0.00157 )
                 a = Atom(self)
+                if last_nonhydrogen_atom:
+                    a.pivot = last_nonhydrogen_atom
                 a.parse_line(spline, list_of_lines, part=self.part, afix=self.afix, resi=self.resi)
+                if not a.is_hydrogen:
+                    last_nonhydrogen_atom: Atom = a
+                    a.pivot = None
                 self._append_card(self.atoms, a, line_num)
             elif word == 'SADI':
                 # SADI s[0.02] pairs of atoms

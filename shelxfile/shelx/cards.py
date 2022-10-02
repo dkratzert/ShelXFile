@@ -1,9 +1,9 @@
 import re
-from math import cos, radians, sqrt
+from math import cos, radians, sqrt, sin
 from typing import List, Union, TYPE_CHECKING, Optional, Iterator, Tuple
 
 from shelxfile.atoms.pairs import AtomPair
-from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix
+from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix, Matrix
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, DEBUG, ParseSyntaxError, VERBOSE
 
@@ -372,7 +372,16 @@ class CELL(Command):
             self.cosal = cos(radians(self.alpha))
             self.cosbe = cos(radians(self.beta))
             self.cosga = cos(radians(self.gamma))
+            self.V = self.volume
             self.o = OrthogonalMatrix(self.a, self.b, self.c, self.alpha, self.beta, self.gamma)
+            # calculate reciprocal lattice vectors:
+            self.astar = (self.b * self.c * sin(radians(self.alpha))) / self.V
+            self.bstar = (self.a * self.c * sin(radians(self.beta))) / self.V
+            self.cstar = (self.a * self.b * sin(radians(self.gamma))) / self.V
+            # matrix with the reciprocal lattice vectors:
+            self.N = Matrix([[self.astar, 0, 0],
+                             [0, self.bstar, 0],
+                             [0, 0, self.cstar]])
         else:
             raise ParseSyntaxError
 
@@ -388,10 +397,6 @@ class CELL(Command):
             # No valid celll
             v = 0.0
         return v
-
-    @property
-    def V(self) -> float:
-        return self.volume
 
     def __iter__(self):
         return iter(self._cell_list)
@@ -1201,6 +1206,7 @@ class BUMP(Restraint):
     two non-bonded C, N, O and S atoms (based on the SFAC type) that are shorter than
     the expected shortest non-bonded distances, allowing for the possibility of hydrogen bonds.
     """
+
     def __init__(self, shx, spline):
         """
         BUMP s [0.02]

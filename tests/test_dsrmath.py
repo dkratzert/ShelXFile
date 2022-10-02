@@ -97,6 +97,12 @@ class TestMatrix(TestCase):
         m1 = Matrix([[2, 0, 0], [0, 2, 0], [0, 0, 2]])
         self.assertEqual(8, m1.det)
 
+    def test_norm(self):
+        m = Matrix([[-4, -3, -2],[-1,  0,  1],[ 2,  3,  4]])
+        self.assertEqual(7.745966692414834, m.frobenius_norm())
+        self.assertEqual(7.745966692414834, m.norm)
+
+
     def test_zero(self):
         self.assertEqual("| 0.0000  0.0000  0.0000|\n"
                          "| 0.0000  0.0000  0.0000|\n"
@@ -122,9 +128,9 @@ class TestMatrix(TestCase):
         m = Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
         self.assertEqual([(1, 1, 1), (2, 2, 2), (3, 3, 3)], m.transposed.values)
 
-    def transpose_alt(self):
+    def test_transpose_alt(self):
         m = Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
-        self.assertEqual([[1, 1, 1], [2, 2, 2], [3, 3, 3]], m.transpose_alt().values)
+        self.assertEqual([[1, 1, 1], [2, 2, 2], [3, 3, 3]], m.transposed_alt.values)
 
     def test_cholesky(self):
         m = Matrix([[25, 15, -5], [15, 18, 0], [-5, 0, 11]])
