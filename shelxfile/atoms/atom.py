@@ -18,12 +18,12 @@ class Atom():
     atomname sfac x y z sof[11] U[0.05] or U11 U22 U33 U23 U13 U12
     """
     #                name    sfac     x         y        z       occ      u11      u22 ...
-    _anisatomstr = '{:<5s} {:>2}{:>12.6f}{:>12.6f}{:>12.6f}{:>12.5f}{:>11.5f}{:>11.5f}' \
+    _anisatomstr = '{:<5s}{:>2}{:>12.6f}{:>12.6f}{:>12.6f}{:>12.5f}{:>11.5f}{:>11.5f}' \
                    ' {:>12.5f}{:>11.5f}{:>11.5f}{:>11.5f}'  # Line wrap is handled during file write.
     #               name    sfac     x         y         z         occ      u11
-    _isoatomstr = '{:<5s} {:<2}{:>10.6f}  {:>10.6f}  {:>9.6f}  {:>9.5f}  {:>9.5f}'
-    _qpeakstr = '{:<5s} {:<2}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
-    _fragatomstr = '{:<5s} {:>10.6f}  {:>10.6f}  {:>9.6f}'
+    _isoatomstr = '{:<5s}{:<2}{:>10.6f}  {:>10.6f}  {:>9.6f}  {:>9.5f}  {:>9.5f}'
+    _qpeakstr = '{:<5s}{:<2}{:>8.4f}  {:>8.4f}  {:>8.4f}  {:>9.5f}  {:<9.2f} {:<9.2f}'
+    _fragatomstr = '{:<5s}{:>10.6f}  {:>10.6f}  {:>9.6f}'
 
     def __init__(self, shx: 'Shelxfile') -> None:
         self.shx = shx
@@ -197,7 +197,7 @@ class Atom():
         self.x, self.y, self.z = self._get_atom_coordinates(atline)
         self.xc, self.yc, self.zc = self._cell.o * Array(self.frac_coords)
         if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
-            self.peak_height = uvals[0]
+            self.peak_height = uvals[1]
             self.qpeak = True
         if self.shx.end:  # After 'END' can only be Q-peaks!
             self.qpeak = True
@@ -327,8 +327,7 @@ class Atom():
             # An atom from a FRAG/FEND instruction
             return Atom._fragatomstr.format(self.name, self.x, self.y, self.z)
         else:
-            if self.uvals[0] > 0 and self.uvals[1] != 0.0 and self.uvals[2] != 0.0 and self.uvals[3] != 0.0 \
-                    and self.uvals[4] != 0.0:
+            if sum([abs(u) for u in self.uvals[2:]]) > 0.00001 and not self.qpeak:
                 # anisotropic atom
                 try:
                     return Atom._anisatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof,

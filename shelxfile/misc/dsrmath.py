@@ -479,7 +479,7 @@ class SymmetryElement(object):
         :return: float
         """
         if self != other:
-            return 999.
+            return 999.0
         return self.trans - other.trans
 
     def apply_latt_symm(self, latt_symm):
