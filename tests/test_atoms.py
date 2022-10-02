@@ -10,6 +10,29 @@ class TestAtoms(TestCase):
         self.shx = Shelxfile()
         self.shx.read_file('tests/resources/p21c.res')
 
+    def test_u_eq_of_hydrogen_atom_in_single_afix(self):
+        h = self.shx.atoms.get_atom_by_name('H34')
+        self.assertEqual('C34', h.pivot.name)
+        self.assertEqual(0.02959929, round(h.Uiso, 8))
+        self.assertEqual(h.pivot.Uiso * 1.2, h.Uiso)
+
+    def test_u_eq_of_hydrogen_atom_in_afix_137(self):
+        h1 = self.shx.atoms.get_atom_by_name('H36A')
+        h2 = self.shx.atoms.get_atom_by_name('H36B')
+        h3 = self.shx.atoms.get_atom_by_name('H36C')
+        self.assertEqual('C36', h1.pivot.name)
+        self.assertEqual('C36', h2.pivot.name)
+        self.assertEqual('C36', h2.pivot.name)
+        self.assertEqual(0.05123489, round(h1.Uiso, 8))
+        self.assertEqual(0.05123489, round(h2.Uiso, 8))
+        self.assertEqual(0.05123489, round(h3.Uiso, 8))
+
+    def test_uiso_of_pivot_of_H36x(self):
+        c36 = self.shx.atoms.get_atom_by_name('C36')
+        self.assertEqual(None, c36.pivot)
+        self.assertEqual(0.03415659, round(c36.Uiso, 8))
+        self.assertEqual(0.03415659 * 1.5, 0.051234885)
+
     def test_number(self):
         self.assertEqual(148, self.shx.atoms.number)
 
@@ -179,12 +202,12 @@ class TestAtoms(TestCase):
         self.assertEqual(-31.0, self.shx.atoms.get_atom_by_id(40).part.sof)
 
     def test_get_pivot_atom(self):
-        self.assertEqual('C34', self.shx.atoms.all_atoms[45].get_pivot_atom().name)
+        self.assertEqual('C34', self.shx.atoms.all_atoms[45].pivot.name)
 
     def test_get_pivot_atom_of_fluorine(self):
         # This atom should not have a pivot atom, because it is heavy and not in an AFIX:
         self.assertEqual('F2', self.shx.atoms.all_atoms[4].name)
-        self.assertEqual(None, self.shx.atoms.all_atoms[4].get_pivot_atom())
+        self.assertEqual(None, self.shx.atoms.all_atoms[4].pivot)
 
     def test_hydrogen_atoms(self):
         self.assertEqual('[Atom ID: 134, Atom ID: 141, Atom ID: 148]', str(self.shx.atoms.hydrogen_atoms[:3]))
@@ -220,3 +243,15 @@ class TestRidingAtoms(TestCase):
 
     def test_number_of_hydrogen_adtoms_with_constrained_u_values(self):
         self.assertEqual(49, self.shx.atoms.n_hydrogen_atoms_with_constr_u_val)
+
+
+class TestUisoOfFreeRefine(TestCase):
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/2240189.res')
+
+    def test_free_refined_hydrogen(self):
+        h1a = self.shx.atoms.get_atom_by_name('H1A')
+        self.assertEqual(0.04654, h1a.Uiso)
+        self.assertEqual([0.04654, 0.0, 0.0, 0.0, 0.0, 0.0], h1a.uvals)
+        self.assertEqual("O3'", h1a.pivot.name)

@@ -148,7 +148,7 @@ class Array(object):
         """
         Create random Array of dimension m
         """
-        return Array([random.randint(1, 9) for _ in range(m)])
+        return Array([random.randint(1, 99) for _ in range(m)])
 
     @property
     def floor(self):
@@ -197,10 +197,12 @@ class Matrix(object):
 
     DK: Missing: inverse, eigenvalues
     """
-    __slots__ = ['values', 'shape']
+    __slots__ = ['values', 'shape', 'rows', 'columns']
 
     def __init__(self, values):
         self.shape = (len(values[0]), len(values))
+        self.rows = len(values[0])
+        self.columns = len(values)
         self.values = values
 
     def __getitem__(self, val):
@@ -273,12 +275,17 @@ class Matrix(object):
             output.append(tmp[:])
         return output[:]
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Union['Matrix', float, int]):
         """
         #>>> Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]]) / Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
-        A / B = A * A^-1
+        A / B = A * B^-1
         """
-        return NotImplementedError
+        if isinstance(other, Matrix):
+            return self * other.inversed
+        elif isinstance(other, (int, float)):
+            return Matrix([[v / other for v in row] for row in self.values])
+        else:
+            raise NotImplementedError
 
     def __setitem__(self, key, value):
         # TODO: Implement setitem
@@ -326,7 +333,7 @@ class Matrix(object):
     @staticmethod
     def randmat(m: int, n: int) -> 'Matrix':
         """
-        Create random matrix of dimension m, n
+        Create random matrix of dimension m, n (rows, columns)
 
         #>>> Matrix.randmat(5, 3)
         |  2.000   1.000   2.000|
@@ -336,7 +343,7 @@ class Matrix(object):
         |  2.000   8.000   4.000|
         <BLANKLINE>
         """
-        return Matrix([[random.randint(1, 9) for y in range(n)] for x in range(m)])
+        return Matrix([[random.randint(1, 99) for _ in range(n)] for _ in range(m)])
 
     def cholesky(self) -> 'Matrix':
         """
@@ -348,16 +355,10 @@ class Matrix(object):
                 li[j] = sqrt(ai[i] - s) if (i == j) else (1.0 / lj[j] * (ai[j] - s))
         return L
 
-    def norm(self):
-        return self.det
-
     @property
     def inversed(self) -> 'Matrix':
         """
         Inversion of 3 × 3 matrices
-         -0.812500    0.125000    0.187500
-          0.125000   -0.250000    0.125000
-          0.520833    0.125000   -0.145833
         """
         if self.shape != (3, 3):
             raise ValueError('Inversion is only valid for 3x3 Matrix.')
@@ -375,25 +376,38 @@ class Matrix(object):
         """
         return determinante(self.values)
 
+    @property
+    def norm(self):
+        return self.frobenius_norm()
+
+    def frobenius_norm(self):
+        # To store the sum of squares of the
+        # elements of the given matrix
+        sumSq = 0
+        for i in range(self.rows):
+            for j in range(self.columns):
+                sumSq += pow(self[i][j], 2)
+        # Return the square root of
+        # the sum of squares
+        return sqrt(sumSq)
+
     def power_iteration(self, num_simulations=10):
         """
         Eigenvalue algorythm from https://en.wikipedia.org/wiki/Power_iteration
+
+        This does not work. DK
         """
         # Ideally choose a random vector
         # To decrease the chance that our vector
         # Is orthogonal to the eigenvector
-        b_k = Array.randarray(self.shape[1])
-
+        b_k = Matrix.randmat(self.rows, self.columns)
         for _ in range(num_simulations):
             # calculate the matrix-by-vector product Ab
             b_k1 = self.dot(b_k)
-
             # calculate the norm
-            b_k1_norm = b_k1.det
-
+            b_k1_norm = b_k1.norm
             # re normalize the vector
             b_k = b_k1 / b_k1_norm
-
         return b_k
 
 
@@ -464,7 +478,7 @@ class SymmetryElement(object):
         :param other: SymmetryElement instance
         :return: float
         """
-        if not self == other:
+        if self != other:
             return 999.
         return self.trans - other.trans
 
@@ -836,6 +850,7 @@ class OrthogonalMatrix():
     @property
     def values(self):
         return self.m.values
+
 
 def almost_equal(a: Union[int, float], b: Union[int, float], places=3) -> float:
     """
