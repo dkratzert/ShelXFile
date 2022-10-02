@@ -186,7 +186,7 @@ class Shelxfile():
         self.resfile: Optional[Path] = None
         self._reslist: List[Union[str, Command, SFACTable, FVARs, Atom, SYMM]] = []
 
-    def write_shelx_file(self, filename=None, verbose=False) -> None:
+    def write_shelx_file(self, filename: Optional[str] = None, verbose=False) -> None:
         if not filename:
             filename = self.resfile
         with open(filename, 'w') as f:

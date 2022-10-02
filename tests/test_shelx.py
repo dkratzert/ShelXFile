@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest import TestCase
 
 from shelxfile import Shelxfile
@@ -103,11 +104,30 @@ class TestShelxfileGoodModel(TestCase):
     def test_atom_representation(self):
         a = self.shx._reslist[39]
         self.assertEqual(
-            'C1     1   -0.187504    0.282782    0.527531    11.00000    0.01807    0.02353      0.01797    0.00008   -0.00179    0.00036',
+            'C1    1   -0.187504    0.282782    0.527531    11.00000    0.01807    0.02353      0.01797    0.00008   -0.00179    0.00036',
             str(a))
 
     def test_atom_object(self):
         a = self.shx._reslist[39]
         self.assertEqual(
-            'C1     1   -0.187504    0.282782    0.527531    11.00000    0.01807    0.02353      0.01797    0.00008   -0.00179    0.00036',
+            'C1    1   -0.187504    0.282782    0.527531    11.00000    0.01807    0.02353      0.01797    0.00008   -0.00179    0.00036',
             a)
+
+    def test_qpeak(self):
+        a = self.shx._reslist[-20]
+        self.assertEqual('Q1   1   0.0784    0.1310    0.6428   11.00000  0.04      0.10     ', str(a))
+
+
+class TestWriteFile(TestCase):
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/2240189.res')
+        self.written = Path('tests/resources/2240189-written.res')
+        self.testwritepath = Path('tests/resources/testwrite.res')
+
+    def tearDown(self) -> None:
+        self.testwritepath.unlink(missing_ok=True)
+
+    def test_write_shelx_file(self):
+        self.shx.write_shelx_file(str(self.testwritepath))
+        self.assertEqual(self.written.read_bytes(), self.testwritepath.read_bytes())
