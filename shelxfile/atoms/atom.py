@@ -238,7 +238,7 @@ class Atom():
         U31 = U13
         return Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
 
-    def transform_u_by_symmetry(self, symmetry_number: int):
+    def transform_u_by_symmetry(self):
         symm = '-y, +x-y, +z'.split(',')
         R = SymmetryElement(symm).matrix
         Ustar_n = self.Ustar * R * R.T
@@ -247,7 +247,7 @@ class Atom():
         upper_diagonal = uvals.values[0][0], uvals.values[1][1], uvals.values[2][2], \
                          uvals.values[1][2], uvals.values[0][2], \
                          uvals.values[0][1]
-        return upper_diagonal
+        return [round(u, 6) for u in upper_diagonal]
 
     def _get_part_and_occupation(self, atline: List[str]) -> None:
         # TODO: test all variants of PART and AFIX sof combinations:
@@ -395,3 +395,18 @@ class Atom():
         """
         pivots = self.find_atoms_around(dist=1.2)
         return pivots[0] if pivots and self.afix.mn else None'''
+
+
+# if __name__ == '__main__':
+import unittest
+
+
+class TestFoo(unittest.TestCase):
+    def test_transformu(self):
+        from shelxfile import Shelxfile
+        shx = Shelxfile()
+        shx.read_file('tests/resources/water.res')
+        self.assertEqual('O1', shx.atoms.all_atoms[1].name)
+        self.assertEqual([0.01652, 0.01952, 0.0341, 0.00449, -0.00042, 0.00501], shx.atoms.all_atoms[1].uvals)
+        self.assertEqual([0.01952, 0.02602, 0.03410, -0.00491, -0.00449, 0.01451],
+                         shx.atoms.all_atoms[1].transform_u_by_symmetry())

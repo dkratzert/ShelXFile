@@ -364,9 +364,9 @@ class Matrix(object):
             raise ValueError('Inversion is only valid for 3x3 Matrix.')
         d = self.det
         m1, m2, m3, m4, m5, m6, m7, m8, m9 = flatten(self.values)
-        inv = Matrix([[(m5 * m9 - m6 * m8) / d, (m3 * m8 - m2 * m9) / d, (m2 * m6 - m3 * m5) / d],
-                      [(m6 * m7 - m4 * m9) / d, (m1 * m9 - m3 * m7) / d, (m3 * m4 - m1 * m6) / d],
-                      [(m4 * m8 - m5 * m7) / d, (m2 * m7 - m1 * m8) / d, (m1 * m5 - m2 * m4) / d]])
+        inv = Matrix((((m5 * m9 - m6 * m8) / d, (m3 * m8 - m2 * m9) / d, (m2 * m6 - m3 * m5) / d),
+                      ((m6 * m7 - m4 * m9) / d, (m1 * m9 - m3 * m7) / d, (m3 * m4 - m1 * m6) / d),
+                      ((m4 * m8 - m5 * m7) / d, (m2 * m7 - m1 * m8) / d, (m1 * m5 - m2 * m4) / d)))
         return inv
 
     @property
