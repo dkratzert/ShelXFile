@@ -6,7 +6,7 @@ with suppress(Exception):
 from shelxfile.misc.dsrmath import atomic_distance, Array, Matrix, SymmetryElement
 from shelxfile.misc.elements import get_atomic_number, get_radius_from_element
 from shelxfile.misc.misc import split_fvar_and_parameter, DEBUG, ParseSyntaxError, frac_to_cart, ParseUnknownParam, \
-    VERBOSE
+    VERBOSE, flatten
 from shelxfile.shelx.cards import PART, AFIX, RESI, CELL, Restraints
 
 
@@ -239,15 +239,29 @@ class Atom():
         return Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
 
     def transform_u_by_symmetry(self):
-        symm = '-y, +x-y, +z'.split(',')
+        # symm = '-y, +x-y, +z'.split(',')
+        symm = '-Y, -X+Y, -Z'.split(',')  # R2
         R = SymmetryElement(symm).matrix
-        Ustar_n = self.Ustar * R * R.T
-        Ucif_n = Ustar_n * self._cell.N.inversed * self._cell.N.inversed.T
+        U11, U12, U13, U21, U22, U23, U31, U32, U33 = 0.00000, -1.00000, 0.00000, \
+                                                      -1.00000, 1.00000, 0.00000, \
+                                                      0.00000, 0.00000, -1.00000
+
+        R2 = Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
+        print('###')
+        print(R, )
+        print('---')
+        print(R2)
+        print('###')
+        # Ucif_n = R * self.Ucif * R.T
+        # uvals = Ucif_n
+        Ustar_n = R * self.Ustar * R.T
+        Ucif_n = self._cell.N.inversed * Ustar_n * self._cell.N.inversed.T
         uvals = Ucif_n
+        # U11, U22, U33, U23, U13, U12
         upper_diagonal = uvals.values[0][0], uvals.values[1][1], uvals.values[2][2], \
                          uvals.values[1][2], uvals.values[0][2], \
                          uvals.values[0][1]
-        return [round(u, 6) for u in upper_diagonal]
+        return [round(u, 5) for u in upper_diagonal]
 
     def _get_part_and_occupation(self, atline: List[str]) -> None:
         # TODO: test all variants of PART and AFIX sof combinations:
