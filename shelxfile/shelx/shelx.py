@@ -186,9 +186,11 @@ class Shelxfile():
         self.resfile: Optional[Path] = None
         self._reslist: List[Union[str, Command, SFACTable, FVARs, Atom, SYMM]] = []
 
-    def write_shelx_file(self, filename: Optional[str] = None, verbose=False) -> None:
+    def write_shelx_file(self, filename: Optional[str, Path] = None, verbose=False) -> None:
         if not filename:
             filename = self.resfile
+        if isinstance(filename, str):
+            filename = Path(filename)
         with open(filename, 'w') as f:
             for num, line in enumerate(self._reslist):
                 if num in self.delete_on_write:
@@ -202,7 +204,7 @@ class Shelxfile():
                 line = "\n".join([wrap_line(x) for x in str(line).split("\n")])
                 f.write(str(line) + '\n')
         if verbose or DEBUG:
-            print('File successfully written to {}'.format(os.path.abspath(filename)))
+            print(f'*** File successfully written to {filename.resolve()} ***')
 
     def read_file(self, resfile: Union[Path, str]) -> None:
         """
@@ -283,11 +285,11 @@ class Shelxfile():
 
     def show_line_where_error_occured(self, e):
         try:
-            print('Error near:\n', self._reslist[self.error_line_num])
+            print(f'Error near:\n {self._reslist[self.error_line_num]}')
         except IndexError:
             pass
         print(e)
-        print("*** Syntax error found in file {}, line {} ***".format(self.resfile, self.error_line_num + 1))
+        print(f"*** Syntax error found in file {self.resfile}, line {self.error_line_num + 1} ***")
 
     def _find_included_files(self):
         # Tracks the file names of included files in order to find recursive inclusion:
@@ -309,7 +311,7 @@ class Shelxfile():
                         continue
                 except IndexError:
                     if DEBUG or VERBOSE:
-                        print('*** CANNOT READ INCLUDE FILE {} ***'.format(line))
+                        print(f'*** CANNOT READ INCLUDE FILE {line} ***')
                     # Not sure if this is a good idea: del reslist[n]
 
     def _read_included_file(self, includefiles: List[str], line: str):
@@ -323,7 +325,7 @@ class Shelxfile():
         except IOError as e:
             if DEBUG or VERBOSE:
                 print(e)
-                print('*** CANNOT OPEN NESTED INPUT FILE {} ***'.format(include_filename))
+                print(f'*** CANNOT OPEN NESTED INPUT FILE {include_filename} ***')
             return []
         return newfile
 
@@ -332,11 +334,11 @@ class Shelxfile():
         Reloads the shelx file and parses it again.
         """
         if DEBUG or VERBOSE:
-            print('reloading file:', self.resfile)
+            print(f'*** reloading file: {self.resfile} ***')
         self.read_file(self.resfile.resolve())
 
     def _parse_cards(self):
-        last_nonhydrogen_atom = None
+        last_nonhydrogen_atom: Optional[Atom] = None
         lastcard = ''
         fvarnum = 1
         for line_num, line in enumerate(self._reslist):
@@ -407,7 +409,7 @@ class Shelxfile():
                     a.pivot = last_nonhydrogen_atom
                 a.parse_line(spline, list_of_lines, part=self.part, afix=self.afix, resi=self.resi)
                 if not a.is_hydrogen:
-                    last_nonhydrogen_atom: Atom = a
+                    last_nonhydrogen_atom = a
                     a.pivot = None
                 self._append_card(self.atoms, a, line_num)
             elif word == 'SADI':
@@ -767,7 +769,7 @@ class Shelxfile():
         """
         if uvals is None:
             uvals = [0.04]
-        part = PART(self, 'PART {}'.format(part).split())
+        part = PART(self, f'PART {part}'.split())
         afix = AFIX(self, 'AFIX 0'.split())
         resi = RESI(self, 'RESI 0'.split())
         a = Atom(self)
