@@ -24,9 +24,8 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from typing import Union, List, Optional
-    from os import PathLike
+from typing import Union, List, Optional
+from os import PathLike
 
 from shelxfile.atoms.atom import Atom
 from shelxfile.atoms.atoms import Atoms
