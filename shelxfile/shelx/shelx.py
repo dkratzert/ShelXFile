@@ -9,14 +9,6 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
-from pathlib import Path
-from typing import Union, List, Optional
-
-from shelxfile.atoms.atom import Atom
-from shelxfile.atoms.atoms import Atoms
-from shelxfile.refine.refine import ShelxlRefine
-from shelxfile.shelx.sdm import SDM
-
 __doc__ = """
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
@@ -26,9 +18,20 @@ SHELX file even if it has syntax errors, but if for example, the SFAC and UNIT i
 it will fail. 
 """
 
-import os
 import re
 import sys
+
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Union, List, Optional
+    from os import PathLike
+
+from shelxfile.atoms.atom import Atom
+from shelxfile.atoms.atoms import Atoms
+from shelxfile.refine.refine import ShelxlRefine
+from shelxfile.shelx.sdm import SDM
 
 from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
@@ -186,7 +189,7 @@ class Shelxfile():
         self.resfile: Optional[Path] = None
         self._reslist: List[Union[str, Command, SFACTable, FVARs, Atom, SYMM]] = []
 
-    def write_shelx_file(self, filename: Optional[str, Path] = None, verbose=False) -> None:
+    def write_shelx_file(self, filename: Union[str, bytes, PathLike, None] = None, verbose=False) -> None:
         if not filename:
             filename = self.resfile
         if isinstance(filename, str):
