@@ -16,6 +16,10 @@ Shelxfile tries to detect all possible syntax errors that SHELXL would not like 
 
 Not every part of Shelxfile is complete, for example it will not recognize if you add restraints with atom names that are not in the SHELX file. Please help me improving it!
 
+**Source Code**
+
+[You can find the ShelXfile source code at GitHub](https://github.com/dkratzert/ShelXFile).
+
 Examples:
 
 
