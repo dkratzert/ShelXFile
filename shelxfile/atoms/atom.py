@@ -288,6 +288,10 @@ class Atom():
         return x, y, z
 
     @property
+    def is_isotropic(self) -> bool:
+        return sum(self.uvals[1:]) == 0
+
+    @property
     def element(self) -> str:
         """
         Chemical element character
