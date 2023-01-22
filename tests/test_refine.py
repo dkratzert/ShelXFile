@@ -97,10 +97,10 @@ class TestRefineFinishedmodel(TestCase):
         a = self.shx.atoms.get_atom_by_name('C1_3')
         self.assertEqual('C1   1   0.198400    0.149700   0.543800   31.00000    0.04000', a.__str__())
         self.shx.insert_anis(atoms='C1_3')
-        self.shx.refine(1, backup_before=False)
+        self.shx.refine(2, backup_before=False)
         a = self.shx.atoms.get_atom_by_name('C1_3')
-        self.assertEqual(('C1    1    0.197816    0.148838    0.543983    31.00000    0.03331    '
-                          '0.02580      0.02624    0.00518   -0.00708    0.01212'), a.__str__())
+        self.assertEqual(('C1    1    0.197848    0.148975    0.543834    31.00000    0.02442    '
+                          '0.02043      0.02665    0.00675   -0.00696    0.01064'), a.__str__())
 
     def test_refine_with_cycle_number_set_to_0_in_refine(self):
         self.assertTrue('L.S. 10' in Path('p21c.res').read_text())

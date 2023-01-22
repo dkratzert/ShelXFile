@@ -391,7 +391,8 @@ class Atom():
                 found.append(at)
         return found
 
-    '''def get_pivot_atom(self) -> Union['Atom', None]:
+    r'''
+    def get_pivot_atom(self) -> Union['Atom', None]:
         """
         Returns the pivot atom (C1) of a riding hydrogen atom e.g. (H1, H2, or H3).
            /H1
