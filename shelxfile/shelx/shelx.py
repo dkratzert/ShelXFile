@@ -867,7 +867,7 @@ class Shelxfile():
         """
         # no empty line, not in cards and not space at start:
         if atomline[:4].upper() not in SHX_CARDS:  # exclude all non-atom cards
-            spline = atomline.split()
+            spline: List[str] = atomline.split()
             # Too few parameter for an atom:
             if len(spline) < 5:
                 return False
@@ -884,7 +884,7 @@ class Shelxfile():
             return False
 
     @staticmethod
-    def _coordinates_are_unrealistic(spline):
+    def _coordinates_are_unrealistic(spline: List[str]) -> bool:
         return any(float(y) > 4.0 for y in spline[2:5])
 
     def elem2sfac(self, atom_type: str) -> int:
@@ -892,8 +892,10 @@ class Shelxfile():
         returns an sfac-number for the element given in "atom_type"
         """
         for num, element in enumerate(self.sfac_table, 1):
-            if atom_type.upper() == element.upper():
+            if atom_type.capitalize() == element.capitalize():
                 return num  # return sfac number
+        # Element was not found in sfac table
+        return 0
 
     def sfac2elem(self, sfacnum: int) -> str:
         """
@@ -906,14 +908,14 @@ class Shelxfile():
             return ''
         return elem
 
-    def add_line(self, linenum: int, line: str):
+    def add_line(self, linenum: int, line: str) -> None:
         """
         Adds a new SHELX card to the reslist after linenum.
         e.g. shx.add_line(shx.unit.position, 'ANIS')
         """
         self._reslist.insert(linenum + 1, line)
 
-    def replace_line(self, obj, new_line: str):
+    def replace_line(self, obj, new_line: str) -> None:
         """
         Replaces a single line in the res file with new_line.
         """
@@ -941,7 +943,7 @@ class Shelxfile():
                     return ''
         return formstring.strip()
 
-    def update_weight(self):
+    def update_weight(self) -> None:
         try:
             self.wght.a = self.wght_suggested.a
             self.wght.b = self.wght_suggested.b
@@ -952,12 +954,18 @@ class Shelxfile():
         except AttributeError:
             return
 
-    def insert_anis(self):
+    def insert_anis(self, atoms: str = '', residue: str = ''):
         """
         Inserts ANIS into a results file for refinement of anisotropic displacement parameters.
-        TODO: implement ANIS n and ANIS atoms
+
+        TODO: implement ANIS n
+        @param atoms: Specify secific atoms or wildcards of atoms.
+        @param residue: Specify a residue like ANIS_ABC with residue='ABC' or ANIS_* (residue='*')
         """
-        self.add_line(self.unit.position, 'ANIS')
+        if atoms:
+            self.add_line(self.unit.position, f'ANIS{"_" if residue else ""}{residue} {atoms}')
+        else:
+            self.add_line(self.unit.position, 'ANIS')
 
     @property
     def sum_formula_exact(self) -> str:

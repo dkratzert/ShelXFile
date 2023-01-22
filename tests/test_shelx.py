@@ -49,7 +49,7 @@ class TestShelxfileElementToSfac(TestCase):
         self.assertEqual(1, self.shx.elem2sfac('c'))
 
     def test_elem2sfac_Argon(self):
-        self.assertEqual(None, self.shx.elem2sfac('Ar'))
+        self.assertEqual(0, self.shx.elem2sfac('Ar'))
 
 
 class TestShelxfile(TestCase):

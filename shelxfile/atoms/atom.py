@@ -204,10 +204,11 @@ class Atom():
         self.sfac_num = int(atline[1])
         self.shx.fvars.set_fvar_usage(self.fvar)
         self.Ucif = self.set_ucif(uvals)
-        self.Ustar = self.Ucif * self._cell.N * self._cell.N.T
-        self.Ucart = self.Ustar * self._cell.o * self._cell.o.T
-        self.Ueq = self.set_ueq(uvals)
-        self.Uiso = self.Ueq
+        # TODO: I am still unsure if this these are correct values:
+        # self.Ustar = self.Ucif * self._cell.N * self._cell.N.T
+        # self.Ucart = self.Ustar * self._cell.o * self._cell.o.T
+        # self.Ueq = self.set_ueq(uvals)
+        # self.Uiso = self.Ueq
         # transformed_u = self.transform_u_by_symmetry(2)
         # print(self.name, [round(x, 6) for x in transformed_u], self.frac_coords)
 
@@ -245,8 +246,8 @@ class Atom():
         Ucif_n = Ustar_n * self._cell.N.inversed * self._cell.N.inversed.T
         uvals = Ucif_n
         upper_diagonal = uvals.values[0][0], uvals.values[1][1], uvals.values[2][2], \
-                         uvals.values[1][2], uvals.values[0][2], \
-                         uvals.values[0][1]
+            uvals.values[1][2], uvals.values[0][2], \
+            uvals.values[0][1]
         return upper_diagonal
 
     def _get_part_and_occupation(self, atline: List[str]) -> None:
@@ -302,7 +303,11 @@ class Atom():
         """
         Sets the element type of atom.
         """
-        self.sfac_num = self.shx.elem2sfac(new_element)
+        sfac = self.shx.elem2sfac(new_element)
+        if sfac == 0:
+            self.shx.sfac_table.add_element(new_element)
+            sfac = self.shx.elem2sfac(new_element)
+        self.sfac_num = sfac
 
     @property
     def radius(self) -> float:

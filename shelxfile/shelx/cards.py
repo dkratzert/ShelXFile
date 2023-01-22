@@ -1,6 +1,6 @@
 import re
 from math import cos, radians, sqrt, sin
-from typing import List, Union, TYPE_CHECKING, Optional, Iterator, Tuple
+from typing import List, Union, TYPE_CHECKING, Optional, Iterator, Tuple, Dict
 
 from shelxfile.atoms.pairs import AtomPair
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix, Matrix
@@ -107,7 +107,7 @@ class Residue():
 
     @property
     def residue_number(self) -> List[int]:
-        if '_' in self._spline[0] and not '$' in self._spline[0]:
+        if '_' in self._spline[0] and '$' not in self._spline[0]:
             _, suffix = self._spline[0].upper().split('_')
             if suffix.isdigit():
                 # TODO: implement _+, _- and _*
@@ -310,8 +310,15 @@ class ANIS(Command):
 
     def __init__(self, shx, spline: List):
         """
+        ANIS
         ANIS n
         ANIS names
+
+        Make either all atoms anisotropic (with just ANIS) or specific atoms with ANIS names.
+        Also, wildcards like 'ANIS $CL' would make all chlorine atoms anisotropic.
+        Since ANIS, like other instructions, applies to the current residue unless otherwise specified,
+        ANIS_* $S would be required to make the sulfur atoms in all residues anisotropic.
+        ANIS n makes the next n isotropic non-hydrogen atoms anisotropic.
         """
         super(ANIS, self).__init__(shx, spline)
         p, self.atoms = self._parse_line(spline)
@@ -1673,7 +1680,7 @@ class SFACTable():
 
         SFAC elements  or  SFAC E a1 b1 a2 b2 a3 b3 a4 b4 c f' f" mu r wt
         """
-        self.sfac_table = []
+        self.sfac_table: List[Union[Dict[str, str], Dict[str, int]]] = []
         self.shx = shx
         self.elements_list = []
 
@@ -1743,7 +1750,7 @@ class SFACTable():
     def is_exp(item):
         return 'a1' in item
 
-    def add_element(self, element: str):
+    def add_element(self, element: str) -> None:
         """
         Adds an element to the SFAC list.
         """

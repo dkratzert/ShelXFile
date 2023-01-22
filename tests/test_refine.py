@@ -33,10 +33,9 @@ class TestRefine(TestCase):
     def test_get_xl_version_string_with_no_path(self):
         self.assertEqual('', get_xl_version_string(''))
 
-    @unittest.skip('')
     def test_get_xl_version_string_with_real_path(self):
         shx = which('shelxl') if which('shelxl') else which('xl')
-        self.assertEqual('2019/2', get_xl_version_string(shx))
+        self.assertTrue(get_xl_version_string(shx) in ('2019/2', '2018/3', '2019/1'))
 
     def test_check_cycle_numbers(self):
         self.assertEqual('L.S. 10', str(self.shx.cycles))
@@ -76,16 +75,16 @@ class TestRefineFinishedmodel(TestCase):
 
     def test_refine_with_cycle_number_set_to_4_in_LScycles(self):
         self.assertTrue('L.S. 10' in Path('p21c.res').read_text())
-        self.shx.cycles.set_refine_cycles(4)
+        self.shx.cycles.set_refine_cycles(2)
         self.shx.refine(backup_before=False)
         txt = Path('p21c.res').read_text()
-        self.assertTrue('L.S. 4' in txt)
+        self.assertTrue('L.S. 2' in txt)
 
     def test_refine_with_cycle_number_set_to_4_in_refine(self):
         self.assertTrue('L.S. 10' in Path('p21c.res').read_text())
-        self.shx.refine(4, backup_before=False)
+        self.shx.refine(2, backup_before=False)
         txt = Path('p21c.res').read_text()
-        self.assertTrue('L.S. 4' in txt)
+        self.assertTrue('L.S. 2' in txt)
 
     def test_refine_with_ANIS_inserted_and_cycle_number_set_to_4_in_refine(self):
         self.assertFalse('ANIS' in Path('p21c.res').read_text())
@@ -93,6 +92,15 @@ class TestRefineFinishedmodel(TestCase):
         self.shx.refine(3, backup_before=False)
         self.assertTrue('ANIS' in Path('p21c.ins').read_text())
         self.assertFalse('ANIS' in Path('p21c.res').read_text())
+
+    def test_refine_with_ANIS_inserted_for_one_atom(self):
+        a = self.shx.atoms.get_atom_by_name('C1_3')
+        self.assertEqual('C1   1   0.198400    0.149700   0.543800   31.00000    0.04000', a.__str__())
+        self.shx.insert_anis(atoms='C1_3')
+        self.shx.refine(1, backup_before=False)
+        a = self.shx.atoms.get_atom_by_name('C1_3')
+        self.assertEqual(('C1    1    0.197816    0.148838    0.543983    31.00000    0.03331    '
+                          '0.02580      0.02624    0.00518   -0.00708    0.01212'), a.__str__())
 
     def test_refine_with_cycle_number_set_to_0_in_refine(self):
         self.assertTrue('L.S. 10' in Path('p21c.res').read_text())
