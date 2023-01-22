@@ -1,6 +1,6 @@
 import re
 from math import cos, radians, sqrt, sin
-from typing import List, Union, TYPE_CHECKING, Optional, Iterator, Tuple, Dict
+from typing import List, Union, TYPE_CHECKING, Optional, Iterator, Tuple, Dict, Generator
 
 from shelxfile.atoms.pairs import AtomPair
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix, Matrix
@@ -1097,7 +1097,7 @@ class Restraints():
     Base class for the list of restraints.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         """
         self._restraints: List[Restraint] = []
@@ -1105,7 +1105,7 @@ class Restraints():
     def append(self, restr: Restraint):
         self._restraints.append(restr)
 
-    def __iter__(self):
+    def __iter__(self) -> Generator:
         x: Restraint
         for x in self._restraints:
             yield x
@@ -1229,7 +1229,7 @@ class BUMP(Restraint):
 
 class DFIX(Restraint):
 
-    def __init__(self, shx, spline):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
         """
         DFIX d s[0.02] atom pairs
         """
@@ -1250,7 +1250,7 @@ class DFIX(Restraint):
 
 class DANG(Restraint):
 
-    def __init__(self, shx, spline):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
         """
         DANG d s[0.04] atom pairs
         """
@@ -1270,7 +1270,7 @@ class DANG(Restraint):
 
 class SADI(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
         """
         SADI s[0.02] pairs of atoms
         Instructions with only two atoms are ignored by SHELXL: SADI C3 C4
@@ -1287,7 +1287,7 @@ class SADI(Restraint):
 
 class SAME(Restraint):
 
-    def __init__(self, shx, spline):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
         """
         SAME s1[0.02] s2[0.04] atomnames
         """
@@ -1303,7 +1303,7 @@ class SAME(Restraint):
 
 class RIGU(Restraint):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]):
         """
         RIGU s1[0.004] s2[0.004] atomnames
         """
@@ -1319,7 +1319,7 @@ class RIGU(Restraint):
 
 class SIMU(Restraint):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]):
         """
         SIMU s[0.04] st[0.08] dmax[2.0] atomnames
         """
@@ -1338,7 +1338,7 @@ class SIMU(Restraint):
 
 class DELU(Restraint):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]):
         """
         DELU s1[0.01] s2[0.01] atomnames
         """
@@ -1354,7 +1354,7 @@ class DELU(Restraint):
 
 class CHIV(Restraint):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]):
         """
         CHIV V[0] s[0.1] atomnames
         """
@@ -1373,7 +1373,7 @@ class EADP(Restraint):
     EADP atomnames
     """
 
-    def __init__(self, shx, spline: list) -> None:
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
         super(EADP, self).__init__(shx, spline)
         _, self.atoms = self._parse_line(spline)
 
@@ -1411,7 +1411,7 @@ class DAMP(Command):
 
 class HFIX(Command):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
         """
         HFIX mn U[#] d[#] atomnames
         """
@@ -1425,7 +1425,7 @@ class HFIX(Command):
 
 class HKLF(Command):
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
         """
         HKLF N[0] S[1] r11...r33[1 0 0 0 1 0 0 0 1] sm[1] m[0]
         """
@@ -1447,7 +1447,7 @@ class HKLF(Command):
         if len(p) > 12:
             self.m = p[13]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "HKLF {:,g} {:,g}  {}  {:,g} {:,g}".format(self.n, self.s, ' '.join([str(i) for i in self.matrix]),
                                                           self.sm, self.m)
 
@@ -1468,7 +1468,7 @@ class SUMP(Command):
         _times: List[Union[int, float]] = [x for x in p[0::2]]
         self.fvars: List[list[Union[int, float]]] = [[x, y] for x, y in zip(_times, _fvars)]
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: int) -> Union[List[int], List[float]]:
         return self.fvars[item]
 
 
@@ -1500,7 +1500,7 @@ class LATT(Command):
 
     lattint_to_str = {1: 'P', 2: 'I', 3: 'R', 4: 'F', 5: 'A', 6: 'B', 7: 'C'}
 
-    def __init__(self, shx, spline: list):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
         """
         LATT N[1]
         """
@@ -1530,10 +1530,10 @@ class SYMM(Command):
         symmcard = ''.join(spline[1:]).split(',')  # removes whitespace
         return symmcard
 
-    def _as_str(self):
+    def _as_str(self) -> str:
         return "SYMM  " + ", ".join(self.symmcard)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self._as_str()
 
     def __str__(self) -> str:
@@ -1545,7 +1545,7 @@ class SymmCards():
     Contains the list of SYMM cards
     """
 
-    def __init__(self, shx):
+    def __init__(self, shx: 'Shelxfile') -> None:
         self.shx = shx
         self._symmcards = [SymmetryElement(['X', 'Y', 'Z'])]
         self.latt_ops = []
@@ -1559,10 +1559,10 @@ class SymmCards():
     def __str__(self) -> str:
         return self._as_str()
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: int) -> SymmetryElement:
         return self._symmcards[item]
 
-    def __iter__(self):
+    def __iter__(self) -> Generator:
         for x in self._symmcards:
             yield x
 
@@ -1585,7 +1585,7 @@ class SymmCards():
                 latt_symm.centric = True
                 self._symmcards.append(latt_symm)
 
-    def set_centric(self, value: bool):
+    def set_centric(self, value: bool) -> None:
         """
         Defines the instance as representing a centrosymmetric structure. Generates the appropriate SymmetryElement
         instances automatically if called before adding further SYMM commands via self.addSymm().
@@ -1658,20 +1658,20 @@ class LSCycles(Command):
         """
         return self.__repr__()
 
-    def __iter__(self):
+    def __iter__(self) -> Generator:
         for x in self.__repr__().split():
             yield x
 
-    def _as_str(self):
+    def _as_str(self) -> str:
         return '{} {} {} {}'.format('CGLS' if self.cgls else 'L.S.', self._cycles,
                                     self._nrf if self._nrf else '', self._nextra if self._nextra else '').strip()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self._as_str()
 
 
 class SFACTable():
-    def __init__(self, shx):
+    def __init__(self, shx: 'Shelxfile') -> None:
         """
         Holds the information of SFAC instructions. Either with default values and only elements
         SFAC elements
@@ -1684,11 +1684,11 @@ class SFACTable():
         self.shx = shx
         self.elements_list = []
 
-    def __iter__(self):
+    def __iter__(self) -> Generator:
         for x in self.sfac_table:
             yield x['element'].capitalize()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         sftext = ''
         elements = []
         for sf in self.sfac_table:
@@ -1702,16 +1702,16 @@ class SFACTable():
                 for x in ('element', 'a1', 'b1', 'a2', 'b2', 'a3', 'b3', 'a4', 'b4', 'c',
                           'fprime', 'fdprime', 'mu', 'r', 'wt'):
                     values.append(sf[x])
-                sftext += "\nSFAC " + "  ".join(values)
+                sftext = self._extend_sfac_text(elements, sftext)
         if elements:
             sftext = self._extend_sfac_text(elements, sftext)
         return sftext[1:]
 
     def _extend_sfac_text(self, elements: List[str], sftext: str) -> str:
-        sftext += "\nSFAC " + "  ".join(elements)
+        sftext += f"\nSFAC {'  '.join(elements)}"
         return sftext
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> str:
         """
         Returns the n-th element in the sfac table, beginning with 1.
         """
@@ -1721,7 +1721,7 @@ class SFACTable():
             index = len(self.sfac_table) + index + 1
         return self.sfac_table[index - 1]['element'].capitalize()
 
-    def parse_element_line(self, spline: list):
+    def parse_element_line(self, spline: List[str]) -> None:
         """
         Adds a new SFAC card to the list of cards.
         """
@@ -1743,11 +1743,11 @@ class SFACTable():
                 self.elements_list.append(x.upper())
                 self.sfac_table.append({'element': x.upper()})
 
-    def has_element(self, element):
+    def has_element(self, element: str) -> bool:
         return element.upper() in self.elements_list
 
     @staticmethod
-    def is_exp(item):
+    def is_exp(item: Dict[str, str]) -> bool:
         return 'a1' in item
 
     def add_element(self, element: str) -> None:
@@ -1781,19 +1781,19 @@ class UNIT(Command):
     def __iter__(self):
         yield [x for x in self.values]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "UNIT " + "  ".join(["{:,g}".format(x) for x in self.values])
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: int, value: Union[int, float]) -> None:
         self.values[key] = value
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: int) -> Union[int, float]:
         return self.values[item]
 
-    def __add__(self, other):
+    def __add__(self, other: Union[int, float]) -> None:
         self.values.append(other)
 
 
@@ -1804,7 +1804,7 @@ class BASF(Command):
     """
     scale_factors: List[Union[int, float]]
 
-    def __init__(self, shx, spline):
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
         super(BASF, self).__init__(shx, spline)
         self.scale_factors, _ = self._parse_line(spline)
 
@@ -1892,8 +1892,8 @@ class WGHT(Command):
             return [0.0, 0.0]
         return [round(adiff, 3), round(bdiff, 3)]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self._as_string()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._as_string()
