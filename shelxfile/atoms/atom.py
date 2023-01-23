@@ -32,9 +32,9 @@ class Atom():
         self.resi: Union[RESI, None] = None
         self.part: PART = PART(shx, ['PART', '0'])
         self.afix: Union[AFIX, None] = None
-        self.name = 'name'  # Name without residue number like "C1"
+        self._name: str = 'name'  # Name without residue number like "C1"
         # Site occupation factor including free variable like 31.0
-        self.sof = 11.0
+        self.sof: float = 11.0
         # fractional coordinates:
         self.x: float = 0.0
         self.y: float = 0.0
@@ -298,10 +298,6 @@ class Atom():
         """
         return self.shx.sfac2elem(self.sfac_num).capitalize()
 
-    @property
-    def an(self) -> int:
-        return get_atomic_number(self.element)
-
     @element.setter
     def element(self, new_element: str) -> None:
         """
@@ -312,6 +308,21 @@ class Atom():
             self.shx.sfac_table.add_element(new_element)
             sfac = self.shx.elem2sfac(new_element)
         self.sfac_num = sfac
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, new_name: str) -> None:
+        if '_' in new_name:
+            print('*** Illegal name. Use a name without residue number. ***')
+            return
+        self._name = new_name
+
+    @property
+    def an(self) -> int:
+        return get_atomic_number(self.element)
 
     @property
     def radius(self) -> float:

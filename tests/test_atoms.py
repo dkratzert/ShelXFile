@@ -148,6 +148,22 @@ class TestAtoms(TestCase):
         # The name of atom 40 is C1_4
         self.assertEqual('C1_4', self.shx.atoms.get_atom_by_id(40).fullname)
 
+    def test_rename_c1_4(self):
+        # The name of atom 40 is C1_4
+        atom = self.shx.atoms.get_atom_by_id(40)
+        self.assertEqual('C1', atom.name)
+        atom.name = 'C99'
+        self.assertEqual('C99', atom.name)
+        self.assertEqual(('C99   1    0.028576    0.234542    0.337234   -31.00000    0.02311    '
+                          '0.03617      0.01096   -0.01000    0.00201    0.00356'), atom.__str__())
+
+    def test_rename_fails(self):
+        # The name of atom 40 is C1_4
+        atom = self.shx.atoms.get_atom_by_id(40)
+        atom.name = 'C99_3'
+        # Atom name stays, because 'C99_3' is illegal.
+        self.assertEqual('C1', atom.name)
+
     def test_delete_atom40(self):
         # get atom 40
         at = self.shx.atoms.get_atom_by_id(40)
@@ -280,6 +296,6 @@ class TestUisoOfFreeRefine(TestCase):
     def test_free_refined_hydrogen(self):
         h1a = self.shx.atoms.get_atom_by_name('H1A')
         # TODO: I am usure about the values:
-        #self.assertEqual(0.04654, h1a.Uiso)
-        #self.assertEqual([0.04654, 0.0, 0.0, 0.0, 0.0, 0.0], h1a.uvals)
+        # self.assertEqual(0.04654, h1a.Uiso)
+        # self.assertEqual([0.04654, 0.0, 0.0, 0.0, 0.0, 0.0], h1a.uvals)
         self.assertEqual("O3'", h1a.pivot.name)
