@@ -95,6 +95,11 @@ Atom ID: 258  # <- The Atom ID is the index number in the Shelxfile._reslist lis
 >>> a.element
 'F'
 
+# Introduce a new element
+>>> a.element = 'Na'
+>>> shx.sfac_table
+SFAC C  H  O  F  Al  Ga  Na
+
 >>> a.resinum
 2
 
