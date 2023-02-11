@@ -20,28 +20,24 @@ it will fail.
 
 import re
 import sys
-
+from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING
-
 from typing import Union, List, Optional
-from os import PathLike
 
 from shelxfile.atoms.atom import Atom
 from shelxfile.atoms.atoms import Atoms
-from shelxfile.refine.refine import ShelxlRefine
-from shelxfile.shelx.sdm import SDM
-
-from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
-    BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
-    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
-    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
-    RESI, ABIN, ANIS, Residues, SWAT, Command
 from shelxfile.misc.dsrmath import Array
 # noinspection PyUnresolvedReferences
 from shelxfile.misc.misc import DEBUG, VERBOSE
 from shelxfile.misc.misc import ParseOrderError, ParseNumError, ParseUnknownParam, \
     multiline_test, dsr_regex, wrap_line, ParseSyntaxError
+from shelxfile.refine.refine import ShelxlRefine
+from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
+    BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
+    SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
+    MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
+    RESI, ABIN, ANIS, Residues, SWAT, Command
+from shelxfile.shelx.sdm import SDM
 
 """
 TODO:
@@ -91,15 +87,20 @@ class Shelxfile():
     _goof_regex = re.compile(r'^REM\swR2\s=\s.*,\sGooF', re.IGNORECASE)
     _spgrp_regex = re.compile(r'^REM\s+\S+\s+in\s+\S+', re.IGNORECASE)
 
-    def __init__(self, verbose: bool = False, debug: bool = False):
+    def __init__(self, verbose: bool = False, debug: bool = False) -> None:
         global VERBOSE
         global DEBUG
         if debug and verbose:
             raise ValueError("Either 'verbose' or 'debug' allowed, not both.")
         if debug:
             DEBUG = True
+        else:
+            DEBUG = False
         if verbose:
             VERBOSE = True
+        else:
+            VERBOSE = False
+        # print(f'DEBUG: {DEBUG}, VERBOSE: {VERBOSE}')
         self.temp_in_kelvin: float = 0.0
         self.shelx_max_line_length: int = 79  # maximum character lenth per line in SHELXL
         self.cell: Optional[CELL] = None
@@ -188,7 +189,7 @@ class Shelxfile():
         self.resfile: Optional[Path] = None
         self._reslist: List[Union[str, Command, SFACTable, FVARs, Atom, SYMM]] = []
 
-    def write_shelx_file(self, filename: Union[str, bytes, PathLike, None] = None, verbose=False) -> None:
+    def write_shelx_file(self, filename: Union[str, Path, None] = None, verbose=False) -> None:
         if not filename:
             filename = self.resfile
         if isinstance(filename, str):
@@ -212,7 +213,7 @@ class Shelxfile():
         """
         Read input from a file path.
         """
-        self.__init__()
+        self.__init__(debug=DEBUG, verbose=VERBOSE)
         if isinstance(resfile, str):
             resfile = Path(resfile)
         self.resfile = resfile.resolve()
@@ -236,7 +237,7 @@ class Shelxfile():
         self._reslist = resfile_string.splitlines(keepends=False)
         self.parse_cards()
 
-    def parse_cards(self):
+    def parse_cards(self) -> None:
         try:
             self._parse_cards()
         except Exception as e:
@@ -279,7 +280,7 @@ class Shelxfile():
         if not a:
             bad_atoms.append(restraint_atom)
 
-    def _test_if_file_is_valid(self, resfile):
+    def _test_if_file_is_valid(self, resfile: Path) -> None:
         if len(self._reslist) < 20 and (DEBUG or VERBOSE):
             print('*** Not a SHELXL file: {} ***'.format(resfile))
             if DEBUG:
@@ -293,7 +294,7 @@ class Shelxfile():
         print(e)
         print(f"*** Syntax error found in file {self.resfile}, line {self.error_line_num + 1} ***")
 
-    def _find_included_files(self):
+    def _find_included_files(self) -> None:
         # Tracks the file names of included files in order to find recursive inclusion:
         includefiles = []
         for line_num, line in enumerate(self._reslist):
@@ -331,7 +332,7 @@ class Shelxfile():
             return []
         return newfile
 
-    def reload(self):
+    def reload(self) -> None:
         """
         Reloads the shelx file and parses it again.
         """
@@ -339,7 +340,7 @@ class Shelxfile():
             print(f'*** reloading file: {self.resfile} ***')
         self.read_file(self.resfile.resolve())
 
-    def _parse_cards(self):
+    def _parse_cards(self) -> None:
         last_nonhydrogen_atom: Optional[Atom] = None
         lastcard = ''
         fvarnum = 1
@@ -491,7 +492,7 @@ class Shelxfile():
                 # if not self.zerr:
                 #    raise ParseOrderError
                 s = SYMM(self, spline)
-                if not self.latt and DEBUG or VERBOSE:
+                if not self.latt and (DEBUG or VERBOSE):
                     print("*** LATT instruction is missing! ***")
                     if DEBUG:
                         raise ParseSyntaxError
@@ -921,7 +922,7 @@ class Shelxfile():
         """
         self._reslist[self.index_of(obj)] = new_line
 
-    def index_of(self, obj):
+    def index_of(self, obj: Atom) -> int:
         return self._reslist.index(obj)
 
     @property
@@ -1010,7 +1011,7 @@ class Shelxfile():
         # insert the db entry right after FVAR
         self.add_line(self.fvars.position, dblines)
 
-    def _get_residuals(self, spline, line):
+    def _get_residuals(self, spline: List[str], line: str) -> None:
         if Shelxfile._r1_regex.match(line):
             self._get_r1(spline)
         if Shelxfile._wr2_regex.match(line):
@@ -1024,54 +1025,40 @@ class Shelxfile():
         if Shelxfile._spgrp_regex.match(line):
             self._get_space_group(spline)
 
-    def _get_space_group(self, spline):
+    def _get_space_group(self, spline: List[str]) -> None:
         try:
             self.space_group = spline[3]
         except(IndexError, ValueError):
             pass
 
-    def _get_goof(self, spline):
-        try:
+    def _get_goof(self, spline: List[str]) -> None:
+        with suppress(IndexError, ValueError):
             self.goof = float(spline[8].split(',')[0])
             self.rgoof = float(spline[12].split(',')[0])
-        except(IndexError, ValueError):
-            pass
 
-    def _get_peak_hole(self, spline):
+    def _get_peak_hole(self, spline: List[str]) -> None:
         # REM Highest difference peak  0.407,  deepest hole -0.691,  1-sigma level  0.073
-        try:
+        with suppress(IndexError, ValueError):
             self.highest_peak = float(spline[4].split(",")[0])
             self.deepest_hole = float(spline[7].split(",")[0])
-        except(IndexError, ValueError):
-            pass
 
-    def _get_params_and_restraints(self, spline):
-        try:
+    def _get_params_and_restraints(self, spline: List[str]) -> None:
+        with suppress(IndexError):
             self.parameters = int(spline[1])
             if self.data and self.parameters:
                 self.dat_to_param = float(self.data) / float(self.parameters)
-        except IndexError:
-            pass
-        try:
+        with suppress(IndexError, ValueError):
             self.num_restraints = int(spline[-2])
-        except(IndexError, ValueError):
-            pass
 
-    def _get_wr2(self, spline):
-        try:
+    def _get_wr2(self, spline: List[str]) -> None:
+        with suppress(IndexError, ValueError):
             self.wr2 = float(spline[3].split(",")[0])
-        except(IndexError, ValueError):
-            pass
 
-    def _get_r1(self, spline):
-        try:
+    def _get_r1(self, spline: List[str]) -> None:
+        with suppress(IndexError, ValueError):
             self.R1 = float(spline[3])
-        except(IndexError, ValueError):
-            pass
-        try:
+        with suppress(IndexError, ValueError):
             self.data = int(spline[-2])
-        except(IndexError, ValueError):
-            pass
 
 
 if __name__ == "__main__":
