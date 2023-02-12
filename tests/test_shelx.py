@@ -125,6 +125,32 @@ class TestShelxfileGoodModel(TestCase):
         a = self.shx._reslist[-20]
         self.assertEqual('Q1   1   0.0784    0.1310    0.6428   11.00000  0.04      0.10     ', str(a))
 
+    def test_r1(self):
+        assert self.shx.R1 == 0.194
+
+    def test_wr2(self):
+        assert self.shx.wr2 == 0.51
+
+    def test_data(self):
+        assert self.shx.data == 10786
+
+    def test_param(self):
+        assert self.shx.parameters == 551
+
+    def test_data_to_param(self):
+        assert round(self.shx.dat_to_param, 4) == 19.5753
+
+    def test_num_restraints(self):
+        assert self.shx.num_restraints == 0
+
+    def test_peak_hole(self):
+        assert self.shx.highest_peak == 6.395
+        assert self.shx.deepest_hole == -5.556
+
+    def test_peak_goof(self):
+        assert self.shx.goof == 5.982
+        assert self.shx.rgoof == 5.982
+
 
 class TestWriteFile(TestCase):
     def setUp(self) -> None:
