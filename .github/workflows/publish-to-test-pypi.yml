@@ -3,11 +3,14 @@
 
 name: shelxfile_tests_pypi_github
 
-on: label
+on:
+  push:
+    tags:
+      - v\d+
 
 jobs:
   build-n-publish:
-    name: shelxfile_tests_pypi_github
+    name: shelxfile_deploy_to_test-pypi
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -32,5 +35,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          user: __token__
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository_url: https://test.pypi.org/legacy/
