@@ -234,6 +234,7 @@ class Shelxfile():
         Read input as string.
         This will not read files included with "+filename" syntax!
         """
+        self.__init__(debug=DEBUG, verbose=VERBOSE)
         self._reslist = resfile_string.splitlines(keepends=False)
         self.parse_cards()
 

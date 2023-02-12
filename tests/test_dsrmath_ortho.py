@@ -6,7 +6,7 @@ from shelxfile.misc.dsrmath import Array
 
 class TestOrthogonalMatrix(TestCase):
     def setUp(self) -> None:
-        self.shx = Shelxfile()
+        self.shx = Shelxfile(debug=True)
         self.shx.read_file('tests/resources/jkd77.res')
 
     def test_frac_to_cart(self):

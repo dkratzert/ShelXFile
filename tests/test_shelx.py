@@ -39,7 +39,7 @@ class TestShelxfileElementToSfac(TestCase):
     """
 
     def setUp(self) -> None:
-        self.shx = Shelxfile()
+        self.shx = Shelxfile(debug=True)
         self.shx.read_file('tests/resources/p21c.res')
 
     def test_elem2sfac_oxygen(self):
@@ -55,7 +55,7 @@ class TestShelxfileElementToSfac(TestCase):
 class TestShelxfile(TestCase):
 
     def setUp(self) -> None:
-        self.shx = Shelxfile()
+        self.shx = Shelxfile(debug=True)
         self.shx.read_file('tests/resources/p21c.res')
 
     def test_sfac2elem_C(self):
@@ -81,13 +81,21 @@ class TestShelxfile(TestCase):
 
     def test_read_file_to_list(self):
         shx = Shelxfile()
+        shx._reslist = ['Foo']
         shx.read_file('tests/resources/p21c.res')
+        # Make sure read_file() re-initializes the constructor:
         self.assertEqual(['TITL p21c in P2(1)/c',
                           '    created by SHELXL-2018/3 at 16:18:25 on 03-May-2018',
                           'CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90',
                           'ZERR 4 0.0003 0.0005 0.0005 0 0.001 0',
                           'LATT 1'],
                          [str(x) for x in shx._reslist[:5]])
+
+    def test_read_string(self):
+        self.shx.atoms = 'Foo'
+        # Make sure read_string re-initializes the constructor:
+        self.shx.read_string(Path('tests/resources/p21c.res').read_text(encoding='latin1'))
+        assert self.shx.atoms.number == 148
 
     def test_read_file(self):
         shx = Shelxfile()
