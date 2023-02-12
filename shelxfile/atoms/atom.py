@@ -315,7 +315,7 @@ class Atom():
     @name.setter
     def name(self, new_name: str) -> None:
         if '_' in new_name:
-            print('*** Illegal name. Use a name without residue number. ***')
+            print('*** Illegal atom name. Use a name without a residue number. ***')
             return
         self._name = new_name
 
