@@ -189,7 +189,10 @@ class Shelxfile():
         self.resfile: Optional[Path] = None
         self._reslist: List[Union[str, Command, SFACTable, FVARs, Atom, SYMM]] = []
 
-    def write_shelx_file(self, filename: Union[str, Path, None] = None, verbose=False) -> None:
+    def write_shelx_file(self, filename: Union[str, Path, None] = None) -> None:
+        if not self._reslist:
+            print('*** No file was loaded for writing. ***')
+            return None
         if not filename:
             filename = self.resfile
         if isinstance(filename, str):
@@ -206,7 +209,7 @@ class Shelxfile():
                 # Prevent wrapping long lines with \n breaks by splitting first:
                 line = "\n".join([wrap_line(x) for x in str(line).split("\n")])
                 f.write(str(line) + '\n')
-        if verbose or DEBUG:
+        if VERBOSE or DEBUG:
             print(f'*** File successfully written to {filename.resolve()} ***')
 
     def read_file(self, resfile: Union[Path, str]) -> None:
