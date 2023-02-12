@@ -18,6 +18,8 @@ The parser will try to read the SHELX file even if it has syntax errors, but if 
 instruction is not consistent it will fail. 
 """
 
+__version__ = '13'
+
 import re
 import sys
 from contextlib import suppress
