@@ -1,11 +1,10 @@
 from math import acos, sqrt, degrees
-from typing import Union, List, TYPE_CHECKING, Tuple, Optional
+from typing import Union, List, TYPE_CHECKING, Tuple, Iterator
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
 from shelxfile.atoms.atom import Atom
 from shelxfile.misc.dsrmath import atomic_distance, Array
-from shelxfile.misc.misc import DEBUG
 
 
 class Atoms():
@@ -33,7 +32,7 @@ class Atoms():
         else:
             return 'No Atoms in file.'
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator:
         return iter(x for x in self.all_atoms)
 
     def __getitem__(self, item: int) -> 'Atom':
@@ -42,18 +41,18 @@ class Atoms():
     def __len__(self) -> int:
         return len(self.all_atoms)
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: int) -> None:
         """
         Delete an atom by its atomid:
         del atoms[4]
         """
         for n, at in enumerate(self.all_atoms):
             if key == at.atomid:
-                if DEBUG:
+                if self.shx.debug:
                     print("deleting atom", at.fullname)
                 del self.all_atoms[n]
                 del self.shx._reslist[self.shx._reslist.index(at)]
-        # if DEBUG:
+        # if self.shx.debug:
         #    print('Could not delete atom {}'.format(self.get_atom_by_id(key.atomid).fullname))
 
     @property
@@ -96,7 +95,7 @@ class Atoms():
                 return None
             atom_name = f'{atom_name}_0'
         atom = self.atomsdict.get(atom_name.upper(), None)
-        if not atom and DEBUG:
+        if not atom and self.shx.debug:
             print("Atom {} not found in atom list.".format(atom_name))
         return atom
 

@@ -13,9 +13,9 @@ __doc__ = """
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
 
-The parser is quiet about the most errors unless you enable DEBUG in misc.py. The parser will try to read the 
-SHELX file even if it has syntax errors, but if for example, the SFAC and UNIT instruction is not consistent 
-it will fail. 
+The parser is quiet about the most errors unless you enable debug or verbose during initialization. 
+The parser will try to read the SHELX file even if it has syntax errors, but if for example, the SFAC and UNIT 
+instruction is not consistent it will fail. 
 """
 
 import re
@@ -28,7 +28,6 @@ from shelxfile.atoms.atom import Atom
 from shelxfile.atoms.atoms import Atoms
 from shelxfile.misc.dsrmath import Array
 # noinspection PyUnresolvedReferences
-from shelxfile.misc.misc import DEBUG, VERBOSE
 from shelxfile.misc.misc import ParseOrderError, ParseNumError, ParseUnknownParam, \
     multiline_test, dsr_regex, wrap_line, ParseSyntaxError
 from shelxfile.refine.refine import ShelxlRefine
@@ -36,7 +35,7 @@ from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
-    RESI, ABIN, ANIS, Residues, SWAT, Command
+    RESI, ABIN, ANIS, Residues, SWAT, Command, Restraint
 from shelxfile.shelx.sdm import SDM
 
 """
@@ -88,19 +87,15 @@ class Shelxfile():
     _spgrp_regex = re.compile(r'^REM\s+\S+\s+in\s+\S+', re.IGNORECASE)
 
     def __init__(self, verbose: bool = False, debug: bool = False) -> None:
-        global VERBOSE
-        global DEBUG
         if debug and verbose:
             raise ValueError("Either 'verbose' or 'debug' allowed, not both.")
+        self.debug = False
+        self.verbose = False
         if debug:
-            DEBUG = True
-        else:
-            DEBUG = False
+            self.debug = True
         if verbose:
-            VERBOSE = True
-        else:
-            VERBOSE = False
-        # print(f'DEBUG: {DEBUG}, VERBOSE: {VERBOSE}')
+            self.verbose = True
+        # print(f'DEBUG: {self.debug}, VERBOSE: {self.verbose}')
         self.temp_in_kelvin: float = 0.0
         self.shelx_max_line_length: int = 79  # maximum character lenth per line in SHELXL
         self.cell: Optional[CELL] = None
@@ -200,7 +195,7 @@ class Shelxfile():
         with open(filename, 'w') as f:
             for num, line in enumerate(self._reslist):
                 if num in self.delete_on_write:
-                    if DEBUG:
+                    if self.debug:
                         # print('Deleted line {}'.format(num + 1))
                         pass
                     continue
@@ -209,24 +204,24 @@ class Shelxfile():
                 # Prevent wrapping long lines with \n breaks by splitting first:
                 line = "\n".join([wrap_line(x) for x in str(line).split("\n")])
                 f.write(str(line) + '\n')
-        if VERBOSE or DEBUG:
+        if self.verbose or self.debug:
             print(f'*** File successfully written to {filename.resolve()} ***')
 
     def read_file(self, resfile: Union[Path, str]) -> None:
         """
         Read input from a file path.
         """
-        self.__init__(debug=DEBUG, verbose=VERBOSE)
+        self.__init__(debug=self.debug, verbose=self.verbose)
         if isinstance(resfile, str):
             resfile = Path(resfile)
         self.resfile = resfile.resolve()
-        if DEBUG:
+        if self.debug:
             print(f'Resfile is: {resfile}')
         try:
             self._reslist: List = resfile.read_text().splitlines(keepends=False)
             self._test_if_file_is_valid(resfile)
         except UnicodeDecodeError:
-            if DEBUG or VERBOSE:
+            if self.debug or self.verbose:
                 print(f'*** Unable to read file {resfile} ***')
             return
         self._find_included_files()
@@ -237,7 +232,7 @@ class Shelxfile():
         Read input as string.
         This will not read files included with "+filename" syntax!
         """
-        self.__init__(debug=DEBUG, verbose=VERBOSE)
+        self.__init__(debug=self.debug, verbose=self.verbose)
         self._reslist = resfile_string.splitlines(keepends=False)
         self.parse_cards()
 
@@ -245,9 +240,9 @@ class Shelxfile():
         try:
             self._parse_cards()
         except Exception as e:
-            if DEBUG or VERBOSE:
+            if self.debug or self.verbose:
                 self.show_line_where_error_occured(e)
-                if DEBUG:
+                if self.debug:
                     raise
             else:
                 return
@@ -275,7 +270,7 @@ class Shelxfile():
                 bad_atoms.clear()
             if restraint.residue_class and sum(restraint.residue_number) == 0:
                 warnings.append(f"*** Restraint '{restraint}' has a residue class, but no residues are defined. ***")
-        if DEBUG or VERBOSE:
+        if self.debug or self.verbose:
             print('\n'.join(warnings))
         return warnings
 
@@ -285,9 +280,9 @@ class Shelxfile():
             bad_atoms.append(restraint_atom)
 
     def _test_if_file_is_valid(self, resfile: Path) -> None:
-        if len(self._reslist) < 20 and (DEBUG or VERBOSE):
+        if len(self._reslist) < 20 and (self.debug or self.verbose):
             print('*** Not a SHELXL file: {} ***'.format(resfile))
-            if DEBUG:
+            if self.debug:
                 sys.exit()
 
     def show_line_where_error_occured(self, e):
@@ -317,7 +312,7 @@ class Shelxfile():
                             self._reslist.insert(reslist_position, l)
                         continue
                 except IndexError:
-                    if DEBUG or VERBOSE:
+                    if self.debug or self.verbose:
                         print(f'*** CANNOT READ INCLUDE FILE {line} ***')
                     # Not sure if this is a good idea: del reslist[n]
 
@@ -330,7 +325,7 @@ class Shelxfile():
         try:
             newfile = include_filename.read_text().splitlines(keepends=False)
         except IOError as e:
-            if DEBUG or VERBOSE:
+            if self.debug or self.verbose:
                 print(e)
                 print(f'*** CANNOT OPEN NESTED INPUT FILE {include_filename} ***')
             return []
@@ -340,7 +335,7 @@ class Shelxfile():
         """
         Reloads the shelx file and parses it again.
         """
-        if DEBUG or VERBOSE:
+        if self.debug or self.verbose:
             print(f'*** reloading file: {self.resfile} ***')
         self.read_file(self.resfile.resolve())
 
@@ -381,7 +376,7 @@ class Shelxfile():
             # get RESI:
             if line.startswith(('END', 'HKLF')) and self.resi:
                 self.resi.num = 0
-                if DEBUG or VERBOSE:
+                if self.debug or self.verbose:
                     print('RESI in line {} was not closed'.format(line_num + 1))
                 # Do not continue here, otherwise HKLF is not parsed
                 # continue
@@ -393,7 +388,7 @@ class Shelxfile():
             # Now collect the PART:
             if line.startswith(('END', 'HKLF')) and self.part:
                 self.part.n = 0
-                if DEBUG or VERBOSE:
+                if self.debug or self.verbose:
                     print('PART in line {} was not closed'.format(line_num + 1))
                 # Do not continue here, otherwise HKLF is not parsed
                 # continue
@@ -403,7 +398,7 @@ class Shelxfile():
             # collect AFIX:
             if line.startswith(('END', 'HKLF')) and self.afix:
                 self.afix.mn = 0
-                if DEBUG or VERBOSE:
+                if self.debug or self.verbose:
                     print('AFIX in line {} was not closed'.format(line_num + 1))
             elif word == 'AFIX':
                 self.afix = self._assign_card(AFIX(self, spline), line_num)
@@ -456,7 +451,7 @@ class Shelxfile():
                 self._get_residuals(spline, line)
             elif word == 'CELL':
                 # CELL λ a b c α β γ
-                if lastcard != 'TITL' and (DEBUG or VERBOSE):
+                if lastcard != 'TITL' and (self.debug or self.verbose):
                     print('*** TITL is missing. ***')
                 self.cell = self._assign_card(CELL(self, spline), line_num)
                 self.orthogonal_matrix = self.cell.o
@@ -465,18 +460,18 @@ class Shelxfile():
             elif word == "ZERR":
                 # ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
                 if lastcard != 'CELL':
-                    if DEBUG or VERBOSE:
+                    if self.debug or self.verbose:
                         print('*** Invalid SHELX file: CELL must occur before ZERR. ***')
-                    if DEBUG:
-                        raise ParseOrderError
+                    if self.debug:
+                        raise ParseOrderError(debug=shx.debug, verbose=shx.verbose)
                 if not self.cell:
-                    raise ParseOrderError('*** Cell parameters missing! ***')
+                    raise ParseOrderError('*** Cell parameters missing! ***', debug=shx.debug, verbose=shx.verbose)
                 if len(spline) >= 8:
                     self.zerr: ZERR = self._assign_card(ZERR(self, spline), line_num)
                     self.Z = self.zerr.Z
                     if self.Z < 1:
                         self.Z = 1
-                        if VERBOSE or DEBUG:
+                        if self.verbose or self.debug:
                             print('*** Warning: Z value is zero. ***')
                 lastcard = 'ZERR'
             elif word == "LATT":
@@ -484,7 +479,7 @@ class Shelxfile():
                 # 1=P, 2=I, 3=rhombohedral obverse on hexagonal axes, 4=F, 5=A, 6=B, 7=C.
                 # negative is non-centrosymmetric
                 self.latt = self._assign_card(LATT(self, spline), line_num)
-                if lastcard != 'ZERR' and (VERBOSE or DEBUG):
+                if lastcard != 'ZERR' and (self.verbose or self.debug):
                     print('*** ZERR instruction is missing! ***')
                 if self.latt.centric:
                     self.symmcards.set_centric(True)
@@ -496,10 +491,10 @@ class Shelxfile():
                 # if not self.zerr:
                 #    raise ParseOrderError
                 s = SYMM(self, spline)
-                if not self.latt and (DEBUG or VERBOSE):
+                if not self.latt and (self.debug or self.verbose):
                     print("*** LATT instruction is missing! ***")
-                    if DEBUG:
-                        raise ParseSyntaxError
+                    if self.debug:
+                        raise ParseSyntaxError(debug=self.debug, verbose=self.verbose)
                 # Have to do this after parsing, because P-1 has no SYMM!
                 # if self.latt.centric:
                 #    self.symmcards.set_centric(True)
@@ -531,21 +526,21 @@ class Shelxfile():
                 # UNIT n1 n2 ...
                 # Number of atoms of each type in the unit-cell, in SFAC order.
                 if lastcard != 'SFAC':
-                    raise ParseOrderError
+                    raise ParseOrderError(debug=shx.debug, verbose=shx.verbose)
                 if self.sfac_table:
                     try:
                         self.unit = self._assign_card(UNIT(self, spline), line_num)
                     except ValueError:
-                        if DEBUG or VERBOSE:
+                        if self.debug or self.verbose:
                             print('*** Non-numeric value in SFAC instruction! ***')
-                        if DEBUG:
+                        if self.debug:
                             raise
                 else:
-                    raise ParseOrderError
-                if len(self.unit.values) != len(self.sfac_table.elements_list) and (DEBUG or VERBOSE):
+                    raise ParseOrderError(debug=shx.debug, verbose=shx.verbose)
+                if len(self.unit.values) != len(self.sfac_table.elements_list) and (self.debug or self.verbose):
                     print('*** Number of UNIT and SFAC values differ! ***')
-                    if DEBUG:
-                        raise ParseNumError
+                    if self.debug:
+                        raise ParseNumError(debug=self.shx.debug, verbose=self.shx.verbose)
                 lastcard = 'UNIT'
             elif word in ['L.S.', 'CGLS']:
                 # CGLS nls[0] nrf[0] nextra[0]
@@ -619,7 +614,7 @@ class Shelxfile():
             elif word == 'DISP':
                 # DISP E f' f"[#] mu[#]
                 if lastcard != 'SFAC':
-                    raise ParseOrderError
+                    raise ParseOrderError(debug=shx.debug, verbose=shx.verbose)
                 self._append_card(self.disp, DISP(self, spline), line_num)
             elif word == 'EQIV':
                 # EQIV $n symmetry operation
@@ -639,7 +634,7 @@ class Shelxfile():
             elif word == 'FEND':
                 # FEND (must follow FRAG)
                 if not self.frag:
-                    raise ParseOrderError
+                    raise ParseOrderError(debug=shx.debug, verbose=shx.verbose)
                 self.frag = None  # Turns frag mode off.
             elif word == 'FLAT':
                 # FLAT s[0.1] four or more atoms
@@ -687,8 +682,8 @@ class Shelxfile():
             elif word == 'NEUT':
                 # NEUT
                 # TODO: Implement NEUT class
-                if not lastcard == 'SYMM':
-                    raise ParseOrderError
+                if lastcard != 'SYMM':
+                    raise ParseOrderError(debug=shx.debug, verbose=shx.verbose)
             elif word == 'OMIT':
                 # OMIT atomnames  or  OMIT s[-2] 2θ(lim)[180]  or  OMIT h k l
                 # TODO: Implement OMIT class
@@ -764,10 +759,10 @@ class Shelxfile():
             else:
                 if not line.strip():
                     continue
-                if DEBUG or VERBOSE:
+                if self.debug or self.verbose:
                     print("Error in line: {} -> {}".format(line_num + 1, line))
-                    if DEBUG:
-                        raise ParseUnknownParam
+                    if self.debug:
+                        raise ParseUnknownParam(debug=self.debug, verbose=self.verbose)
 
     def add_atom(self, name: str = None, coordinates: list = None, element='C', uvals: list = None, part: int = 0,
                  sof: float = 11.0):
@@ -926,7 +921,7 @@ class Shelxfile():
         """
         self._reslist[self.index_of(obj)] = new_line
 
-    def index_of(self, obj: Atom) -> int:
+    def index_of(self, obj: Union[Atom, Restraint]) -> int:
         return self._reslist.index(obj)
 
     @property

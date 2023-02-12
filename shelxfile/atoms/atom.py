@@ -5,8 +5,7 @@ with suppress(Exception):
     from shelxfile import Shelxfile
 from shelxfile.misc.dsrmath import atomic_distance, Array, Matrix, SymmetryElement
 from shelxfile.misc.elements import get_atomic_number, get_radius_from_element
-from shelxfile.misc.misc import split_fvar_and_parameter, DEBUG, ParseSyntaxError, frac_to_cart, ParseUnknownParam, \
-    VERBOSE
+from shelxfile.misc.misc import split_fvar_and_parameter, ParseSyntaxError, frac_to_cart, ParseUnknownParam
 from shelxfile.shelx.cards import PART, AFIX, RESI, CELL, Restraints
 
 
@@ -109,9 +108,9 @@ class Atom():
             occ = 1 + (self.shx.fvars[self.fvar] * occ)
         except IndexError:
             occ = 1.0
-            if DEBUG:
-                raise ParseSyntaxError
-            if VERBOSE:
+            if self.shx.debug:
+                raise ParseSyntaxError(debug=self.shx.debug, verbose=self.shx.verbose)
+            if self.shx.verbose:
                 print(f'*** Could not get occupancy of free variable {self.fvar} ***')
         return occ
 
@@ -120,9 +119,9 @@ class Atom():
             occ = self.shx.fvars[self.fvar] * occ
         except IndexError:
             occ = 1.0  # Happens if the self.fvar is not defined
-            if DEBUG:
-                raise ParseSyntaxError
-            if VERBOSE:
+            if self.shx.debug:
+                raise ParseSyntaxError(debug=self.shx.debug, verbose=self.shx.verbose)
+            if self.shx.verbose:
                 print(f'*** Could not get occupancy of free variable {self.fvar} ***')
         return occ
 
@@ -271,9 +270,9 @@ class Atom():
         try:
             x, y, z = [float(x) for x in atline[2:5]]
         except ValueError as e:
-            if DEBUG or VERBOSE:
+            if self.shx.debug or self.shx.verbose:
                 print(e, 'Line:', self._line_numbers[-1])
-                raise ParseUnknownParam
+                raise ParseUnknownParam(debug=self.shx.debug, verbose=self.shx.verbose)
             else:
                 x, y, z = 0.1, 0.1, 0.1
         if abs(x) > 4:

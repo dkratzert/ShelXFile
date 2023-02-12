@@ -18,16 +18,13 @@ from shutil import get_terminal_size
 from time import time, perf_counter
 from typing import List
 
-DEBUG = False
-VERBOSE = False
-PROFILE = False
 
 dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)
 
 
 class ParseOrderError(Exception):
-    def __init__(self, arg=None):
-        if DEBUG or VERBOSE:
+    def __init__(self, arg=None, debug=False, verbose=False):
+        if debug or verbose:
             if arg:
                 print(arg)
             else:
@@ -35,32 +32,32 @@ class ParseOrderError(Exception):
 
 
 class ParseNumError(Exception):
-    def __init__(self, arg=None):
-        if DEBUG or VERBOSE:
+    def __init__(self, arg=None, debug=False, verbose=False):
+        if debug or verbose:
             if arg:
                 print(arg)
             print("*** WRONG NUMBER OF NUMERICAL PARAMETERS ***")
 
 
 class ParseParamError(Exception):
-    def __init__(self, arg=None):
-        if DEBUG or VERBOSE:
+    def __init__(self, arg=None, debug=False, verbose=False):
+        if debug or verbose:
             if arg:
                 print(arg)
             print("*** WRONG NUMBER OF PARAMETERS ***")
 
 
 class ParseUnknownParam(Exception):
-    def __init__(self, arg=None):
-        if DEBUG or VERBOSE:
+    def __init__(self, arg=None, debug=False, verbose=False):
+        if debug or verbose:
             if arg:
                 print(arg)
             print("*** UNKNOWN PARAMETER ***")
 
 
 class ParseSyntaxError(Exception):
-    def __init__(self):
-        if DEBUG or VERBOSE:
+    def __init__(self, arg=None, debug=False, verbose=False):
+        if debug or verbose:
             print("*** Syntax Error ***")
 
 

@@ -72,6 +72,7 @@ class TestRefineFinishedmodel(TestCase):
 
     def tearDown(self) -> None:
         clean_refine_files('p21c')
+        # pass
 
     def test_refine_with_cycle_number_set_to_4_in_LScycles(self):
         self.assertTrue('L.S. 10' in Path('p21c.res').read_text())

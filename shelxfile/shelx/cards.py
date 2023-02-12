@@ -5,7 +5,7 @@ from typing import List, Union, TYPE_CHECKING, Optional, Iterator, Tuple, Dict, 
 from shelxfile.atoms.pairs import AtomPair
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix, Matrix
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
-    ParseOrderError, DEBUG, ParseSyntaxError, VERBOSE
+    ParseOrderError, ParseSyntaxError
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
@@ -174,9 +174,9 @@ class Restraint(Residue):
         return pairs
 
     def _check_if_class_name_fits_to_command(self) -> None:
-        if DEBUG and self.__class__.__name__ != self.name:
+        if self.shx.debug and self.__class__.__name__ != self.name:
             print('*** Trying to parse restraint with wrong class ***')
-            raise ParseSyntaxError
+            raise ParseSyntaxError(debug=self.shx.debug, verbose=self.shx.verbose)
 
     def _set_defs_values(self) -> None:
         # Beware! DEFS changes only the non-defined default values:
@@ -203,11 +203,11 @@ class Restraint(Residue):
     def _paircheck(self):
         if not self.atoms:
             return
-        if len(self.atoms) % 2 != 0 and (DEBUG or VERBOSE):
+        if len(self.atoms) % 2 != 0 and (self.shx.debug or self.shx.verbose):
             print('*** Wrong number of numerical parameters ***')
             print('Instruction: {}'.format(self.textline))
-            if DEBUG:
-                raise ParseNumError
+            if self.shx.debug:
+                raise ParseNumError(debug=self.shx.debug, verbose=self.shx.verbose)
 
     def __iter__(self) -> Iterator[str]:
         for x in self.textline.split():
@@ -390,7 +390,7 @@ class CELL(Command):
                              [0, self.bstar, 0],
                              [0, 0, self.cstar]])
         else:
-            raise ParseSyntaxError
+            raise ParseSyntaxError(debug=shx.debug, verbose=shx.verbose)
 
     @property
     def volume(self) -> float:
@@ -408,7 +408,7 @@ class CELL(Command):
     def __iter__(self):
         return iter(self._cell_list)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Union[slice, int]) -> Union[List[float], float]:
         return self._cell_list[item]
 
 
@@ -483,7 +483,7 @@ class Residues():
         # TODO:
         # Collect dict with number: classes
         if resi.residue_number in self.residue_numbers:
-            if DEBUG or VERBOSE:
+            if self.shx.debug or self.shx.verbose:
                 print('*** Duplicate residue number {} found! ***'.format(resi.residue_number))
         else:
             self.residue_numbers[resi.residue_number] = resi.residue_class
@@ -507,15 +507,15 @@ class RESI(Command):
         self.alias: Optional[int] = None
         self.chain_id: Optional[int] = None
         self._textline: str = ' '.join(spline)
-        if len(spline) < 2 and (DEBUG or VERBOSE):
+        if len(spline) < 2 and (self.shx.debug or self.shx.verbose):
             print('*** Wrong RESI definition found! Check your RESI instructions ***')
-            raise ParseParamError
+            raise ParseParamError(debug=self.shx.debug, verbose=self.shx.verbose)
         self._get_resi_definition(spline)
         if self.residue_number < -999 or self.residue_number > 9999:
-            if DEBUG or VERBOSE:
+            if self.shx.debug or self.shx.verbose:
                 print('*** Invalid residue number given. ****')
-            if DEBUG:
-                raise ParseSyntaxError
+            if self.shx.debug:
+                raise ParseSyntaxError(debug=self.shx.debug, verbose=self.shx.verbose)
 
     def _get_resi_definition(self, resi: List[str]) -> Tuple[str, int, str, int]:
         """
@@ -569,11 +569,11 @@ class PART(Command):
         try:
             self.n = int(p[0])
         except(ValueError, IndexError):
-            if DEBUG or VERBOSE:
+            if self.shx.debug or self.shx.verbose:
                 print('*** Wrong PART definition in line {} found! '
                       'Check your PART instructions ***'.format(shx.error_line_num))
-                if DEBUG:
-                    raise
+                if self.shx.debug:
+                    raise ParseSyntaxError(debug=True)
             self.n = 0
         if len(p) > 1:
             self.sof = float(p[1])
@@ -794,7 +794,7 @@ class FREE(Command):
             self.atom1 = atoms[0]
             self.atom2 = atoms[1]
         except IndexError:
-            raise ParseParamError
+            raise ParseParamError(debug=shx.debug, verbose=shx.verbose)
 
 
 class FMAP(Command):
@@ -987,7 +987,7 @@ class FVARs():
         """
         if fvar > 99:
             print('*** SHELXL allows only 99 free variables! ***')
-            raise ParseParamError
+            raise ParseParamError(debug=self.shx.debug, verbose=self.shx.verbose)
         varlen = len(self.fvars)
         difference = (abs(fvar) - varlen)
         if difference > 0:
@@ -1005,10 +1005,10 @@ class FVARs():
         fvarnum = abs(fvarnum)
         if len(self.fvars) >= abs(fvarnum):
             self.fvars[fvarnum - 1].usage += times
-        elif fvarnum > 1 and (DEBUG or VERBOSE):
+        elif fvarnum > 1 and (self.shx.debug or self.shx.verbose):
             print('*** Free variable {} is not defined but used! ***'.format(fvarnum))
-            if DEBUG:
-                raise ParseParamError
+            if self.shx.debug:
+                raise ParseParamError(debug=self.shx.debug, verbose=self.shx.verbose)
 
     def get_fvar_usage(self, fvarnum):
         """
@@ -1137,7 +1137,7 @@ class DEFS(Restraint):
         self.active = True
         p, _ = self._parse_line(spline)
         if _:
-            raise ParseParamError
+            raise ParseParamError(debug=shx.debug, verbose=shx.verbose)
         if len(p) > 0:
             self.sd = p[0]
         if len(p) > 1:
@@ -1172,7 +1172,7 @@ class NCSY(Restraint):
         if len(p) > 2:
             self.su = p[2]
         if not self.DN:
-            raise ParseNumError
+            raise ParseNumError(debug=self.shx.debug, verbose=self.shx.verbose)
 
 
 class ISOR(Restraint):
@@ -1224,7 +1224,7 @@ class BUMP(Restraint):
         if len(p) > 0:
             self.s = p[0]
         if _:
-            raise ParseParamError
+            raise ParseParamError(debug=shx.debug, verbose=shx.verbose)
 
 
 class DFIX(Restraint):
@@ -1242,8 +1242,8 @@ class DFIX(Restraint):
             self.s = p[1]
         self._paircheck()
         if not self.d:
-            raise ParseNumError
-        if (DEBUG or VERBOSE) and 0.0001 < self.d <= self.s:
+            raise ParseNumError(debug=self.shx.debug, verbose=self.shx.verbose)
+        if (self.shx.debug or self.shx.verbose) and 0.0001 < self.d <= self.s:
             print('*** WRONG ODER of INSTRUCTIONS. d is smaller than s ***')
             print("{}".format(self.textline))
 
@@ -1263,9 +1263,9 @@ class DANG(Restraint):
             self.s = p[1]
         self._paircheck()
         if not self.d:
-            raise ParseNumError
+            raise ParseNumError(debug=self.shx.debug, verbose=self.shx.verbose)
         if 0.0001 < self.d <= self.s:  # Raise exception if d is smaller than s
-            raise ParseOrderError
+            raise ParseOrderError(debug=shx.debug, verbose=shx.verbose)
 
 
 class SADI(Restraint):
@@ -1624,7 +1624,7 @@ class LSCycles(Command):
         try:
             self._cycles = int(p[0])
         except (IndexError, NameError, ValueError):
-            raise ParseNumError
+            raise ParseNumError(debug=self.shx.debug, verbose=self.shx.verbose)
         try:
             self._nrf = int(p[1])
         except IndexError:
@@ -1735,7 +1735,7 @@ class SFACTable():
                 try:
                     sfdic[x] = spline[n + 1]
                 except IndexError:
-                    raise ParseNumError()
+                    raise ParseNumError(debug=self.shx.debug, verbose=self.shx.verbose)
             self.sfac_table.append(sfdic)
         else:
             # Just the elements

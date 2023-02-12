@@ -21,7 +21,7 @@ from shutil import which, copyfile
 
 with suppress(ImportError):
     from shelxfile import Shelxfile
-from shelxfile.misc.misc import remove_file, sep_line, find_line, DEBUG
+from shelxfile.misc.misc import remove_file, sep_line, find_line
 from shelxfile.shelx.cards import ACTA
 
 
@@ -248,25 +248,25 @@ class ShelxlRefine():
         Does some checks if the refinement makes sense e.g. if the data to parameter
         ratio is in an acceptable range.
         """
-        regex_final = r' Final Structure Factor Calculation.*\n'
+        regex_final = r' Final Structure Factor Calculation.*'
         final_results = find_line(list_file, regex_final)
         # find data and parameters:
         try:
-            dataobj = re.search(r'\d+\s+data', list_file[final_results + 4])
+            dataobj = re.search(r'(\d+\s+data)', list_file[final_results + 4])
             data = float(dataobj.group(0).split()[0])
-            parameterobj = re.search(r'\d+\s+parameters', list_file[final_results + 4])
+            parameterobj = re.search(r'(\d+\s+parameters)', list_file[final_results + 4])
             parameters = float(parameterobj.group(0).split()[0])
-            restrobj = re.search(r'\d+\s+restraints', list_file[find_line(list_file, r" GooF = S =.*")])
+            restrobj = re.search(r'(\d+\s+restraints)', list_file[find_line(list_file, r" GooF = S =.*")])
             restraints = float(restrobj.group(0).split()[0])
         except AttributeError:
-            if DEBUG:
+            if self.shx.debug:
                 raise
             return False
         try:
             data_to_parameter_ratio = data / parameters
             restr_ratio = ((data + restraints) / parameters)
         except ZeroDivisionError:
-            if DEBUG:
+            if self.shx.debug:
                 raise
             return False
         lattline = find_line(list_file, r'^ LATT.*')

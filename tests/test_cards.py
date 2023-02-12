@@ -74,7 +74,7 @@ class TestACTA(TestCase):
 
 class TestLSCycles(TestCase):
     def setUp(self) -> None:
-        self.shx = Shelxfile()
+        self.shx = Shelxfile(debug=True)
         self.shx.read_file('tests/resources/p21c.res')
         self.ref = ShelxlRefine(self.shx, Path('./resources/p21c.res'))
 
@@ -85,7 +85,7 @@ class TestLSCycles(TestCase):
 
 class TestSFACTable(TestCase):
     def setUp(self) -> None:
-        self.shx = Shelxfile()
+        self.shx = Shelxfile(debug=True)
         self.shx.read_file('tests/resources/p21c.res')
 
     def test_sfac_table(self):

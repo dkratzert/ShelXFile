@@ -16,7 +16,7 @@ from string import ascii_letters
 
 from shelxfile.atoms.atom import Atom
 from shelxfile.misc.dsrmath import Array, Matrix, vol_unitcell
-from shelxfile.misc.misc import DEBUG, wrap_line
+from shelxfile.misc.misc import wrap_line
 from shelxfile.shelx.cards import AFIX, RESI
 
 
@@ -118,13 +118,13 @@ class SDM():
                     self.sdm_list.append(sdm_item)
         t2 = time.perf_counter()
         self.sdmtime = t2 - t1
-        if DEBUG:
+        if self.shx.debug:
             print('Zeit sdm_calc:', self.sdmtime)
         self.sdm_list.sort()
         print(len(self.sdm_list))
         self.calc_molindex(all_atoms)
         need_symm = self.collect_needed_symmetry()
-        if DEBUG:
+        if self.shx.debug:
             print("The asymmetric unit contains {} fragments.".format(self.maxmol))
         return need_symm
 
