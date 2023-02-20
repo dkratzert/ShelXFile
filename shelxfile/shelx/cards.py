@@ -467,7 +467,6 @@ class Residues():
         self.shx = shx
         self.all_residues: list = []
         self.residue_classes: dict = {}  # class: numbers
-        # self.residue_numbers = {}  # number: class
 
     def append(self, resi: 'RESI') -> None:
         """
@@ -479,15 +478,6 @@ class Residues():
             self.residue_classes[resi.residue_class].append(resi.residue_number)
         else:
             self.residue_classes[resi.residue_class] = [resi.residue_number]
-        """
-        # TODO:
-        # Collect dict with number: classes
-        if resi.residue_number in self.residue_numbers:
-            if self.shx.debug or self.shx.verbose:
-                print('*** Duplicate residue number {} found! ***'.format(resi.residue_number))
-        else:
-            self.residue_numbers[resi.residue_number] = resi.residue_class
-        """
 
     @property
     def residue_numbers(self):

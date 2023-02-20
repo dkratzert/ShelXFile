@@ -267,19 +267,27 @@ class Shelxfile():
             if bad_atoms:
                 sorted_atoms = list(set(bad_atoms))
                 sorted_atoms.sort()
-                warnings.append(f'*** Unknown atom{"s" if len(bad_atoms) > 0 else ""} in restraint: {restraint} ***')
+                warnings.append(f'*** Unknown atom{"s" if len(bad_atoms) > 0 else ""} in restraint: {restraint}, '
+                                f'line {restraint.index + 1} ***')
                 warnings.append(f'*** Atom list has no --> {", ".join(sorted_atoms)} ***')
                 bad_atoms.clear()
             if restraint.residue_class and sum(restraint.residue_number) == 0:
-                warnings.append(f"*** Restraint '{restraint}' has a residue class, but no residues are defined. ***")
+                warnings.append(f"*** Restraint '{restraint}', line {restraint.index + 1}, "
+                                f"has a residue class, but no residues are defined. ***")
         if self.debug or self.verbose:
             print('\n'.join(warnings))
         return warnings
 
     def does_atom_exist(self, atom_name: str, bad_atoms: List[str], restraint_atom: str):
-        a = self.atoms.get_atom_by_name(atom_name)
-        if not a:
-            bad_atoms.append(restraint_atom)
+        residue_number_is_wildcard = '_' in atom_name and atom_name.split('_')[-1] == '*'
+        if residue_number_is_wildcard:
+            for num in self.residues.residue_numbers.keys():
+                residue_atom = f"{atom_name.split('_')[0]}_{num}"
+                if not self.atoms.get_atom_by_name(residue_atom):
+                    bad_atoms.append(residue_atom)
+        else:
+            if not self.atoms.get_atom_by_name(atom_name):
+                bad_atoms.append(restraint_atom)
 
     def _test_if_file_is_valid(self, resfile: Path) -> None:
         if len(self._reslist) < 20 and (self.debug or self.verbose):

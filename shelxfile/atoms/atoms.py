@@ -95,8 +95,8 @@ class Atoms():
                 return None
             atom_name = f'{atom_name}_0'
         atom = self.atomsdict.get(atom_name.upper(), None)
-        if not atom and self.shx.debug:
-            print("Atom {} not found in atom list.".format(atom_name))
+        #if not atom and self.shx.debug:
+        #    print(f"Atom {atom_name} not found in atom list.")
         return atom
 
     def get_multi_atnames(self, atom_name, residue_class):
