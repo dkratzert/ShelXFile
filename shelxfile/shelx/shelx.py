@@ -282,7 +282,8 @@ class Shelxfile():
         residue_number_is_wildcard = '_' in atom_name and atom_name.split('_')[-1] == '*'
         if residue_number_is_wildcard:
             for num in self.residues.residue_numbers.keys():
-                residue_atom = f"{atom_name.split('_')[0]}_{num}"
+                # TODO: I need to adress $[atomtype] wildcards
+                residue_atom = f"{atom_name.lstrip('$').split('_')[0]}_{num}"
                 if not self.atoms.get_atom_by_name(residue_atom):
                     bad_atoms.append(residue_atom)
         else:

@@ -14,6 +14,14 @@ class TestRestraintsWarnings(unittest.TestCase):
                     '*** Atom list has no --> C2_1, N2_3 ***']
         self.assertListEqual(expected, result)
 
+    @unittest.skip('Unfinished')
+    def test_wildcard_on_atom_names(self):
+        self.shx.read_file('tests/resources/restraint_tests/wildcard_on_atom.res')
+        result = self.shx._assign_atoms_to_restraints()
+        expected = ['*** Unknown atoms in restraint: RIGU $N_* $C_*, line 13 ***',
+                    '*** Atom list has no --> $C_*, $N_* ***']
+        self.assertListEqual(expected, result)
+
     def test_class_and_numbers(self):
         self.shx.read_file('tests/resources/restraint_tests/class_and_numbers.res')
         result = self.shx._assign_atoms_to_restraints()
