@@ -1,7 +1,46 @@
-
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "shelxfile"
+dynamic = ["version"]
+authors = [
+    { name = "Daniel Kratzert", email = "dkratzert@gmx.de" },
 ]
-build-backend = "setuptools.build_meta"
+description = "A parser for SHELXL results files"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3",
+]
+dependencies = []
+
+[project.urls]
+"Homepage" = "https://dkratzert.de/shelxfile.html"
+"Bug Tracker" = "https://github.com/dkratzert/ShelXFile/issues"
+
+[tool.hatch.version]
+path = "shelxfile/shelx/shelx.py"
+pattern = "__version__\\s*=\\s*'(?P<version>\\d+)'"
+
+[tool.hatch.build.targets.sdist]
+only-include = ["shelxfile"]
+exclude = [
+    "/.github",
+    "/test-data",
+    "/scripts",
+    "/setup",
+    "/tests",
+    "/docs",
+    "/requirements-devel.txt",
+    "/requirements.txt",
+    "/make_release.sh",
+    "/venv*",
+]
+
