@@ -1549,6 +1549,9 @@ class SymmCards():
     def __str__(self) -> str:
         return self._as_str()
 
+    def __len__(self) -> int:
+        return len(self._symmcards)
+
     def __getitem__(self, item: int) -> SymmetryElement:
         return self._symmcards[item]
 
