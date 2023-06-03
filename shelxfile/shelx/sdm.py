@@ -345,7 +345,7 @@ if __name__ == "__main__":
     from shelxfile.shelx.shelx import Shelxfile
 
     shx = Shelxfile()
-    shx.read_file('shelxfile/tests/resources/p-31c.res')
+    shx.read_file('tests/resources/p-31c.res')
     t1 = time.perf_counter()
     sdm = SDM(shx)
     needsymm = sdm.calc_sdm()
