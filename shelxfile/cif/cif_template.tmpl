@@ -1,21 +1,20 @@
-data_{}
+data_${data_name}
 
+_audit_creation_method            'ShelXFile version ${version}'
+_audit_creation_date              '${creation_date}'
+_chemical_formula_sum             '${sum_formula}'
+_chemical_formula_weight          ${formula_weight}
 
-_audit_creation_method            'ShelXFile version {version}'
-_audit_creation_date              datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-_chemical_formula_sum             {sumformula}
-_chemical_formula_weight          {formula_weight}
+_cell_length_a                    ${cell_a}
+_cell_length_b                    ${cell_b}
+_cell_length_c                    ${cell_c}
+_cell_angle_alpha                 ${cell_alpha}
+_cell_angle_beta                  ${cell_beta}
+_cell_angle_gamma                 ${cell_gamma}
+_cell_volume                      ${cell_volume}
 
-_cell_length_a                    {cell_length_a}
-_cell_length_b                    {cell_length_b}
-_cell_length_c                    {cell_length_c}
-_cell_angle_alpha                 {cell_angle_alpha}
-_cell_angle_beta                  {cell_angle_beta}
-_cell_angle_gamma                 {cell_angle_gamma}
-_cell_volume                      {cell_volume}
-
-_symmetry_space_group_name_H-M    '{space_group}'
-_space_group_crystal_system       {space_group}
+_symmetry_space_group_name_H-M    '${space_group}'
+_space_group_crystal_system       {crystal_system}
 _space_group_IT_number            {space_group_number}
 _space_group_name_Hall            {hall_symbol}
 _cell_formula_units_Z             {z_value}

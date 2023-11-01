@@ -358,8 +358,7 @@ class Shelxfile():
         for line_num, line in enumerate(self._reslist):
             self.error_line_num = line_num  # For exception during parsing.
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
-            # Use startswith():
-            if line.endswith(' ') or line == '':
+            if line.startswith(' ') or line == '':
                 continue
             wrapindex = 0
             # This while loop makes wrapped lines look like they are not wrapped. The following lines are then
