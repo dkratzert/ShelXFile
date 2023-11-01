@@ -13,7 +13,7 @@ import random
 import string
 from math import sqrt, radians, cos, sin, acos, degrees, floor
 from operator import sub, add
-from typing import List, Union, Optional, Iterable
+from typing import List, Union, Optional, Iterable, Tuple
 
 from shelxfile.misc.misc import flatten, determinante
 
@@ -514,7 +514,18 @@ class SymmetryElement(object):
             lines.append(text)
         return ', '.join(lines)
 
-    def _parse_line(self, symm):
+    def to_cif(self) -> str:
+        return self._replace_float_values(self.to_shelxl()).lower()
+
+    def _replace_float_values(self, val: str) -> str:
+        val = val.replace('0.75', '3/4')
+        val = val.replace('0.5', '1/2')
+        val = val.replace('0.33', '1/3')
+        val = val.replace('0.25', '1/4')
+        val = val.replace('0.125', '1/6')
+        return val
+
+    def _parse_line(self, symm: str) -> Tuple[List[int], float]:
         symm = symm.upper().replace(' ', '')
         chars = ['X', 'Y', 'Z']
         line = []
@@ -527,7 +538,7 @@ class SymmetryElement(object):
             trans = 0
         return line, trans
 
-    def _float(self, string):
+    def _float(self, string: str) -> float:
         try:
             return float(string)
         except ValueError:
@@ -535,7 +546,7 @@ class SymmetryElement(object):
                 string = string.replace('/', './') + '.'
                 return eval('{}'.format(string))
 
-    def _partition(self, symm, char):
+    def _partition(self, symm: str, char: str) -> Tuple[int, str]:
         parts = symm.partition(char)
         if parts[1]:
             if parts[0]:

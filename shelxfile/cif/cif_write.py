@@ -1,8 +1,9 @@
 import datetime
 from pathlib import Path
 from string import Template
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict
 from shelxfile import __version__
+from shelxfile.atoms.atoms import Atoms
 
 if TYPE_CHECKING:
     from shelxfile.shelx.shelxfile import Shelxfile
@@ -25,19 +26,14 @@ class CifFile():
     def __repr__(self):
         return self._cif
 
-    def _get_cif(self):
-        if self._cif is None:
-            self._cif = self._write_cif()
-        return self._cif
-
-    def _write_cif(self) -> Template:
+    def _write_cif(self) -> str:
         with open(self.template, "r") as f:
             template = f.read()
         cif = Template(template)
         sub = cif.substitute(self._cif_dict())
         return sub
 
-    def _cif_dict(self):
+    def _cif_dict(self) -> Dict[str, str]:
         cif_dict = {}
         cif_dict["data_name"] = self.data.titl.split()[0].lower()
         cif_dict["version"] = __version__
@@ -47,11 +43,10 @@ class CifFile():
         cif_dict.update(self._cell_data())
         cif_dict.update(self._symmetry_data())
         cif_dict["atoms"] = self._atoms_data()
-        # cif_dict["refine"] = self._refine_data()
-        # cif_dict["misc"] = self._misc_dict()
+        cif_dict.update(self._misc_dict())
         return cif_dict
 
-    def _cell_data(self):
+    def _cell_data(self) -> Dict[str, float]:
         cell = self.data.cell
         return {
             "cell_a"     : cell.a,
@@ -61,25 +56,34 @@ class CifFile():
             "cell_beta"  : cell.beta,
             "cell_gamma" : cell.gamma,
             "cell_volume": round(cell.volume, 4),
+            "cell_z"     : self.data.zerr.Z,
         }
 
-    def _symmetry_data(self):
-        print(self.data.symmcards.latt_ops)
+    def _symmetry_data(self) -> Dict[str, str]:
+        symmcards_ = [f" '{sym.to_cif()}'" for sym in self.data.symmcards]
         return {
-            "space_group"  : self.data.space_group,
+            "space_group"   : self.data.space_group,
             "crystal_system": self.data.symmcards.latt_ops,
-            # "hall_symbol"              : symmetry.hall_symbol,
-            # "origin"                   : symmetry.origin,
-            # "centering"                : symmetry.centering,
-            # "unit_cell_setting"        : symmetry.unit_cell_setting,
-            "symmetry_loop": self.data.symmcards.latt_ops,
+            "symmetry_loop" : '\n'.join(symmcards_),
         }
 
-    def _atoms_data(self):
+    def _atoms_data(self) -> Dict[str, Atoms]:
         atoms = self.data.atoms
         return {
             "atoms": atoms,
         }
+
+    def _misc_dict(self) -> Dict[str, str]:
+        misc_dict = {}
+        misc_dict["temperature"] = round(self.data.temp_in_kelvin, 3)
+        misc_dict["crystal_size_max"] = self.data.size.max
+        misc_dict["crystal_size_mid"] = self.data.size.mid
+        misc_dict["crystal_size_min"] = self.data.size.min
+        misc_dict["wavelength"] = self.data.wavelength
+        misc_dict["R1"] = self.data.R1
+        misc_dict["wR2"] = self.data.wr2
+        misc_dict["goodness_of_fit"] = self.data.goof
+        return misc_dict
 
 
 if __name__ == '__main__':

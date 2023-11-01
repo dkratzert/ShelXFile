@@ -178,7 +178,7 @@ class Shelxfile():
         self.end: bool = False
         self.maxsof: float = 1.0
         self.delete_on_write: set = set()
-        self.wavelen: float = 0.0
+        self.wavelength: float = 0.0
         self.global_sadi: Optional[int] = None
         self.list: int = 0
         self.theta_full: float = 0.0
@@ -467,7 +467,7 @@ class Shelxfile():
                     print('*** TITL is missing. ***')
                 self.cell = self._assign_card(CELL(self, spline), line_num)
                 self.orthogonal_matrix = self.cell.o
-                self.wavelen = self.cell.wavelen
+                self.wavelength = self.cell.wavelen
                 lastcard = 'CELL'
             elif word == "ZERR":
                 # ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
@@ -942,7 +942,7 @@ class Shelxfile():
         """
         self._reslist[self.index_of(obj)] = new_line
 
-    def index_of(self, obj: Union[Atom, Restraint]) -> int:
+    def index_of(self, obj: Union[Atom, Restraint, Command]) -> int:
         return self._reslist.index(obj)
 
     @property

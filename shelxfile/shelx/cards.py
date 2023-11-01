@@ -610,6 +610,18 @@ class SIZE(Command):
         else:
             return ""
 
+    @property
+    def max(self):
+        return max(self.dx, self.dy, self.dz)
+
+    @property
+    def mid(self):
+        return sorted([self.dx, self.dy, self.dz])[1]
+
+    @property
+    def min(self):
+        return min(self.dx, self.dy, self.dz)
+
     def __repr__(self):
         return self._as_text()
 
@@ -1579,7 +1591,6 @@ class SymmCards():
             return "Triclinic"
 
         return "Unknown"
-
 
     def _as_str(self) -> str:
         return "\n".join([str(x) for x in self._symmcards])
