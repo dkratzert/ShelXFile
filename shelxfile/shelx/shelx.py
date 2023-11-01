@@ -18,7 +18,7 @@ The parser will try to read the SHELX file even if it has syntax errors, but if 
 instruction is not consistent it will fail. 
 """
 
-__version__ = '15'
+__version__ = '16'
 
 import re
 import sys
@@ -358,7 +358,8 @@ class Shelxfile():
         for line_num, line in enumerate(self._reslist):
             self.error_line_num = line_num  # For exception during parsing.
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
-            if line[:1] == ' ' or line == '':
+            # Use startswith():
+            if line.endswith(' ') or line == '':
                 continue
             wrapindex = 0
             # This while loop makes wrapped lines look like they are not wrapped. The following lines are then
@@ -455,7 +456,7 @@ class Shelxfile():
                 self._append_card(self.restraints, DANG(self, spline), line_num)
             elif word == 'EADP':
                 self._append_card(self.restraints, EADP(self, spline), line_num)
-            elif line[:3] == 'REM':
+            elif line.startswith('REM'):
                 if dsr_regex.match(line):
                     self.dsrlines.append(" ".join(spline))
                     self.dsrline_nums.extend(list_of_lines)
@@ -763,7 +764,7 @@ class Shelxfile():
             elif word == 'HOPE':
                 # print('*** HOPE is deprecated! Do not use it! ***')
                 pass
-            elif line[:1] == '+':
+            elif line.startswith('+'):
                 pass
             elif word == 'TITL':
                 self.titl = line[5:76]
@@ -898,6 +899,15 @@ class Shelxfile():
     @staticmethod
     def _coordinates_are_unrealistic(spline: List[str]) -> bool:
         return any(float(y) > 4.0 for y in spline[2:5])
+
+    def to_cif(self, filename: str = None, template: Optional[str] = None) -> None:
+        """
+        Writes a CIF file from the ShelxFile object.
+        """
+        if not filename:
+            filename = self.resfile.stem + '.cif'
+        cif = CifFile(self)
+        cif.write_cif(filename, template=template)
 
     def elem2sfac(self, atom_type: str) -> int:
         """

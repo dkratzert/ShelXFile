@@ -1,0 +1,72 @@
+data_{}
+
+
+_audit_creation_method            'ShelXFile version {version}'
+_audit_creation_date              datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+_chemical_formula_sum             {sumformula}
+_chemical_formula_weight          {formula_weight}
+
+_cell_length_a                    {cell_length_a}
+_cell_length_b                    {cell_length_b}
+_cell_length_c                    {cell_length_c}
+_cell_angle_alpha                 {cell_angle_alpha}
+_cell_angle_beta                  {cell_angle_beta}
+_cell_angle_gamma                 {cell_angle_gamma}
+_cell_volume                      {cell_volume}
+
+_symmetry_space_group_name_H-M    '{space_group}'
+_space_group_crystal_system       {space_group}
+_space_group_IT_number            {space_group_number}
+_space_group_name_Hall            {hall_symbol}
+_cell_formula_units_Z             {z_value}
+_cell_measurement_temperature     {temperature}
+
+_exptl_crystal_size_max           {crystal_size_max}
+_exptl_crystal_size_mid           {crystal_size_mid}
+_exptl_crystal_size_min           {crystal_size_min}
+
+_diffrn_radiation_wavelength      {wavelength}
+
+_diffrn_reflns_av_R_equivalents   {r_int}
+
+_refine_ls_structure_factor_coef  Fsqd
+_refine_ls_matrix_type            {matrix_type}
+
+_refine_ls_abs_structure_Flack    {flack_parameter}
+_refine_ls_number_reflns          {number_reflections}
+_refine_ls_number_parameters      {number_parameters}
+_refine_ls_number_restraints      {number_restraints}
+
+
+loop_
+ _space_group_symop_operation_xyz
+ {symmetry_loop}
+
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_U_iso_or_equiv
+_atom_site_adp_type
+_atom_site_occupancy
+_atom_site_symmetry_multiplicity
+_atom_site_calc_flag
+{atom_loop}
+
+loop_
+_geom_bond_atom_site_label_1
+_geom_bond_atom_site_label_2
+_geom_bond_distance
+_geom_bond_site_symmetry_2
+{bond_loop}
+
+loop_
+_geom_angle_atom_site_label_1
+_geom_angle_atom_site_label_2
+_geom_angle_atom_site_label_3
+_geom_angle
+_geom_angle_site_symmetry_1
+_geom_angle_site_symmetry_3
+{angle_loop}
