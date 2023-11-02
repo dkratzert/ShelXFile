@@ -518,6 +518,7 @@ class SymmetryElement(object):
         return self._replace_float_values(self.to_shelxl()).lower()
 
     def _replace_float_values(self, val: str) -> str:
+        val = val.replace('1.25', '5/4')
         val = val.replace('0.75', '3/4')
         val = val.replace('0.5', '1/2')
         val = val.replace('0.33', '1/3')

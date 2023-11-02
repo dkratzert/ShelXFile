@@ -28,7 +28,9 @@ from typing import Union, List, Optional
 
 from shelxfile.atoms.atom import Atom
 from shelxfile.atoms.atoms import Atoms
+from shelxfile.misc import elements
 from shelxfile.misc.dsrmath import Array
+from shelxfile.misc.elements import weight_from_symbol
 # noinspection PyUnresolvedReferences
 from shelxfile.misc.misc import ParseOrderError, ParseNumError, ParseUnknownParam, \
     multiline_test, dsr_regex, wrap_line, ParseSyntaxError
@@ -175,6 +177,7 @@ class Shelxfile():
         self.num_restraints: Optional[int] = None
         self.highest_peak: Optional[float] = None
         self.deepest_hole: Optional[float] = None
+        self.formula_weight: Optional[float] = None
         self.end: bool = False
         self.maxsof: float = 1.0
         self.delete_on_write: set = set()
@@ -948,9 +951,10 @@ class Shelxfile():
     @property
     def sum_formula(self) -> str:
         """
-        The sum formula of the structure with regards of the UNIT instruction.
+        The sum formula of the structure in regard to the UNIT instruction.
         """
         formstring = ''
+        formula_weight = 0.0
         try:
             val = self.unit.values
             eli = self.sfac_table.elements_list
@@ -959,9 +963,12 @@ class Shelxfile():
         if len(val) == len(eli):
             for el, num in zip(self.sfac_table.elements_list, self.unit.values):
                 try:
-                    formstring += "{}{:,g} ".format(el, num / self.Z)
+                    elcount = num / self.Z
+                    formula_weight += elcount * float(weight_from_symbol(el.capitalize()))
+                    formstring += f"{el}{elcount :,g} "
                 except ZeroDivisionError:
                     return ''
+        self.formula_weight = round(formula_weight, 3)
         return formstring.strip()
 
     def update_weight(self) -> None:
