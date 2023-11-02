@@ -167,7 +167,7 @@ class Atom():
         Sets u values and checks if a free variable was used.
         """
         self.uvals = uvals
-        if uvals[2] == 0.0:  # 0 is Uiso and 1 q-peak hight
+        if abs(uvals[2]) < 0.000001:  # 0 is Uiso and 1 q-peak hight
             for n, u in enumerate(uvals):
                 if abs(u) > 4.0:
                     fvar, uval = split_fvar_and_parameter(u)
@@ -195,7 +195,7 @@ class Atom():
         self._get_part_and_occupation(atline)
         self.x, self.y, self.z = self._get_atom_coordinates(atline)
         self.xc, self.yc, self.zc = self._cell.o * Array(self.frac_coords)
-        if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
+        if abs(self.uvals[1]) > 0.0 and abs(self.uvals[2]) < 0.000001 and self.shx.hklf:  # qpeaks are always behind hklf
             self.peak_height = uvals[1]
             self.qpeak = True
         if self.shx.end:  # After 'END' can only be Q-peaks!

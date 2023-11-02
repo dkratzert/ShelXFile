@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest import TestCase
 
 from shelxfile.refine.refine import ShelxlRefine
-from shelxfile.shelx.cards import RESI, ANIS, ABIN, SADI, DFIX, AFIX
+from shelxfile.shelx.cards import RESI, ANIS, ABIN, SADI, DFIX, AFIX, PART
 from shelxfile.shelx.shelx import Shelxfile
 
 
@@ -70,6 +70,24 @@ class TestACTA(TestCase):
         self.assertEqual(
             ['UNIT 1  2  3  4  5  6', 'ACTA 45', 'LIST 4 ! automatically inserted. Change 6 to 4 for CHECKCIF!!'],
             [str(x) for x in self.shx._reslist[7:10]])
+
+
+class TestPART(TestCase):
+    def setUp(self) -> None:
+        self.shx = None
+
+    def test_part_n(self):
+        """Test the result from PART.as_symbol"""
+        self.assertEqual(PART(self.shx, ['PART', '1']).n, 1)
+        self.assertEqual(PART(self.shx, ['PART', '-1']).n, -1)
+
+    def test_part_resiclass(self):
+        self.assertEqual(21.0, PART(self.shx, ['PART', '9', '21']).sof)
+        self.assertEqual(9, PART(self.shx, ['PART', '9', '21']).n)
+        self.assertEqual(-21.0, PART(self.shx, ['PART', '9', '-21']).sof)
+
+    def test_part_sof(self):
+        self.assertEqual(11.0, PART(self.shx, ['PART', '-2']).sof)
 
 
 class TestLSCycles(TestCase):

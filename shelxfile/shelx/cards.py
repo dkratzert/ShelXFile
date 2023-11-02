@@ -1552,46 +1552,6 @@ class SymmCards():
         self._symmcards = [SymmetryElement(['X', 'Y', 'Z'])]
         self.latt_ops = []
 
-    def determine_crystal_system(self, symmetry_operators):
-        """
-        TODO: This is not working yet!
-        @param symmetry_operators:
-        @return:
-        """
-        has_mirror_plane = False
-        has_rotational_axes = False
-        has_centering_translations = False
-
-        for operator in symmetry_operators:
-            # Check for rotational symmetry
-            if operator == [[-1, 0, 0], [0, -1, 0], [0, -1, 0]]:
-                has_rotational_axes = True
-            # Check for mirror planes
-            if operator == [[1, 0, 0], [0, -1, 0], [0, 0, -1]]:
-                has_mirror_plane = True
-            # Check for centering translations (you need to define the specific translations)
-            if operator == [[-0.5, 0.5, 0.5], [0.5, -0.5, 0.5], [0.5, 0.5, -0.5]]:
-                has_centering_translations = True
-
-        if has_mirror_plane and has_rotational_axes and not has_centering_translations:
-            return "Triclinic"
-        elif not has_rotational_axes and not has_mirror_plane and not has_centering_translations:
-            return "Monoclinic"
-        elif has_mirror_plane and not has_rotational_axes and not has_centering_translations:
-            return "Orthorhombic"
-        elif has_mirror_plane and has_rotational_axes and not has_centering_translations:
-            return "Tetragonal"
-        elif not has_mirror_plane and not has_rotational_axes and has_centering_translations:
-            return "Hexagonal"
-        elif not has_mirror_plane and has_rotational_axes and not has_centering_translations:
-            return "Rhombohedral"
-        elif has_mirror_plane and not has_rotational_axes and has_centering_translations:
-            return "Monoclinic"
-        elif has_mirror_plane and has_rotational_axes and has_centering_translations:
-            return "Triclinic"
-
-        return "Unknown"
-
     def _as_str(self) -> str:
         return "\n".join([str(x) for x in self._symmcards])
 

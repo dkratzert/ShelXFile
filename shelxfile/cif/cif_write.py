@@ -42,7 +42,7 @@ class CifFile():
         cif_dict["formula_weight"] = 1234
         cif_dict.update(self._cell_data())
         cif_dict.update(self._symmetry_data())
-        cif_dict["atoms"] = self._atoms_data()
+        cif_dict.update(self._atoms_data())
         cif_dict.update(self._misc_dict())
         return cif_dict
 
@@ -63,14 +63,21 @@ class CifFile():
         symmcards_ = [f" '{sym.to_cif()}'" for sym in self.data.symmcards]
         return {
             "space_group"   : self.data.space_group,
-            "crystal_system": self.data.symmcards.latt_ops,
+            #"crystal_system": self.data.symmcards.crystal_system,
             "symmetry_loop" : '\n'.join(symmcards_),
         }
 
-    def _atoms_data(self) -> Dict[str, Atoms]:
-        atoms = self.data.atoms
+    def _atoms_data(self) -> Dict[str, str]:
+        atoms: Atoms = self.data.atoms
+        lines = []
+        for atom in atoms.all_atoms:
+            if not atom.qpeak:
+                lines.append(f"{atom.name} {atom.element} "
+                             f"{atom.x} {atom.y} {atom.z} "
+                             f"{'Uiso' if atom.is_isotropic else 'Uani'} "
+                             f"{atom.occupancy} {atom.part.n}")
         return {
-            "atoms": atoms,
+            "atom_loop": '\n '.join(lines),
         }
 
     def _misc_dict(self) -> Dict[str, str]:
@@ -95,3 +102,4 @@ if __name__ == '__main__':
     cif = CifFile(shx)
     c = cif._write_cif()
     print(c)
+    Path('p21c-test.cif').write_text(c)
