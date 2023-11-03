@@ -2,7 +2,7 @@ import datetime
 from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING, Dict
-from shelxfile import __version__
+from shelxfile.version import __version__
 from shelxfile.atoms.atoms import Atoms
 
 if TYPE_CHECKING:
@@ -26,12 +26,12 @@ class CifFile():
     def __repr__(self):
         return self._cif
 
-    def _write_cif(self) -> str:
+    def write_cif(self, cif_path: Path) -> None:
         with open(self.template, "r") as f:
             template = f.read()
         cif = Template(template)
         sub = cif.substitute(self._cif_dict())
-        return sub
+        cif_path.write_text(sub)
 
     def _cif_dict(self) -> Dict[str, str]:
         cif_dict = {}
@@ -130,10 +130,9 @@ if __name__ == '__main__':
     from shelxfile import Shelxfile
 
     shx = Shelxfile(debug=True)
-    #shx.read_file('./tests/resources/p21c.res')
-    shx.read_file('tests/resources/I-43d.res')
-    # print(shx)
-    cif = CifFile(shx)
-    c = cif._write_cif()
-    print(c)
-    Path('p21c-test.cif').write_text(c)
+    #shx.read_file('tests/resources/I-43d.res')
+    shx.read_file('./tests/resources/p21c.res')
+
+    #cif = CifFile(shx)
+    #cif.write_cif(Path('p21c-test.cif'))
+    shx.to_cif('p21c-test.cif')

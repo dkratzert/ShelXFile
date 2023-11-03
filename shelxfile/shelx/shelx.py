@@ -18,8 +18,6 @@ The parser will try to read the SHELX file even if it has syntax errors, but if 
 instruction is not consistent it will fail. 
 """
 
-__version__ = '16'
-
 import re
 import sys
 from contextlib import suppress
@@ -28,7 +26,7 @@ from typing import Union, List, Optional
 
 from shelxfile.atoms.atom import Atom
 from shelxfile.atoms.atoms import Atoms
-from shelxfile.misc import elements
+from shelxfile.cif.cif_write import CifFile
 from shelxfile.misc.dsrmath import Array
 from shelxfile.misc.elements import weight_from_symbol
 # noinspection PyUnresolvedReferences
@@ -908,8 +906,7 @@ class Shelxfile():
         """
         if not filename:
             filename = self.resfile.stem + '.cif'
-        cif = CifFile(self)
-        cif.write_cif(filename, template=template)
+        CifFile(self, template).write_cif(Path(filename))
 
     def elem2sfac(self, atom_type: str) -> int:
         """
