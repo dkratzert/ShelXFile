@@ -27,7 +27,7 @@ dependencies = []
 
 [tool.hatch.version]
 path = "shelxfile/version.py"
-pattern = "__version__\\s*=\\s*'(?P<version>\\d+\\.{0,1}\\d{0,1})'"
+pattern = "VERSION\\s*=\\s*'(?P<version>\\d+\\.{0,1}\\d{0,1})'"
 
 [tool.hatch.build.targets.sdist]
 only-include = ["shelxfile"]
