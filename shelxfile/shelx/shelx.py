@@ -39,6 +39,9 @@ from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues, SWAT, Command, Restraint
 from shelxfile.shelx.sdm import SDM
+from shelxfile.version import VERSION
+
+__version__ = VERSION
 
 """
 TODO:

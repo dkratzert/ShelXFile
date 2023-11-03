@@ -2,7 +2,7 @@ import datetime
 from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING, Dict
-from shelxfile.version import __version__
+from shelxfile.version import VERSION
 from shelxfile.atoms.atoms import Atoms
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ class CifFile():
     def _cif_dict(self) -> Dict[str, str]:
         cif_dict = {}
         cif_dict["data_name"] = self.data.titl.split()[0].lower() or "unknown"
-        cif_dict["version"] = __version__
+        cif_dict["version"] = VERSION
         cif_dict["creation_date"] = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         cif_dict["sum_formula"] = self.data.sum_formula
         cif_dict["formula_weight"] = self.data.formula_weight
