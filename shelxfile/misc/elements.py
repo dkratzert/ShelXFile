@@ -30,6 +30,15 @@ sorted_atoms = ['C', 'D', 'H', 'N', 'O', 'Cl', 'Br', 'I', 'F', 'S', 'P', 'Ac', '
                 'Si', 'Sm', 'Sn', 'Sr', 'Ta', 'Tb', 'Tc', 'Te', 'Th', 'Ti', 'Tl', 'Tm', 'U',
                 'V', 'W', 'Xe', 'Y', 'Yb', 'Zn', 'Zr']
 
+
+def weight_from_symbol(symbol):
+    """
+    Returns the weight of an atom from the element symbol.
+    """
+    from shelxfile.atoms.atomic_weights.atomicWeightsDecimal import atomicWeightsDecimal
+    return atomicWeightsDecimal[symbol]['standard']
+
+
 num2element = {
     0 : 'n',
     1 : 'H',
@@ -605,4 +614,4 @@ def get_atomlabel(input_atom: str) -> str:
 
 
 if __name__ == '__main__':
-    pass
+    print(weight_from_symbol('C'))

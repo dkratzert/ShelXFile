@@ -1,0 +1,40 @@
+data_${data_name}
+
+_audit_creation_method            'ShelXFile version ${version}'
+_audit_creation_date              '${creation_date}'
+_chemical_formula_sum             '${sum_formula}'
+_chemical_formula_weight          ${formula_weight}
+
+_cell_length_a                    ${cell_a}
+_cell_length_b                    ${cell_b}
+_cell_length_c                    ${cell_c}
+_cell_angle_alpha                 ${cell_alpha}
+_cell_angle_beta                  ${cell_beta}
+_cell_angle_gamma                 ${cell_gamma}
+_cell_volume                      ${cell_volume}
+
+_symmetry_space_group_name_H-M    '${space_group}'
+_cell_formula_units_Z             ${cell_z}
+_cell_measurement_temperature     ${temperature}
+
+_exptl_crystal_size_max           ${crystal_size_max}
+_exptl_crystal_size_mid           ${crystal_size_mid}
+_exptl_crystal_size_min           ${crystal_size_min}
+
+_diffrn_radiation_wavelength      ${wavelength}
+
+_refine_ls_R_factor_gt            ${R1}
+_refine_ls_wR_factor_ref          ${wR2}
+_refine_ls_goodness_of_fit_ref    ${goodness_of_fit}
+_refine_ls_structure_factor_coef  Fsqd
+
+loop_
+ _space_group_symop_operation_xyz
+${symmetry_loop}
+
+
+${atom_loop_header}
+${atom_loop}
+
+${aniso_loop_header}
+${aniso_loop}

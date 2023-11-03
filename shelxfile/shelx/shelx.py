@@ -18,8 +18,6 @@ The parser will try to read the SHELX file even if it has syntax errors, but if 
 instruction is not consistent it will fail. 
 """
 
-__version__ = '15'
-
 import re
 import sys
 from contextlib import suppress
@@ -28,7 +26,9 @@ from typing import Union, List, Optional
 
 from shelxfile.atoms.atom import Atom
 from shelxfile.atoms.atoms import Atoms
+from shelxfile.cif.cif_write import CifFile
 from shelxfile.misc.dsrmath import Array
+from shelxfile.misc.elements import weight_from_symbol
 # noinspection PyUnresolvedReferences
 from shelxfile.misc.misc import ParseOrderError, ParseNumError, ParseUnknownParam, \
     multiline_test, dsr_regex, wrap_line, ParseSyntaxError
@@ -39,6 +39,9 @@ from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
     RESI, ABIN, ANIS, Residues, SWAT, Command, Restraint
 from shelxfile.shelx.sdm import SDM
+from shelxfile.version import VERSION
+
+__version__ = VERSION
 
 """
 TODO:
@@ -175,10 +178,11 @@ class Shelxfile():
         self.num_restraints: Optional[int] = None
         self.highest_peak: Optional[float] = None
         self.deepest_hole: Optional[float] = None
+        self.formula_weight: Optional[float] = None
         self.end: bool = False
         self.maxsof: float = 1.0
         self.delete_on_write: set = set()
-        self.wavelen: float = 0.0
+        self.wavelength: float = 0.0
         self.global_sadi: Optional[int] = None
         self.list: int = 0
         self.theta_full: float = 0.0
@@ -358,7 +362,7 @@ class Shelxfile():
         for line_num, line in enumerate(self._reslist):
             self.error_line_num = line_num  # For exception during parsing.
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
-            if line[:1] == ' ' or line == '':
+            if line.startswith(' ') or line == '':
                 continue
             wrapindex = 0
             # This while loop makes wrapped lines look like they are not wrapped. The following lines are then
@@ -455,7 +459,7 @@ class Shelxfile():
                 self._append_card(self.restraints, DANG(self, spline), line_num)
             elif word == 'EADP':
                 self._append_card(self.restraints, EADP(self, spline), line_num)
-            elif line[:3] == 'REM':
+            elif line.startswith('REM'):
                 if dsr_regex.match(line):
                     self.dsrlines.append(" ".join(spline))
                     self.dsrline_nums.extend(list_of_lines)
@@ -467,7 +471,7 @@ class Shelxfile():
                     print('*** TITL is missing. ***')
                 self.cell = self._assign_card(CELL(self, spline), line_num)
                 self.orthogonal_matrix = self.cell.o
-                self.wavelen = self.cell.wavelen
+                self.wavelength = self.cell.wavelen
                 lastcard = 'CELL'
             elif word == "ZERR":
                 # ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
@@ -763,7 +767,7 @@ class Shelxfile():
             elif word == 'HOPE':
                 # print('*** HOPE is deprecated! Do not use it! ***')
                 pass
-            elif line[:1] == '+':
+            elif line.startswith('+'):
                 pass
             elif word == 'TITL':
                 self.titl = line[5:76]
@@ -899,6 +903,14 @@ class Shelxfile():
     def _coordinates_are_unrealistic(spline: List[str]) -> bool:
         return any(float(y) > 4.0 for y in spline[2:5])
 
+    def to_cif(self, filename: str = None, template: Optional[str] = None) -> None:
+        """
+        Writes a CIF file from the ShelxFile object.
+        """
+        if not filename:
+            filename = self.resfile.stem + '.cif'
+        CifFile(self, template).write_cif(Path(filename))
+
     def elem2sfac(self, atom_type: str) -> int:
         """
         returns an sfac-number for the element given in "atom_type"
@@ -933,15 +945,16 @@ class Shelxfile():
         """
         self._reslist[self.index_of(obj)] = new_line
 
-    def index_of(self, obj: Union[Atom, Restraint]) -> int:
+    def index_of(self, obj: Union[Atom, Restraint, Command]) -> int:
         return self._reslist.index(obj)
 
     @property
     def sum_formula(self) -> str:
         """
-        The sum formula of the structure with regards of the UNIT instruction.
+        The sum formula of the structure in regard to the UNIT instruction.
         """
         formstring = ''
+        formula_weight = 0.0
         try:
             val = self.unit.values
             eli = self.sfac_table.elements_list
@@ -950,9 +963,12 @@ class Shelxfile():
         if len(val) == len(eli):
             for el, num in zip(self.sfac_table.elements_list, self.unit.values):
                 try:
-                    formstring += "{}{:,g} ".format(el, num / self.Z)
+                    elcount = num / self.Z
+                    formula_weight += elcount * float(weight_from_symbol(el.capitalize()))
+                    formstring += f"{el}{elcount :,g} "
                 except ZeroDivisionError:
                     return ''
+        self.formula_weight = round(formula_weight, 3)
         return formstring.strip()
 
     def update_weight(self) -> None:

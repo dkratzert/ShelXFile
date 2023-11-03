@@ -44,8 +44,9 @@ class Atom():
         self.zc: float = 0.0
         self.qpeak: bool = False
         self.peak_height: float = 0.0
-        self.uvals: List[float] = [0.04, 0.0, 0.0, 0.0, 0.0]  # [U] or [U11 U22 U33 U23 U13 U12]
-        self.uvals_orig: List[float] = [0.04, 0.0, 0.0, 0.0, 0.0]
+        self.uvals: List[float] = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]  # [U] or [U11 U22 U33 U23 U13 U12]
+        self.U11, self.U22, self.U33, self.U23, self.U13, self.U12 = self.uvals
+        self.uvals_orig: List[float] = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.frag_atom: bool = False
         self.restraints: List[Restraints] = []
         self._line_numbers = None
@@ -69,7 +70,15 @@ class Atom():
 
     @property
     def fullname(self) -> str:
-        return self.name + '_' + str(self.resinum)  # Name including residue nimber like "C1_2"
+        # Name including residue number like "C1_2 or C3_0"
+        return f'{self.name}_{self.resinum}'
+
+    @property
+    def fullname_short(self) -> str:
+        if self.resinum == 0:
+            return self.name
+        else:
+            return f'{self.name}_{self.resinum}'
 
     @property
     def resiclass(self) -> str:
@@ -160,6 +169,7 @@ class Atom():
         self.resi = resi
         self.sof = site_occupation
         self.uvals = uvals
+        self.U11, self.U22, self.U33, self.U23, self.U13, self.U12 = uvals
         self.symmgen = symmgen
 
     def set_uvals(self, uvals: List[float]) -> None:
@@ -167,7 +177,7 @@ class Atom():
         Sets u values and checks if a free variable was used.
         """
         self.uvals = uvals
-        if uvals[2] == 0.0:  # 0 is Uiso and 1 q-peak hight
+        if abs(uvals[2]) < 0.000001:  # 0 is Uiso and 1 q-peak hight
             for n, u in enumerate(uvals):
                 if abs(u) > 4.0:
                     fvar, uval = split_fvar_and_parameter(u)
@@ -177,6 +187,7 @@ class Atom():
             if abs(uvals[0]) > 4.0:
                 fvar, uval = split_fvar_and_parameter(uvals[0])
                 self.shx.fvars.set_fvar_usage(fvar)
+        self.U11, self.U22, self.U33, self.U23, self.U13, self.U12 = self.uvals
 
     def parse_line(self, atline: List, list_of_lines: List, part: PART, afix: AFIX, resi: RESI) -> None:
         """
@@ -195,7 +206,8 @@ class Atom():
         self._get_part_and_occupation(atline)
         self.x, self.y, self.z = self._get_atom_coordinates(atline)
         self.xc, self.yc, self.zc = self._cell.o * Array(self.frac_coords)
-        if abs(self.uvals[1]) > 0.0 and self.uvals[2] == 0.0 and self.shx.hklf:  # qpeaks are always behind hklf
+        if abs(self.uvals[1]) > 0.0 and abs(
+                self.uvals[2]) < 0.000001 and self.shx.hklf:  # qpeaks are always behind hklf
             self.peak_height = uvals[1]
             self.qpeak = True
         if self.shx.end:  # After 'END' can only be Q-peaks!

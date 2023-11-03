@@ -26,8 +26,8 @@ dependencies = []
 "Bug Tracker" = "https://github.com/dkratzert/ShelXFile/issues"
 
 [tool.hatch.version]
-path = "shelxfile/shelx/shelx.py"
-pattern = "__version__\\s*=\\s*'(?P<version>\\d+\\.{0,1}\\d{0,1})'"
+path = "shelxfile/version.py"
+pattern = "VERSION\\s*=\\s*'(?P<version>\\d+\\.{0,1}\\d{0,1})'"
 
 [tool.hatch.build.targets.sdist]
 only-include = ["shelxfile"]
