@@ -41,6 +41,9 @@ CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 >>> shx.cell.a
 10.5086
 
+>>> shx.to_cif('test.cif')  
+# Writes a CIF file from the content of p21c.res
+
 # You can overwrite any parameter in a shelx file:
 >>> shx.plan
 PLAN 20
