@@ -101,6 +101,7 @@ class Shelxfile():
         if verbose:
             self.verbose = True
         # print(f'DEBUG: {self.debug}, VERBOSE: {self.verbose}')
+        self.restraint_errors: List[str] = []
         self.temp_in_kelvin: float = 0.0
         self.shelx_max_line_length: int = 79  # maximum character lenth per line in SHELXL
         self.cell: Optional[CELL] = None
@@ -252,7 +253,7 @@ class Shelxfile():
                     raise
             else:
                 return
-        self._assign_atoms_to_restraints()
+        self.restraint_errors = self._assign_atoms_to_restraints()
 
     def _assign_atoms_to_restraints(self) -> List[str]:
         warnings = []
