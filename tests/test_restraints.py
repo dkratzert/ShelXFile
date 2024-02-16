@@ -61,6 +61,7 @@ class TestRestraintsWarnings(unittest.TestCase):
         expected = ['*** Unknown atoms in restraint: SADI_2 N1 N2_3 C1_0 C2_0, line 13 ***',
                     '*** Atom list has no --> N1_2, N2_3 ***']
         self.assertListEqual(expected, result)
+        self.assertEqual(expected, self.shx.restraint_errors)
 
     def test_only_number_0_on_atoms(self):
         shx = Shelxfile()
@@ -69,3 +70,4 @@ class TestRestraintsWarnings(unittest.TestCase):
         expected = ['*** Unknown atoms in restraint: SADI N1 N2 C1_0 C2_0, line 13 ***',
                     '*** Atom list has no --> N1, N2 ***']
         self.assertListEqual(expected, result)
+        self.assertEqual(expected, shx.restraint_errors)
