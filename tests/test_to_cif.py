@@ -5,7 +5,7 @@ from shelxfile import Shelxfile
 from shelxfile.cif.cif_write import CifFile
 
 result_p21c = {'data_name'        : 'p21c',
-               'version'          : '16',
+               'version'          : '',
                'creation_date'    : '',
                'sum_formula'      : 'C0.25 H0.5 O0.75 F1 AL1.25 GA1.5',
                'formula_weight'   : 172.816,
@@ -44,6 +44,7 @@ class MyTestCase(unittest.TestCase):
         c = CifFile(self.shx)
         cif_dict = c._cif_dict()
         cif_dict['creation_date'] = ''
+        cif_dict['version'] = ''
         self.assertDictEqual(result_p21c, cif_dict)
 
 
