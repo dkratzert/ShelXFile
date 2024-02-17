@@ -54,12 +54,12 @@ class Array(object):
         This method is optimized for speed.
         """
         if isinstance(other, Array):
-            return Array(list(map(add, self.values, other)))
-        elif type(other) == float or type(other) == int:
+            return Array(tuple(map(add, self.values, other)))
+        elif isinstance(other, (float, int)):
             # return Array( list(map(lambda x: x - other, self.values)) )
             return Array([i + other for i in self.values])
         else:
-            raise TypeError('Cannot add type Array to type {}.'.format(str(type(other))))
+            raise TypeError(f'Cannot add type Array to type {str(type(other))}.')
 
     def __iadd__(self, other):
         return self.__add__(other)
