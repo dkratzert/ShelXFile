@@ -793,9 +793,11 @@ class Shelxfile():
         resi = RESI(self, 'RESI 0'.split())
         a = Atom(self)
         sfac_num = self.elem2sfac(element)
+        self.atoms._atomsdict.clear()
         a.set_atom_parameters(name=name, sfac_num=sfac_num, coords=coordinates,
                               part=part, afix=afix, resi=resi, site_occupation=sof, uvals=uvals)
         self._append_card(self.atoms, a, 0)
+        self.atoms._atomsdict.clear()
 
     def frac_to_cart(self, coordinates: list) -> Array:
         """

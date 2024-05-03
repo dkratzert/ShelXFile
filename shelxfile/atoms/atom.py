@@ -399,6 +399,7 @@ class Atom():
         Delete atom(s) in the file.
         """
         del self.shx.atoms[self.index]
+        self.shx.atoms._atomsdict.clear()
 
     def to_isotropic(self) -> None:
         """

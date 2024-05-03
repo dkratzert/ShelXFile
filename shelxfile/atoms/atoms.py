@@ -1,5 +1,5 @@
 from math import acos, sqrt, degrees
-from typing import Union, List, TYPE_CHECKING, Tuple, Iterator
+from typing import Union, List, TYPE_CHECKING, Tuple, Iterator, Dict
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
@@ -15,6 +15,7 @@ class Atoms():
     def __init__(self, shx: 'Shelxfile'):
         self.shx = shx
         self.all_atoms: List[Atom] = []
+        self._atomsdict: Dict[str, Atom] = {}
 
     def append(self, atom: 'Atom') -> None:
         """
@@ -57,7 +58,9 @@ class Atoms():
 
     @property
     def atomsdict(self):
-        return dict((atom.fullname, atom) for atom in self.all_atoms)
+        if not self._atomsdict:
+            self._atomsdict = dict((atom.fullname, atom) for atom in self.all_atoms)
+        return self._atomsdict
 
     @property
     def number(self) -> int:
