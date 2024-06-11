@@ -177,13 +177,15 @@ class Atom():
         Sets u values and checks if a free variable was used.
         """
         self.uvals = uvals
-        if abs(uvals[2]) < 0.000001:  # 0 is Uiso and 1 q-peak hight
+        if sum([abs(x) for x in uvals[2:]]) > 0.000001 :  # 0 is Uiso and 1 q-peak height
+            # Handle regular atom:
             for n, u in enumerate(uvals):
                 if abs(u) > 4.0:
                     fvar, uval = split_fvar_and_parameter(u)
                     # self.uvals[n] = uval
                     self.shx.fvars.set_fvar_usage(fvar)
         else:
+            # Handle q-peak case
             if abs(uvals[0]) > 4.0:
                 fvar, uval = split_fvar_and_parameter(uvals[0])
                 self.shx.fvars.set_fvar_usage(fvar)
