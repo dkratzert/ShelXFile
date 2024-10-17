@@ -1,6 +1,8 @@
 from contextlib import suppress
 from typing import Union, List, Tuple, Optional
 
+from shelxfile.misc import misc
+
 with suppress(Exception):
     from shelxfile import Shelxfile
 from shelxfile.misc.dsrmath import atomic_distance, Array, Matrix, SymmetryElement
@@ -177,7 +179,7 @@ class Atom():
         Sets u values and checks if a free variable was used.
         """
         self.uvals = uvals
-        if sum([abs(x) for x in uvals[2:]]) > 0.000001 :  # 0 is Uiso and 1 q-peak height
+        if sum([abs(x) for x in uvals[2:]]) > 0.000001:  # 0 is Uiso and 1 q-peak height
             # Handle regular atom:
             for n, u in enumerate(uvals):
                 if abs(u) > 4.0:
@@ -303,6 +305,21 @@ class Atom():
     @property
     def is_isotropic(self) -> bool:
         return sum(self.uvals[1:]) == 0
+
+    @property
+    def uvals_as_list(self) -> List[list[float]]:
+        U11, U22, U33, U23, U13, U12 = self.uvals
+        U21 = U12
+        U32 = U23
+        U31 = U13
+        return [[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]]
+
+    def is_npd(self) -> bool:
+        eigenvalues = misc.eigenvals(self.uvals_as_list)
+        if any(ev <= 0 for ev in eigenvalues):
+            return True
+        else:
+            return False
 
     @property
     def element(self) -> str:

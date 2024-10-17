@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from shelxfile.misc.misc import range_resolver, wrap_line, multiline_test, chunks, find_line
+from shelxfile.misc.misc import range_resolver, wrap_line, multiline_test, chunks, find_line, eigenvals
 
 
 class Test(TestCase):
@@ -51,3 +51,17 @@ class Testfind_line(TestCase):
 
         with self.assertRaises(TypeError) as e:
             find_line(inp, '.*blub.*')
+
+
+class TestEigenvalues(TestCase):
+    def test_eigenvalues_1(self):
+        # [0.08422976 0.15727835 0.20849189]
+        matrix = [
+            [0.1, 0.02, 0.03],
+            [0.02, 0.2, 0.01],
+            [0.03, 0.01, 0.15]
+        ]
+        eigenvalues = eigenvals(matrix)
+        self.assertAlmostEqual(0.08422976, eigenvalues[0])
+        self.assertAlmostEqual(0.15727835, eigenvalues[1])
+        self.assertAlmostEqual(0.20849189, eigenvalues[2])

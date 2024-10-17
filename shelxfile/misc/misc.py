@@ -18,7 +18,6 @@ from shutil import get_terminal_size
 from time import time, perf_counter
 from typing import List
 
-
 dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)
 
 
@@ -226,6 +225,7 @@ def time_this_method(f):
         t2 = perf_counter()
         print(f'Time for "{f.__name__ + "()"}": {(t2 - t1) * 1000:5.3} ms\n')
         return result
+
     return wrapper
 
 
@@ -505,3 +505,67 @@ def subtract_vect(a, b):
     return (a[0] - b[0],
             a[1] - b[1],
             a[2] - b[2])
+
+
+def matrix_multiply(A, B):
+    result = [[0 for _ in range(len(B[0]))] for _ in range(len(A))]
+    for i in range(len(A)):
+        for j in range(len(B[0])):
+            result[i][j] = sum(A[i][k] * B[k][j] for k in range(len(B)))
+    return result
+
+def transpose_matrix(matrix):
+    return list(zip(*matrix))
+
+
+def qr_decomposition(matrix):
+    n = len(matrix)
+    Q = [[0.0] * n for _ in range(n)]
+    R = [[0.0] * n for _ in range(n)]
+
+    # Gram-Schmidt
+    for i in range(n):
+        Q[i] = [matrix[j][i] for j in range(n)]
+
+        for j in range(i):
+            R[j][i] = sum(Q[j][k] * Q[i][k] for k in range(n))
+            Q[i] = [Q[i][k] - R[j][i] * Q[j][k] for k in range(n)]
+
+        norm = sqrt(sum(Q[i][k] ** 2 for k in range(n)))
+        R[i][i] = norm
+        Q[i] = [Q[i][k] / norm for k in range(n)]
+
+    Q_transposed = transpose_matrix(Q)
+    return Q_transposed, R
+
+
+def eigenvals(matrix: list[list[float]], iterations: int = 100) -> tuple[float, float, float]:
+    """
+    Calculates eigenvalues of a 3x3 matrix.
+    """
+    A = matrix
+    for _ in range(iterations):
+        Q, R = qr_decomposition(A)
+        A = matrix_multiply(R, Q)
+    eigenvalues = [A[i][i] for i in range(len(A))]
+    return eigenvalues[2], eigenvalues[1], eigenvalues[0]
+
+
+if __name__ == '__main__':
+    matrix = [
+        [0.1, 0.02, 0.03],
+        [0.02, 0.2, 0.01],
+        [0.03, 0.01, 0.15]
+    ]
+    import numpy as np
+
+    eigenvalues1 = eigenvals(matrix)
+    eigenvalues2 = np.linalg.eigvals(matrix)
+
+    # Überprüfen, ob die Matrix NPD ist
+    if any(ev <= 0 for ev in eigenvalues1):
+        print("Die ADP-Matrix ist nicht positiv definit (NPD).")
+    else:
+        print("Die ADP-Matrix ist positiv definit.")
+        print(eigenvalues1)
+        print(eigenvalues2)
