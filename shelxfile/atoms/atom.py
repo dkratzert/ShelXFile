@@ -220,9 +220,9 @@ class Atom():
         self.shx.fvars.set_fvar_usage(self.fvar)
         self.Ucif = self.set_ucif(uvals)
         # TODO: I am still unsure if this these are correct values:
-        # self.Ustar = self.Ucif * self._cell.N * self._cell.N.T
-        # self.Ucart = self.Ustar * self._cell.o * self._cell.o.T
-        # self.Ueq = self.set_ueq(uvals)
+        self.Ustar = self.Ucif * self._cell.N * self._cell.N.T
+        self.Ucart = self.Ustar * self._cell.o * self._cell.o.T
+        self.Ueq = self.set_ueq(uvals)
         # self.Uiso = self.Ueq
         # transformed_u = self.transform_u_by_symmetry(2)
         # print(self.name, [round(x, 6) for x in transformed_u], self.frac_coords)
@@ -232,8 +232,8 @@ class Atom():
         if uvals[0] > 0 and not sum(uvals[2:]):
             ueq = uvals[0]
         # This is a hydrogen atom with negative thermal parameter:
-        elif uvals[0] < 0 and not sum(uvals[1:]):
-            ueq = self.pivot.Uiso * abs(uvals[0])
+        #elif uvals[0] < 0 and not sum(uvals[1:]):
+        #    ueq = self.pivot.Uiso * abs(uvals[0])
         else:
             # This is a non-hydrogen atom with an ADP
             ueq = self.Ucart.trace / 3
@@ -315,7 +315,7 @@ class Atom():
         return [[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]]
 
     def is_npd(self) -> bool:
-        eigenvalues = misc.eigenvals(self.uvals_as_list)
+        eigenvalues = misc.eigenvals(self.Ucart.values)
         if any(ev <= 0 for ev in eigenvalues):
             return True
         else:

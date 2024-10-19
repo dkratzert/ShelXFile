@@ -320,8 +320,7 @@ class Matrix(object):
         """
         Dot product of two matrices.
         """
-        result = [[sum(a * b for a, b in zip(x_row, y_col)) for y_col in zip(*other)] for x_row in self]
-        return Matrix(result)
+        return Matrix([[sum(a * b for a, b in zip(x_row, y_col)) for y_col in zip(*other)] for x_row in self])
 
     @staticmethod
     def zero(m: int, n: int) -> 'Matrix':
