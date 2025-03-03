@@ -43,6 +43,13 @@ class TestAtoms(TestCase):
     def test_has_atom_al1(self):
         self.assertEqual(True, self.shx.atoms.has_atom('Al1'))
 
+    def test_has_atom_al1_lower(self):
+        self.assertEqual(True, self.shx.atoms.has_atom('al1'))
+
+    def test_has_atom_H37A(self):
+        self.assertEqual(True, self.shx.atoms.has_atom('H37A'))
+        self.assertEqual(True, self.shx.atoms.has_atom('H37a_0'))
+
     def test_has_atom_al1_0(self):
         self.assertEqual(True, self.shx.atoms.has_atom('Al1_0'))
 

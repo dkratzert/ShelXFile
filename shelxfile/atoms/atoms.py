@@ -22,6 +22,7 @@ class Atoms():
         Adds a new atom to the list of atoms. Using append is essential.
         """
         self.all_atoms.append(atom)
+        self._atomsdict.clear()
 
     @property
     def nameslist(self) -> Tuple[str]:
@@ -53,13 +54,14 @@ class Atoms():
                     print("deleting atom", at.fullname)
                 del self.all_atoms[n]
                 del self.shx._reslist[self.shx._reslist.index(at)]
+                self._atomsdict.clear()
         # if self.shx.debug:
         #    print('Could not delete atom {}'.format(self.get_atom_by_id(key.atomid).fullname))
 
     @property
     def atomsdict(self):
         if not self._atomsdict:
-            self._atomsdict = dict((atom.fullname, atom) for atom in self.all_atoms)
+            self._atomsdict = dict((atom.fullname.upper(), atom) for atom in self.all_atoms)
         return self._atomsdict
 
     @property
