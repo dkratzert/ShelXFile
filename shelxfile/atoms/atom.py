@@ -218,25 +218,37 @@ class Atom():
             self.qpeak = True
         self.sfac_num = int(atline[1])
         self.shx.fvars.set_fvar_usage(self.fvar)
-        self.Ucif = self.set_ucif(uvals)
         # TODO: I am still unsure if this these are correct values:
-        self.Ustar = self.Ucif * self._cell.N * self._cell.N.T
-        self.Ucart = self.Ustar * self._cell.o * self._cell.o.T
-        self.Ueq = self.set_ueq(uvals)
         # self.Uiso = self.Ueq
         # transformed_u = self.transform_u_by_symmetry(2)
         # print(self.name, [round(x, 6) for x in transformed_u], self.frac_coords)
+
+    @property
+    def ucif(self):
+        return self.set_ucif(self.uvals)
+
+    @property
+    def ustar(self):
+        return self.ucif * self._cell.N * self._cell.N.T
+
+    @property
+    def u_cart(self):
+        return self.ustar * self._cell.o * self._cell.o.T
+
+    @property
+    def ueq(self):
+        return self.set_ueq(self.uvals)
 
     def set_ueq(self, uvals):
         # This is a q-peak:
         if uvals[0] > 0 and not sum(uvals[2:]):
             ueq = uvals[0]
         # This is a hydrogen atom with negative thermal parameter:
-        #elif uvals[0] < 0 and not sum(uvals[1:]):
+        # elif uvals[0] < 0 and not sum(uvals[1:]):
         #    ueq = self.pivot.Uiso * abs(uvals[0])
         else:
             # This is a non-hydrogen atom with an ADP
-            ueq = self.Ucart.trace / 3
+            ueq = self.u_cart.trace / 3
         return ueq
 
     def set_ucif(self, uvals):
@@ -257,7 +269,7 @@ class Atom():
     def transform_u_by_symmetry(self, symmetry_number: int):
         symm = '-y, +x-y, +z'.split(',')
         R = SymmetryElement(symm).matrix
-        Ustar_n = self.Ustar * R * R.T
+        Ustar_n = self.ustar * R * R.T
         Ucif_n = Ustar_n * self._cell.N.inversed * self._cell.N.inversed.T
         uvals = Ucif_n
         upper_diagonal = uvals.values[0][0], uvals.values[1][1], uvals.values[2][2], \
@@ -315,7 +327,7 @@ class Atom():
         return [[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]]
 
     def is_npd(self) -> bool:
-        eigenvalues = misc.eigenvals(self.Ucart.values)
+        eigenvalues = misc.eigenvals(self.u_cart.values)
         if any(ev <= 0 for ev in eigenvalues):
             return True
         else:
