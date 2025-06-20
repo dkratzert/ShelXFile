@@ -291,7 +291,7 @@ class Atom():
                     self.sof = self.part.sof
             else:
                 self.sof = self.afix.sof
-        else:
+        elif len(atline) > 5:
             self.sof = float(atline[5])
 
     def _get_atom_coordinates(self, atline: List[str]) -> Tuple[float, float, float]:

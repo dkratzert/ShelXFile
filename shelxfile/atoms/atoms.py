@@ -25,7 +25,7 @@ class Atoms():
         self._atomsdict.clear()
 
     @property
-    def nameslist(self) -> Tuple[str]:
+    def nameslist(self) -> tuple[str, ...]:
         return tuple([at.fullname.upper() for at in self.all_atoms])
 
     def __repr__(self) -> str:
