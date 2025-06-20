@@ -386,9 +386,9 @@ class Shelxfile():
                     multiline = False
                 self._reslist[line_num + wrapindex] = ''
             # The current line split:
-            spline: list = line.split('!')[0].split()  # Ignore comments with "!", see how this performes
+            spline: list = line.split('!')[0].split()  # Ignore comments with "!"
             # The current line as string:
-            line = line.upper().split('!')[0]  # Ignore comments with "!", see how this performes
+            line = line.upper().split('!')[0]  # Ignore comments with "!"
             word = line[:4]
             # get RESI:
             if line.startswith(('END', 'HKLF')) and self.resi:
@@ -777,7 +777,7 @@ class Shelxfile():
                 if not line.strip():
                     continue
                 if self.debug or self.verbose:
-                    print("Error in line: {} -> {}".format(line_num + 1, line))
+                    print(f"Error in line: {line_num + 1} -> {line}")
                     if self.debug:
                         raise ParseUnknownParam(debug=self.debug, verbose=self.verbose)
 
@@ -1094,15 +1094,16 @@ class Shelxfile():
 if __name__ == "__main__":
     print(Path('.').resolve())
     # file = r'../shelxfile/tests/resources/p21c.res'
-    file = r'tests/resources/p-31c.res'
-    shx = Shelxfile()
+    file = r'D:\_DEV\GitHub\ShelXFile\tests\resources\test_bedelone.res'
+    shx = Shelxfile(debug=True)
     shx.read_file(file)
-    print(shx.atoms)
-    print(shx.sum_formula_exact)
-    print(shx.sum_formula)
-    print(shx.sum_formula_exact_as_dict())
-    print(shx.restraints)
-    print(shx.atoms.nameslist)
+    # print(shx.atoms)
+    # print(shx.sum_formula_exact)
+    # print(shx.sum_formula)
+    # print(shx.sum_formula_exact_as_dict())
+    # print(shx.restraints)
+    # print(shx.atoms.nameslist)
+    print(shx)
     sys.exit()
 
     # noinspection PyUnreachableCode

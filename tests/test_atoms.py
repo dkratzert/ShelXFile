@@ -306,3 +306,19 @@ class TestUisoOfFreeRefine(TestCase):
         # self.assertEqual(0.04654, h1a.Uiso)
         # self.assertEqual([0.04654, 0.0, 0.0, 0.0, 0.0, 0.0], h1a.uvals)
         self.assertEqual("O3'", h1a.pivot.name)
+
+
+class TestBedeLoneFile(TestCase):
+    def setUp(self) -> None:
+        self.shx = Shelxfile(debug=True)
+        self.shx.read_file('tests/resources/test_bedelone.res')
+
+    def test_lone_pairs(self):
+        self.assertEqual(150, len(self.shx.atoms))
+        l50 = self.shx.atoms.get_atom_by_name('L50')
+        self.assertEqual('L50  2   0.822400    0.641000   0.461520   11.00000    0.00000',
+                         str(l50))
+        self.assertEqual(0, l50.part.n)
+        self.assertEqual(11.0, l50.part.sof)
+        self.assertEqual([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], l50.uvals)
+        self.assertEqual(0.8224, l50.x)
