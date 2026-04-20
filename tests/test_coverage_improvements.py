@@ -1,6 +1,7 @@
 """
 Additional tests to improve coverage for atoms, shelx, cards, and misc modules.
 """
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import TestCase
@@ -374,17 +375,20 @@ class TestShelxfileOperations(TestCase):
     def test_write_shelx_file_no_reslist(self):
         shx = Shelxfile()
         # No file loaded, _reslist is empty
-        shx.write_shelx_file('/tmp/shelxfile_test_empty.ins')
-        # Should print warning and return None
+        result = shx.write_shelx_file('nonexistent.ins')
+        self.assertIsNone(result)
 
     def test_write_shelx_file(self):
-        path = Path('/tmp/shelxfile_test_write.ins')
-        self.shx.write_shelx_file(str(path))
-        self.assertTrue(path.exists())
-        content = path.read_text()
-        self.assertIn('TITL', content)
-        self.assertIn('CELL', content)
-        path.unlink()
+        with tempfile.NamedTemporaryFile(suffix='.ins', delete=False) as f:
+            tmppath = Path(f.name)
+        try:
+            self.shx.write_shelx_file(str(tmppath))
+            self.assertTrue(tmppath.exists())
+            content = tmppath.read_text()
+            self.assertIn('TITL', content)
+            self.assertIn('CELL', content)
+        finally:
+            tmppath.unlink(missing_ok=True)
 
     def test_is_atom_blank_line(self):
         self.assertFalse(Shelxfile.is_atom(''))
@@ -967,14 +971,12 @@ class TestFlatten(TestCase):
 
 class TestRemoveFile(TestCase):
     def test_remove_existing_file(self):
-        path = '/tmp/shelxfile_test_remove.txt'
-        Path(path).write_text('test')
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            path = f.name
         self.assertTrue(remove_file(path))
 
     def test_remove_nonexistent_file(self):
-        # Should not raise, returns None/False
-        result = remove_file('/tmp/nonexistent_file_xyz123.txt')
-        # File doesn't exist, so it won't try to remove
+        result = remove_file(str(Path(tempfile.gettempdir()) / 'nonexistent_file_xyz123.txt'))
         self.assertFalse(result)
 
 
