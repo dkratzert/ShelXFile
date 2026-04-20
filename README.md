@@ -6,13 +6,13 @@
 [![Unit tests](https://github.com/dkratzert/ShelXFile/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/dkratzert/ShelXFile/actions/workflows/unit-tests.yml)
 ![Contributions](https://img.shields.io/badge/contributions-welcome-blue)
 
-This is a full implementation of the SHELXL[[1](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)] file syntax. Additionally it is able to edit SHELX properties using Python.
-The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
-Shelxfile is used as file parser in StructureFinder[[3](https://github.com/dkratzert/Shelxfile/blob/master/README.md#references)].
+This is a full implementation of the SHELXL[[1](#references)] file syntax. Additionally it is able to edit SHELX properties using Python.
+The implementation is Python3-only and supports SHELXL after 2017 (you should not use old versions anyway).
+Shelxfile is used as file parser in StructureFinder[[3](#references)].
 
-Shelxfile always keeps the file order intact. Every SHELX instruction like DFIX or an atom is stored as an class object in the list Shelxfile.\_reslist. When writing the Shelxfile content to disk, it wites the \_reslist content to disk.
+Shelxfile always keeps the file order intact. Every SHELX instruction like DFIX or an atom is stored as a class object in the list `Shelxfile._reslist`. When writing the Shelxfile content to disk, it writes the `_reslist` content to disk.
 
-Shelxfile tries to detect all possible syntax errors that SHELXL would not like either. If Shelxfile.DEBUG is True, more output about syntax and other errors are printed out. Otherwise, the parser is quiet except for really severe errors like a missing unit cell.
+Shelxfile tries to detect all possible syntax errors that SHELXL would not like either. Use `verbose=True` during initialization for more output about syntax and other errors. Use `debug=True` to halt on errors. Otherwise, the parser is quiet except for really severe errors like a missing unit cell.
 
 Not every part of Shelxfile is complete, for example it will not recognize if you add restraints with atom names that are not in the SHELX file. Please help me improving it!
 
@@ -20,15 +20,29 @@ Not every part of Shelxfile is complete, for example it will not recognize if yo
 
 [You can find the ShelXfile source code at GitHub](https://github.com/dkratzert/ShelXFile).
 
-Examples:
 
+## Installation
+
+```shell
+pip install shelxfile
+```
+
+
+## Quick Start
 
 ```python
-pip install shelxfile
+from shelxfile import Shelxfile
 
->>> from shelxfile import Shelxfile
->>> shx = Shelxfile(verbose=True) # or debug=True, debug will halt on errors.
->>> shx.read_file('src/tests/resources/p21c.res')  # or .read_string() 
+shx = Shelxfile(verbose=True)  # or debug=True, debug will halt on errors.
+shx.read_file('tests/resources/p21c.res')  # or shx.read_string('...')
+```
+
+
+## Examples
+
+### Unit Cell
+
+```python
 >>> shx.cell
 CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 
@@ -40,11 +54,21 @@ CELL 0.71073 10.5086 20.9035 20.5072 90 94.13 90
 
 >>> shx.cell.a
 10.5086
+```
 
->>> shx.to_cif('test.cif')  
+### CIF Export
+
+```python
+>>> shx.to_cif('test.cif')
 # Writes a CIF file from the content of p21c.res
+# Optionally pass a custom template: shx.to_cif('test.cif', template='my_template.tmpl')
+```
 
-# You can overwrite any parameter in a shelx file:
+### Modifying SHELX Instructions
+
+You can overwrite any parameter in a SHELX file:
+
+```python
 >>> shx.plan
 PLAN 20
 
@@ -54,16 +78,25 @@ PLAN 20
 >>> shx.plan.set('PLAN 30')
 >>> shx.plan
 PLAN 30
+```
 
+### Atoms
+
+```python
 >>> shx.atoms
-O1     3    0.074835    0.238436    0.402457   -31.00000    0.01579    0.03095      0.01852   -0.00468   -0.00210    0.01153
-C1     1    0.028576    0.234542    0.337234   -31.00000    0.02311    0.03617      0.01096   -0.01000    0.00201    0.00356
-C2     1    0.121540    0.194460    0.298291   -31.00000    0.02960    0.04586      0.01555   -0.00485   -0.00023    0.01102
-F
+O1     3    0.074835    0.238436    0.402457   ...
+C1     1    0.028576    0.234542    0.337234   ...
+C2     1    0.121540    0.194460    0.298291   ...
 ...
 
+>>> len(shx.atoms)
+148
+
+>>> shx.atoms.number
+148
+
 >>> shx.atoms.hydrogen_atoms
-[Atom ID: 81, Atom ID: 88, Atom ID: 95, ... ]
+[Atom ID: 134, Atom ID: 141, Atom ID: 148, ...]
 
 >>> shx.atoms.hydrogen_atoms[1].name
 'H32'
@@ -71,26 +104,34 @@ F
 >>> shx.atoms.n_hydrogen_atoms
 24
 
-# Atoms with a riding model e.g. hydrogen atom riding on a carbon atom:
+# Atoms with a riding model (e.g. hydrogen atom riding on a carbon atom):
 >>> shx.atoms.riding_atoms
-[Atom ID: 81, Atom ID: 88, Atom ID: 95, ... ]
+[Atom ID: 134, Atom ID: 141, Atom ID: 148, ...]
 
+# Q-peaks in the file:
+>>> shx.atoms.q_peaks
+[Atom ID: 328, Atom ID: 329, ...]
+
+# Number of anisotropic/isotropic atoms:
+>>> shx.atoms.n_anisotropic_atoms
+124
+>>> shx.atoms.n_isotropic_atoms
+24
+
+# Residue numbers present:
+>>> shx.atoms.residues
+[0, 1, 2, 3, 4]
+```
+
+### Working with Individual Atoms
+
+```python
 >>> a = shx.atoms.get_atom_by_name('F1_2')  # Atom F1 in residue 2
 >>> a
-Atom ID: 258  # <- The Atom ID is the index number in the Shelxfile._reslist list
+Atom ID: 258  # The Atom ID is the index number in Shelxfile._reslist
 
 >>> str(a)
-'F1    4    0.245205    0.192674    0.649231   -21.00000    0.05143    0.03826    0.03193   -0.00579   -0.01865   -0.00485'
-
->>> a.to_isotropic()
->>> str(a)
-'F1    4    0.245205    0.192674   0.649231  -21.00000    0.04000'
-
->>> a.position  # position in the SHELX .res file
-273
-
->>> str(shx._reslist[273])  # In regular code, do not access shx._reslist directly!
-'F1    4    0.245205    0.192674   0.649231  -21.00000    0.04000'
+'F1    4    0.245205    0.192674    0.649231   -21.00000    0.05143    0.03826      0.03193   -0.00579   -0.01865   -0.00485'
 
 >>> a.name
 'F1'
@@ -98,100 +139,131 @@ Atom ID: 258  # <- The Atom ID is the index number in the Shelxfile._reslist lis
 >>> a.element
 'F'
 
-# Introduce a new element
->>> a.element = 'Na'
->>> shx.sfac_table
-SFAC C  H  O  F  Al  Ga  Na
-
 >>> a.resinum
 2
 
->>> a.part
+>>> a.part.n
 2
 
+>>> a.sfac_num
+4
+
+>>> a.occupancy
+0.51904
+
+>>> a.frac_coords
+(0.245205, 0.192674, 0.649231)
+
+>>> a.cart_coords
+(1.617897551082389, 4.027560959000001, 13.279336538026431)
+
+>>> a.is_hydrogen
+False
+
+>>> a.is_isotropic
+False
+
+>>> a.atomid  # position in the SHELX .res file (_reslist index)
+258
+
+>>> str(shx._reslist[a.atomid])  # In regular code, do not access shx._reslist directly!
+'F1    4    0.245205    0.192674    0.649231   -21.00000    0.05143    ...'
+```
+
+### Modifying Atoms
+
+```python
+# Make an atom isotropic:
+>>> a.to_isotropic()
+>>> str(a)
+'F1    4    0.245205    0.192674   0.649231  -21.00000    0.04000'
+
+# Introduce a new element (automatically updates the SFAC table):
+>>> a.element = 'Na'
+>>> shx.sfac_table
+SFAC C  H  O  F  Al  Ga  Na
+```
+
+### Adding and Deleting Atoms
+
+```python
+# Add a new atom:
+>>> shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3], element='C')
+
+# Delete atoms around a given atom:
+>>> for x in a.find_atoms_around(dist=2.5, only_part=2):
+...     x.delete()
+```
+
+### Finding Nearby Atoms
+
+```python
+>>> a.find_atoms_around(dist=2.0, only_part=1)
+[Atom ID: 239, Atom ID: 241, Atom ID: 245]
+
+>>> [str(x) for x in a.find_atoms_around(dist=2.2, only_part=2)]
+['C2     1    0.192984    0.140449    ...', 'F2     4    ...', 'F3     4    ...']
+```
+
+### SFAC Table Lookups
+
+```python
 >>> shx.sfac2elem(4)
 'F'
 
 >>> shx.elem2sfac('F')
 4
+```
 
->>> a.find_atoms_around(dist=2.0, only_part=1)
-[Atom ID: 254, Atom ID: 256, Atom ID: 260]  # Found some atoms 
+### Restraints
 
->>> [str(x) for x in a.find_atoms_around(dist=2.2, only_part=2)]
-['C2     1    0.192984    0.140449    0.621265   -21.00000    0.04315    0.02747      0.02385    0.00686   -0.00757    0.00126', 
-'F2     4    0.264027    0.090306    0.642441   -21.00000    0.06073    0.04450      0.03972    0.01630   -0.01260    0.01460', 
-'F3     4    0.078582    0.131920    0.643529   -21.00000    0.05691    0.04955      0.03374    0.01040    0.01881    0.00375']
-
->>> a.cart_coords
-[1.617897551082389, 4.027560959000001, 13.279336538026433]
-
->>> a.frac_coords
-[0.245205, 0.192674, 0.649231]
-
->>> a.occupancy
-1.0
-
->>> a.sfac_num
-4
-
->>>[x for x in a.find_atoms_around(dist=2.5, only_part=2)]
-[Atom ID: 254, Atom ID: 256, Atom ID: 260, Atom ID: 262]
-
->>> for x in a.find_atoms_around(dist=2.5, only_part=2):
-...    x.delete()
-
->>> [x for x in a.find_atoms_around(dist=2.5, only_part=2)]
-[]  # Atoms are now deleted from shx._reslist.
-
->>> shx.restraints
-SADI_CCF3 0.02 C1 C2 C1 C3 C1 C4
-SADI_CCF3 0.02 F1 C2 F2 C2 F3 C2 F4 C3 F5 C3 F6 C3 F7 C4 F8 C4 F9 C4
-SADI_CCF3 0.04 C2 C3 C3 C4 C2 C4
-SADI_CCF3 0.04 O1 C2 O1 C3 O1 C4
-SADI_CCF3 0.04 F1 F2 F2 F3 F3 F1 F4 F5 F5 F6 F6 F4 F7 F8 F8 F9 F9 F7
-...
-
+```python
 >>> shx.restraints[1]
 SADI_CCF3 0.02 C1 C2 C1 C3 C1 C4
 
-str(shx.restraints[1])
+>>> str(shx.restraints[1])
 'SADI_CCF3 0.02 C1 C2 C1 C3 C1 C4'
 
-shx.restraints[1].residue_class
+>>> shx.restraints[1].residue_class
 'CCF3'
 
-# The residue class 'CCF3' has three residues with these numbers: 
+# The residue class 'CCF3' has three residues with these numbers:
 >>> shx.restraints[1].residue_number
 [4, 1, 2]
 
 # The esd of the SADI restraint:
-shx.restraints[1].s
+>>> shx.restraints[1].s
 0.02
-
 ```
 
-Writes current shx object to test.ins
-All lines in Shelxfile._reslist get wrapped after 79 characters with " =\n " as
-specified by SHELXL during the file writing.
+### Distances and Angles
 
 ```python
->>> shx.write_shelx_file('test.ins')
+# Distance between two atoms (by name):
+>>> shx.atoms.distance('O1', 'C1')
+1.3505645511659556
+
+# Bond angle between three atoms:
+>>> at1 = shx.atoms.get_atom_by_name('O1_4')
+>>> at2 = shx.atoms.get_atom_by_name('C1_4')
+>>> at3 = shx.atoms.get_atom_by_name('C2_4')
+>>> shx.atoms.angle(at1, at2, at3)
+109.68812347
+
+# Torsion angle between four atoms:
+>>> at1 = shx.atoms.get_atom_by_name('O1')
+>>> at2 = shx.atoms.get_atom_by_name('C1')
+>>> at3 = shx.atoms.get_atom_by_name('C2')
+>>> at4 = shx.atoms.get_atom_by_name('F1')
+>>> shx.atoms.torsion_angle(at1, at2, at3, at4)
+74.09573117980119
 ```
-No matter if you loaded a .res or .ins file with refine(), SHELXL refines the structure of the Shelxfile() object:
+
+### Symmetry Cards
+
+Symmetry cards that are implied by lattice symmetry are generated on-the-fly:
 
 ```python
->>> shx.insert_anis()
->>> shx.refine(2)
-
- Running SHELXL with "/usr/local/bin/shelxl -b3000 /Users/daniel/GitHub/Shelxfile/tests/p21c" and "L.S. 2"
- wR2 =  0.1143 before cycle   1 for   10786 data and    945 /    945 parameters
- wR2 =  0.1025 before cycle   2 for   10786 data and    945 /    945 parameters
- wR2 =  0.1006 before cycle   3 for   10786 data and      0 /    945 parameters
- SHELXL Version 2018/3
-```
-```python
-# Symmcards that are implied by lattice symmetry are generated on-the-fly:
 >>> shx.symmcards
 | 1  0  0|   | 0.0|
 | 0  1  0| + | 0.0|
@@ -208,33 +280,80 @@ No matter if you loaded a .res or .ins file with refine(), SHELXL refines the st
 | 1  0  0|   | 0.0|
 | 0 -1  0| + |-0.5|
 | 0  0  1|   |-0.5|
-
-# Complete or "grow" structures with higher symmetry: 
->>> shx = Shelxfile('./tests/p-31c.res')
-len(shx.atoms)
-88
-p = shx.grow()
-len(p)
-208
-
-# The (bond) angle between three atoms:
->>> at1 = shx.atoms.get_atom_by_name('O1_4')
->>> at2 = shx.atoms.get_atom_by_name('C1_4')
->>> at3 = shx.atoms.get_atom_by_name('C2_4')
->>> shx.atoms.angle(at1, at2, at3)
-109.688123
-
-# The torsion angle between four atoms:
->>> at1 = shx.atoms.get_atom_by_name('O1')
->>> at2 = shx.atoms.get_atom_by_name('C1')
->>> at3 = shx.atoms.get_atom_by_name('C2')
->>> at4 = shx.atoms.get_atom_by_name('F1')
->>> shx.atoms.torsion_angle(at1, at2, at3, at4)
-74.095731
-
 ```
 
-and many more...
+### Growing Structures
+
+Complete or "grow" structures with higher symmetry:
+
+```python
+>>> shx2 = Shelxfile()
+>>> shx2.read_file('tests/resources/p-31c.res')
+>>> len(shx2.atoms)
+88
+>>> p = shx2.grow()
+>>> len(p)
+208
+```
+
+### Writing Files
+
+Writes the current `shx` object to a SHELX file.
+All lines in `Shelxfile._reslist` get wrapped after 79 characters with `" =\n "` as
+specified by SHELXL during the file writing.
+
+```python
+>>> shx.write_shelx_file('test.ins')
+```
+
+### Sum Formula
+
+```python
+# Sum formula based on UNIT instruction:
+>>> shx.sum_formula
+'C0.25 H0.5 O0.75 F1 AL1.25 GA1.5'
+
+# Exact sum formula from all atom occupancies:
+>>> shx.sum_formula_exact
+'C34 H24 O4 F36 Al1 Ga1'
+```
+
+### Residuals from .res File
+
+These values are parsed from `REM` lines written by SHELXL into `.res` files:
+
+```python
+>>> shx.R1
+0.04
+
+>>> shx.wr2
+0.1005
+
+>>> shx.goof
+1.016
+
+>>> shx.space_group
+'P2(1)/c'
+
+>>> shx.wavelength
+0.71073
+```
+
+### Refinement (Requires SHELXL)
+
+No matter if you loaded a `.res` or `.ins` file, `refine()` runs SHELXL on the `Shelxfile` object:
+
+```python
+>>> shx.insert_anis()
+>>> shx.refine(2)
+
+ Running SHELXL with "/usr/local/bin/shelxl -b3000 ..." and "L.S. 2"
+ wR2 =  0.1143 before cycle   1 for   10786 data and    945 /    945 parameters
+ wR2 =  0.1025 before cycle   2 for   10786 data and    945 /    945 parameters
+ wR2 =  0.1006 before cycle   3 for   10786 data and      0 /    945 parameters
+ SHELXL Version 2018/3
+```
+
 
 ## References
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.
