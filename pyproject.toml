@@ -52,3 +52,5 @@ exclude = [
     "/venv*",
 ]
 
+[tool.flake8]
+exclude = [".venv", "venv", "__pycache__"]
