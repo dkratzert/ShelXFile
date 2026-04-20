@@ -21,6 +21,13 @@ classifiers = [
 ]
 dependencies = []
 
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "ty",
+]
+
 [project.urls]
 "Homepage" = "https://dkratzert.de/shelxfile.html"
 "Bug Tracker" = "https://github.com/dkratzert/ShelXFile/issues"
