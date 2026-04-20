@@ -1,4 +1,3 @@
-import pathlib
 import unittest
 
 from shelxfile import Shelxfile

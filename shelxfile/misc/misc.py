@@ -229,7 +229,7 @@ def time_this_method(f):
     return wrapper
 
 
-def chunks(l: list, n: int) -> list:
+def chunks(l: list, n: int) -> list:  # noqa: E741
     """
     returns successive n-sized chunks from l.
     """
@@ -513,6 +513,7 @@ def matrix_multiply(A, B):
         for j in range(len(B[0])):
             result[i][j] = sum(A[i][k] * B[k][j] for k in range(len(B)))
     return result
+
 
 def transpose_matrix(matrix):
     return list(zip(*matrix))

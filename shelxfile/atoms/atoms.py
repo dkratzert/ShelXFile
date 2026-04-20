@@ -1,5 +1,5 @@
 from math import acos, sqrt, degrees
-from typing import Union, List, TYPE_CHECKING, Tuple, Iterator, Dict
+from typing import Union, List, TYPE_CHECKING, Iterator, Dict
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile

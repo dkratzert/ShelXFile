@@ -61,10 +61,14 @@ def find_shelxl_exe(shelxpath=None) -> str:
         if not exe:
             continue
         version = get_xl_version_string(exe)
+        if not version and exe:
+            # Newer versions don't have the string included anymore.
+            return exe
         if not version:
             print('Your SHELXL version', exe, 'is too old for this Program')
             print('Please use SHELXL 2017 or above!')
             print(download)
+            return exe
         version = version.split('/')
         if int(version[0]) < 2017:
             print('Your SHELXL version is too old. Please use SHELXL 2017 or above!')

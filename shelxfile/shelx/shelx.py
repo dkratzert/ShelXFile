@@ -318,15 +318,15 @@ class Shelxfile():
                 try:
                     file_included_in_includefile = self._read_included_file(includefiles, line)
                     if file_included_in_includefile:
-                        for line_num_includefile, l in enumerate(file_included_in_includefile):
+                        for line_num_includefile, include_line in enumerate(file_included_in_includefile):
                             reslist_position = line_num + 1 + line_num_includefile
                             # '+filename' include files are not copied to res file,
                             #  so I have to delete these lines on write.
                             # '++filename' copies them to the .res file where appropriate
                             # I leave this out, because I am not SHELXL:
-                            # if l.startswith('+') and l[:2] != '++':
+                            # if include_line.startswith('+') and include_line[:2] != '++':
                             #    self.delete_on_write.update([lnum])
-                            self._reslist.insert(reslist_position, l)
+                            self._reslist.insert(reslist_position, include_line)
                         continue
                 except IndexError:
                     if self.debug or self.verbose:

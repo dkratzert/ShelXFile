@@ -14,10 +14,8 @@ from shelxfile.misc.misc import (
 from shelxfile.shelx.cards import (
     DAMP, HKLF, SUMP, BLOC, BOND, BIND, REM, FMAP, MOVE, MERG, SIZE,
     HTAB, GRID, SHEL, STIR, TWIN, SWAT, WIGL, WPDB, PRIG, CONF,
-    XNPD, FVAR, FVARs, ACTA, WGHT, DEFS, Restraints, DFIX, SADI,
-    SAME, RIGU, SIMU, DELU, ISOR, FLAT, BUMP, CHIV, NCSY, EADP, EXYZ,
-    DANG, RTAB, LSCycles, CELL, ZERR, LATT, SFACTable, UNIT,
-    PART, AFIX, RESI, HFIX, MORE, FREE,
+    XNPD, FVAR, ACTA, Restraints, SAME, RIGU, SIMU, DELU, ISOR, FLAT, BUMP, CHIV, EADP, EXYZ,
+    RTAB, HFIX, MORE, FREE,
 )
 
 
@@ -282,6 +280,7 @@ class TestShelxfileOperations(TestCase):
         found = self.shx.atoms.get_atom_by_name('C99')
         self.assertIsNotNone(found)
         self.assertEqual('C99', found.name)
+        self.assertGreater(len(self.shx.atoms), count_before)
 
     def test_add_atom_with_part(self):
         self.shx.add_atom(name='N1', coordinates=[0.5, 0.5, 0.5], element='N', part=1, sof=21.0,

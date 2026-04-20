@@ -21,8 +21,8 @@ class Testdsrmath(TestCase):
         self.assertEqual(1.0, d)
 
     def test_levenshtein(self):
-        l = levenshtein('hallo', 'holla')
-        self.assertEqual(2, l)
+        alist = levenshtein('hallo', 'holla')
+        self.assertEqual(2, alist)
 
     def test_dice(self):
         d = dice_coefficient('hallo', 'holla')

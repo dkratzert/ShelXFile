@@ -433,7 +433,7 @@ def mytest():
                       [-0.58910, -1.52859, 1.53460],  # F8
                       [-1.29323, 0.46963, 2.06735]]  # F9
 
-    target_names = ['O1', 'C1', 'Q11']
+    #target_names = ['O1', 'C1', 'Q11']
     # Structure A rotated and translated onto B (p onto q)
 
     fragment_atom_names = []

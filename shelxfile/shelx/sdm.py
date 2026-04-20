@@ -203,10 +203,10 @@ class SDM():
         else:
             showatoms = [at for at in asymm if not at.qpeak]
         for symm in need_symm:
-            symm_num, h, k, l, symmgroup = symm
+            symm_num, h, k, l, symmgroup = symm  # noqa: E741
             h -= 5
             k -= 5
-            l -= 5
+            l -= 5  # noqa: E741
             symm_num -= 1
             for atom in asymm:
                 if not with_qpeaks and atom.qpeak:
@@ -291,7 +291,7 @@ class SDM():
                     [0, 0, self.cstar]])
         R = self.shx.symmcards[symm_num].matrix
         R_t = self.shx.symmcards[symm_num].matrix.transposed
-        A = self.shx.orthogonal_matrix
+        # A = self.shx.orthogonal_matrix
         # U(star) = N * U(cif) * N.T
         # U(cart) = A * U(star) * A.T
         # U(star) = R * U(star) * R^t

@@ -34,11 +34,11 @@ class Test(TestCase):
         self.assertEqual(False, multiline_test(line))
 
     def test_chunks(self):
-        l = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 'a', 'b', 'c', 'd', 'e', 'f']
-        self.assertEqual([[1, 2, 3, 4, 5], [6, 7, 8, 9, 0], ['a', 'b', 'c', 'd', 'e'], ['f']], chunks(l, 5))
+        alist = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 'a', 'b', 'c', 'd', 'e', 'f']
+        self.assertEqual([[1, 2, 3, 4, 5], [6, 7, 8, 9, 0], ['a', 'b', 'c', 'd', 'e'], ['f']], chunks(alist, 5))
         self.assertEqual([[1], [2], [3], [4], [5], [6], [7], [8], [9], [0], ['a'], ['b'], ['c'], ['d'], ['e'], ['f']],
-                         chunks(l, 1))
-        self.assertEqual([[1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 'a', 'b', 'c', 'd', 'e', 'f']], chunks(l, 50))
+                         chunks(alist, 1))
+        self.assertEqual([[1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 'a', 'b', 'c', 'd', 'e', 'f']], chunks(alist, 50))
 
 
 class Testfind_line(TestCase):
@@ -49,7 +49,7 @@ class Testfind_line(TestCase):
     def test_dont_find_something(self):
         inp = [['foo'], ['bar']]
 
-        with self.assertRaises(TypeError) as e:
+        with self.assertRaises(TypeError):
             find_line(inp, '.*blub.*')
 
 

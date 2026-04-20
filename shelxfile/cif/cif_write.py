@@ -60,7 +60,7 @@ class CifFile():
             "cell_z"     : self.data.zerr.Z,
         }
 
-    def _symmetry_data(self) -> Dict[str, str]:
+    def _symmetry_data(self) -> dict[str, str | None]:
         symmcards_ = [f" '{sym.to_cif()}'" for sym in self.data.symmcards]
         return {
             "space_group"  : self.data.space_group,
@@ -130,9 +130,9 @@ if __name__ == '__main__':
     from shelxfile import Shelxfile
 
     shx = Shelxfile(debug=True)
-    #shx.read_file('tests/resources/I-43d.res')
+    # shx.read_file('tests/resources/I-43d.res')
     shx.read_file('./tests/resources/p21c.res')
 
-    #cif = CifFile(shx)
-    #cif.write_cif(Path('p21c-test.cif'))
+    # cif = CifFile(shx)
+    # cif.write_cif(Path('p21c-test.cif'))
     shx.to_cif('p21c-test.cif')

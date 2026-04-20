@@ -1,5 +1,4 @@
-# -*- encoding: utf-8 -*-
-# möp
+from __future__ import annotations
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -13,7 +12,7 @@ import random
 import string
 from math import sqrt, radians, cos, sin, acos, degrees, floor
 from operator import sub, add
-from typing import List, Union, Optional, Iterable, Tuple
+from typing import List, Union, Optional, Iterable, Tuple, Self
 
 from shelxfile.misc.misc import flatten, determinante
 
@@ -46,10 +45,10 @@ class Array(object):
     def __len__(self) -> int:
         return len(self.values)
 
-    def __hash__(self):
-        return hash(self.values)
+    def __hash__(self) -> int:
+        return hash(str(self.values))
 
-    def __add__(self, other: (list, 'Array')) -> 'Array':
+    def __add__(self, other: Union[list, 'Array']) -> 'Array':
         """
         This method is optimized for speed.
         """
@@ -70,7 +69,7 @@ class Array(object):
         """
         return all([a == b for (a, b) in zip(self.values, other.values)])
 
-    def __sub__(self, other):
+    def __sub__(self, other: Array) -> Array:
         """
         Subtracts eiter an Array or a value from the self Array.
         This method is optimized for speed.
@@ -82,7 +81,7 @@ class Array(object):
         else:
             raise TypeError('Cannot add type Array to type {}.'.format(str(type(other))))
 
-    def __imul__(self, other):
+    def __imul__(self, other: Array) -> Self:
         """
         Currently supports multiplication by a number.
         __imul__ means a *= b
@@ -93,7 +92,7 @@ class Array(object):
         else:
             raise TypeError('Unsupported operation.')
 
-    def __mul__(self, other: ('Array', 'Matrix')) -> (float, 'Array'):
+    def __mul__(self, other: Union['Array', 'Matrix']) -> Union[float, 'Array']:
         """
         Calculates: a * b = axbx + ayby + azbz
         """
@@ -221,7 +220,7 @@ class Matrix(object):
             rows += '|' + ' '.join(['{:>7.4f}'.format(float(x)) for x in row]) + '|' + '\n'
         return rows
 
-    def __add__(self, other: (list, 'Matrix')) -> 'Matrix':
+    def __add__(self, other: 'Matrix') -> 'Matrix':
         """
         Matrix addition
         """
@@ -237,7 +236,7 @@ class Matrix(object):
         else:
             raise TypeError('Cannot add type {} Array to Matrix.'.format(str(type(other))))
 
-    def __mul__(self, other: ('Matrix', 'Array', int, float)) -> ('Matrix', 'Array'):
+    def __mul__(self, other: Union['Matrix', 'Array', int, float]) -> Union['Matrix', 'Array']:
         """
         a * b operation
         """
