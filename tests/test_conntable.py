@@ -3,6 +3,7 @@ from unittest import TestCase
 
 import numpy as np
 
+from shelxfile.atoms.pairs import Bond, SymBond
 from shelxfile.misc.misc import build_conntable
 from shelxfile.shelx.shelx import Shelxfile
 
@@ -176,5 +177,202 @@ class TestAtomConntableProperty(TestCase):
         symmgen = [at.symmgen for at in atoms]
         expected = build_conntable(coords, types, parts, radii=radii, symmgen=symmgen)
         self.assertEqual(self.shx.atoms.conntable, expected)
+
+
+# ---------------------------------------------------------------------------
+# Tests for Atoms.bonds (human-friendly Bond list)
+# ---------------------------------------------------------------------------
+
+class TestAtomsBonds(TestCase):
+
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/p21c.res')
+
+    def test_bonds_returns_list(self):
+        self.assertIsInstance(self.shx.atoms.bonds, list)
+
+    def test_bonds_items_are_bond_objects(self):
+        for b in self.shx.atoms.bonds:
+            self.assertIsInstance(b, Bond)
+
+    def test_bond_count_matches_conntable(self):
+        self.assertEqual(len(self.shx.atoms.bonds),
+                         len(self.shx.atoms.conntable))
+
+    def test_bond_distance_is_positive(self):
+        for b in self.shx.atoms.bonds:
+            self.assertGreater(b.distance, 0.0)
+
+    def test_bond_distance_is_realistic(self):
+        """All bonds should be between 0.01 Å (build_conntable threshold) and 4.0 Å."""
+        for b in self.shx.atoms.bonds:
+            self.assertGreater(b.distance, 0.01,
+                               f"Bond {b!r} is unrealistically short")
+            self.assertLess(b.distance, 4.0,
+                            f"Bond {b!r} is unrealistically long")
+
+    def test_bond_atoms_are_atom_objects(self):
+        from shelxfile.atoms.atom import Atom
+        for b in self.shx.atoms.bonds:
+            self.assertIsInstance(b.atom1, Atom)
+            self.assertIsInstance(b.atom2, Atom)
+
+    def test_bond_str_contains_atom_names(self):
+        b = self.shx.atoms.bonds[0]
+        s = str(b)
+        self.assertIn(b.atom1.fullname_short, s)
+        self.assertIn(b.atom2.fullname_short, s)
+
+    def test_bond_str_contains_angstrom(self):
+        b = self.shx.atoms.bonds[0]
+        self.assertIn('Å', str(b))
+
+    def test_bond_repr(self):
+        b = self.shx.atoms.bonds[0]
+        r = repr(b)
+        self.assertTrue(r.startswith('Bond('))
+        self.assertIn('Å', r)
+
+    def test_bond_unpack(self):
+        """Bond supports tuple-style unpacking into (atom1, atom2, distance)."""
+        b = self.shx.atoms.bonds[0]
+        a1, a2, dist = b
+        self.assertIs(a1, b.atom1)
+        self.assertIs(a2, b.atom2)
+        self.assertEqual(dist, b.distance)
+
+    def test_bonds_sorted_by_name(self):
+        """Bond list is sorted by atom1 name then atom2 name."""
+        bonds = self.shx.atoms.bonds
+        names = [(b.atom1.fullname_short, b.atom2.fullname_short) for b in bonds]
+        self.assertEqual(names, sorted(names))
+
+    def test_no_hh_bonds(self):
+        for b in self.shx.atoms.bonds:
+            self.assertFalse(b.atom1.is_hydrogen and b.atom2.is_hydrogen,
+                             f"Unexpected H–H bond: {b!r}")
+
+
+# ---------------------------------------------------------------------------
+# Tests for Atoms.full_bond_list() — asymmetric unit + symmetry neighbors
+# ---------------------------------------------------------------------------
+
+class TestFullBondList(TestCase):
+    """Uses I-43d.res which has genuine symmetry bonds."""
+
+    def setUp(self) -> None:
+        # I-43d has many SYMM cards → guaranteed symmetry bonds
+        self.shx_symm = Shelxfile()
+        self.shx_symm.read_file('tests/resources/I-43d.res')
+        # p21c.res: all bonds are within the asymmetric unit (full molecule in AU)
+        self.shx_plain = Shelxfile()
+        self.shx_plain.read_file('tests/resources/p21c.res')
+
+    # --- type and structure ---
+
+    def test_returns_list(self):
+        self.assertIsInstance(self.shx_symm.atoms.full_bond_list(), list)
+
+    def test_items_are_symbond(self):
+        for b in self.shx_symm.atoms.full_bond_list():
+            self.assertIsInstance(b, SymBond)
+
+    def test_symbond_is_subclass_of_bond(self):
+        for b in self.shx_symm.atoms.full_bond_list():
+            self.assertIsInstance(b, Bond)
+
+    # --- counts ---
+
+    def test_plain_bonds_match_conntable(self):
+        """Plain (no-symm) bonds must be a subset of the conntable."""
+        plain = [b for b in self.shx_plain.atoms.full_bond_list()
+                 if not b.is_symmetry_bond]
+        # full_bond_list excludes Q-peaks by default; conntable includes them.
+        # The plain bonds should be a non-empty subset.
+        self.assertGreater(len(plain), 0)
+        self.assertLessEqual(len(plain), len(self.shx_plain.atoms.conntable))
+
+    def test_has_symmetry_bonds(self):
+        symm = [b for b in self.shx_symm.atoms.full_bond_list()
+                if b.is_symmetry_bond]
+        self.assertGreater(len(symm), 0)
+
+    # --- symmetry label format ---
+
+    def test_symm_label_is_string(self):
+        for b in self.shx_symm.atoms.full_bond_list():
+            self.assertIsInstance(b.symm_label, str)
+
+    def test_plain_bond_has_empty_label(self):
+        for b in self.shx_plain.atoms.full_bond_list():
+            self.assertEqual('', b.symm_label)
+
+    def test_symm_bond_label_contains_axis(self):
+        """Symmetry labels must contain at least one axis letter."""
+        symm = [b for b in self.shx_symm.atoms.full_bond_list()
+                if b.is_symmetry_bond]
+        for b in symm:
+            self.assertTrue(
+                any(ax in b.symm_label for ax in ('x', 'y', 'z')),
+                f"Label {b.symm_label!r} contains no axis"
+            )
+
+    def test_symm_str_shows_label_in_brackets(self):
+        symm = [b for b in self.shx_symm.atoms.full_bond_list()
+                if b.is_symmetry_bond]
+        for b in symm[:5]:
+            s = str(b)
+            self.assertIn('[', s)
+            self.assertIn(b.symm_label, s)
+
+    def test_plain_str_has_no_brackets(self):
+        for b in self.shx_plain.atoms.full_bond_list():
+            self.assertNotIn('[', str(b))
+
+    # --- distance ---
+
+    def test_distances_positive(self):
+        for b in self.shx_symm.atoms.full_bond_list():
+            self.assertGreater(b.distance, 0.0)
+
+    def test_angstrom_in_str(self):
+        b = self.shx_symm.atoms.full_bond_list()[0]
+        self.assertIn('Å', str(b))
+
+    # --- unpack ---
+
+    def test_unpack_four_fields(self):
+        b = self.shx_symm.atoms.full_bond_list()[0]
+        a1, a2, dist, label = b
+        self.assertIs(a1, b.atom1)
+        self.assertIs(a2, b.atom2)
+        self.assertEqual(dist, b.distance)
+        self.assertEqual(label, b.symm_label)
+
+    # --- sorting ---
+
+    def test_sorted_by_name(self):
+        bl = self.shx_symm.atoms.full_bond_list()
+        names = [(b.atom1.fullname_short, b.atom2.fullname_short) for b in bl]
+        self.assertEqual(names, sorted(names))
+
+    # --- repr ---
+
+    def test_repr_plain(self):
+        b = [b for b in self.shx_plain.atoms.full_bond_list()][0]
+        self.assertTrue(repr(b).startswith('SymBond('))
+
+    def test_repr_symm_contains_bracket(self):
+        b = [b for b in self.shx_symm.atoms.full_bond_list()
+             if b.is_symmetry_bond][0]
+        self.assertIn('[', repr(b))
+
+    # --- with_qpeaks=False (default) ---
+
+    def test_no_qpeaks_by_default(self):
+        for b in self.shx_symm.atoms.full_bond_list():
+            self.assertFalse(b.atom1.qpeak or b.atom2.qpeak,
+                             f"Q-peak appeared in default bond list: {b!r}")
 
 

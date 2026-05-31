@@ -206,6 +206,62 @@ array(...)
 (0, 1)
 ```
 
+### Bond List
+
+```python
+# Human-friendly bond list (sorted by atom name):
+>>> for bond in shx.atoms.bonds:
+...     print(bond)
+AL1    – O1      1.7236 Å
+AL1    – O2      1.7278 Å
+C1     – C2      1.5210 Å
+C1     – H1      1.0900 Å
+...
+
+# Total number of bonds:
+>>> len(shx.atoms.bonds)
+199
+
+# Access individual bond attributes:
+>>> b = shx.atoms.bonds[0]
+>>> b.atom1.name, b.atom2.name, b.distance
+('AL1', 'O1', 1.7236...)
+
+# Tuple-style unpacking:
+>>> atom1, atom2, dist = shx.atoms.bonds[0]
+
+# Machine-readable repr:
+>>> repr(shx.atoms.bonds[0])
+"Bond(AL1, O1, 1.7236 Å)"
+```
+
+### Full Bond List (with Symmetry Neighbors)
+
+Shows every atom in the asymmetric unit together with **all** its bonded
+neighbors, including those reached by a crystallographic symmetry operation,
+in the same style as SHELXL's `.lst` file.
+
+```python
+>>> for bond in shx.atoms.full_bond_list():
+...     print(bond)
+AL1    – O1      1.7236 Å          # plain asymmetric-unit bond
+AL1    – O2 [-x, y+1/2, -z+1/2]  1.7095 Å   # symmetry-generated neighbor
+C1     – C2      1.5454 Å
+...
+
+# Total bonds (plain + symmetry):
+>>> bl = shx.atoms.full_bond_list()
+>>> plain = [b for b in bl if not b.is_symmetry_bond]
+>>> symm  = [b for b in bl if b.is_symmetry_bond]
+
+# 4-field unpacking (atom1, atom2, distance, symm_label):
+>>> atom1, atom2, dist, label = shx.atoms.full_bond_list()[0]
+>>> label   # '' for plain bonds, e.g. '-x, y+1/2, -z+1/2' for symmetry bonds
+
+# Include Q-peaks:
+>>> shx.atoms.full_bond_list(with_qpeaks=True)
+```
+
 ### Modifying Atoms
 
 ```python
