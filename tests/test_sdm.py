@@ -151,7 +151,6 @@ class TestPackUnitCell(TestCase):
         self.assertGreater(len(packed), len(shx.atoms.all_atoms))
 
 
-@unittest.skip("Rust version does not work atm.")
 class MySDMtest(TestCase):
     def setUp(self) -> None:
         self.maxDiff = None
@@ -205,27 +204,6 @@ WGHT      0.0348      0.6278
             if at.qpeak:
                 continue
             # print(wrap_line(str(at)))
-            self.head += wrap_line(str(at)) + '\n'
-        self.head += self.tail
-        p = Path('tests/resources/test-sdm1.res')
-        print('Zeit für sdm:', round(sdm.sdmtime, 3), 's')
-        self.assertEqual(p.read_text(), self.head)
-        # print(sdm.bondlist)
-        # print(len(sdm.bondlist), '(170) Atome in p-31c.res, (208) in I-43d.res')
-
-    @unittest.skip("Rust version does not work atm.")
-    def test_SDM_rustversion(self):
-        from shelxfile.shelx.sdm_rust import SDMR
-        shx = Shelxfile()
-        shx.read_file('tests/resources/p-31c.res')
-        sdm = SDMR(shx)
-        needsymm = sdm.calc_sdm()
-        packed_atoms = sdm.packer(sdm, needsymm)
-
-        for at in packed_atoms:
-            if at.qpeak:
-                print(at)
-                continue
             self.head += wrap_line(str(at)) + '\n'
         self.head += self.tail
         p = Path('tests/resources/test-sdm1.res')
