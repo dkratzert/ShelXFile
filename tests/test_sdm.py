@@ -1,4 +1,5 @@
 import unittest
+import tempfile
 from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
@@ -409,4 +410,135 @@ class TestSDMCpp(TestCase):
         """The pure-Python fallback must return a non-empty symmetry list for p-31c."""
         _, need_symm, _ = self._run_sdm(self._fresh_shx(), use_cpp=False)
         self.assertGreater(len(need_symm), 0)
+
+
+class TestWriteGrownFile(TestCase):
+    """Tests for :meth:`Shelxfile.write_grown_file`."""
+
+    RES_FILE = 'tests/resources/p-31c.res'
+
+    def _fresh_shx(self) -> Shelxfile:
+        shx = Shelxfile()
+        shx.read_file(self.RES_FILE)
+        return shx
+
+    def test_write_grown_file_creates_file(self):
+        """write_grown_file must create a non-empty output file."""
+        shx = self._fresh_shx()
+        with tempfile.NamedTemporaryFile(suffix='.res', delete=False) as f:
+            out = Path(f.name)
+        try:
+            shx.write_grown_file(out)
+            self.assertTrue(out.exists())
+            self.assertGreater(out.stat().st_size, 0)
+        finally:
+            out.unlink(missing_ok=True)
+
+    def test_grown_file_has_p1_symmetry(self):
+        """The grown file must have LATT -1 and no SYMM cards."""
+        shx = self._fresh_shx()
+        with tempfile.NamedTemporaryFile(suffix='.res', delete=False) as f:
+            out = Path(f.name)
+        try:
+            shx.write_grown_file(out)
+            text = out.read_text()
+            lines = text.splitlines()
+            latt_lines = [l for l in lines if l.strip().upper().startswith('LATT')]
+            symm_lines = [l for l in lines if l.strip().upper().startswith('SYMM')]
+            self.assertEqual(len(latt_lines), 1, "Expected exactly one LATT line")
+            self.assertIn('-1', latt_lines[0], "LATT must be -1 for P1 symmetry")
+            self.assertEqual(len(symm_lines), 0, "Grown file must have no SYMM cards")
+        finally:
+            out.unlink(missing_ok=True)
+
+    def test_grown_file_has_warning_comment(self):
+        """The grown file must contain a REM warning about refinement."""
+        shx = self._fresh_shx()
+        with tempfile.NamedTemporaryFile(suffix='.res', delete=False) as f:
+            out = Path(f.name)
+        try:
+            shx.write_grown_file(out)
+            text = out.read_text().upper()
+            self.assertIn('NOT SUITED FOR REFINEMENT', text,
+                          "Grown file must warn that it is not suited for refinement")
+        finally:
+            out.unlink(missing_ok=True)
+
+    def test_grown_file_has_part_cards(self):
+        """Disorder parts must be preserved via PART cards in the grown file."""
+        shx = self._fresh_shx()
+        with tempfile.NamedTemporaryFile(suffix='.res', delete=False) as f:
+            out = Path(f.name)
+        try:
+            shx.write_grown_file(out)
+            text = out.read_text()
+            lines = text.splitlines()
+            part_lines = [l for l in lines if l.strip().upper().startswith('PART ')]
+            # p-31c.res has PART 1 / PART 2 disorder groups, repeated for each
+            # symmetry copy, so there must be several PART cards
+            self.assertGreater(len(part_lines), 0, "Grown file must contain PART cards")
+            # Check that both non-zero parts and the closing PART 0 are present
+            part_values = {l.strip().split()[1] for l in part_lines}
+            self.assertIn('1', part_values, "PART 1 must appear")
+            self.assertIn('2', part_values, "PART 2 must appear")
+            self.assertIn('0', part_values, "PART 0 (close disorder) must appear")
+        finally:
+            out.unlink(missing_ok=True)
+
+    def test_grown_file_correct_atom_count(self):
+        """The grown file must contain the same number of atoms as grow() returns."""
+        shx = self._fresh_shx()
+        grown = shx.grow()
+        real_grown = [a for a in grown if not a.qpeak]
+        with tempfile.NamedTemporaryFile(suffix='.res', delete=False) as f:
+            out = Path(f.name)
+        try:
+            shx.write_grown_file(out)
+            # Exclude SHELXL comment lines ("!..." at start of first token)
+            atom_lines = [
+                l for l in out.read_text().splitlines()
+                if Shelxfile.is_atom(l) and not l.lstrip().startswith('!')
+            ]
+            self.assertEqual(len(atom_lines), len(real_grown))
+        finally:
+            out.unlink(missing_ok=True)
+
+    def test_grown_file_no_original_symm_cards(self):
+        """The original SYMM cards from p-31c must not appear in the grown file."""
+        shx = self._fresh_shx()
+        with tempfile.NamedTemporaryFile(suffix='.res', delete=False) as f:
+            out = Path(f.name)
+        try:
+            shx.write_grown_file(out)
+            text = out.read_text()
+            # p-31c has "-Y, X-Y, Z" as first SYMM line — it must not appear
+            self.assertNotIn('-Y, X-Y, Z', text,
+                             "Original SYMM cards must be absent in grown file")
+        finally:
+            out.unlink(missing_ok=True)
+
+    def test_grown_file_no_include_references(self):
+        """Include-file (+filename) lines must not appear in the grown file."""
+        shx = self._fresh_shx()
+        with tempfile.NamedTemporaryFile(suffix='.res', delete=False) as f:
+            out = Path(f.name)
+        try:
+            shx.write_grown_file(out)
+            text = out.read_text()
+            include_lines = [l for l in text.splitlines() if l.startswith('+')]
+            self.assertEqual(include_lines, [],
+                             "Include-file references must be absent in grown file")
+        finally:
+            out.unlink(missing_ok=True)
+
+    def test_grown_file_accepts_string_path(self):
+        """write_grown_file must also accept a plain string as the filename."""
+        shx = self._fresh_shx()
+        with tempfile.NamedTemporaryFile(suffix='.res', delete=False) as f:
+            out = f.name  # plain string
+        try:
+            shx.write_grown_file(out)  # must not raise
+            self.assertGreater(Path(out).stat().st_size, 0)
+        finally:
+            Path(out).unlink(missing_ok=True)
 

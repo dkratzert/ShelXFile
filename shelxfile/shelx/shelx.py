@@ -1025,6 +1025,105 @@ class Shelxfile():
         packed_atoms = sdm.packer(sdm, needsymm, with_qpeaks=with_qpeaks)
         return packed_atoms
 
+    def write_grown_file(self, filename: Union[str, Path], with_qpeaks: bool = False) -> None:
+        """Write a grown (complete molecule) .res file in P1 symmetry.
+
+        The output file:
+
+        - Completes all molecular fragments by applying crystal symmetry to the
+          asymmetric unit (calls :meth:`grow` internally).
+        - Sets the space group to P1 (``LATT -1``, no ``SYMM`` cards) so that
+          viewers and SHELXL do **not** re-apply symmetry to the already-grown
+          atoms — this prevents duplicate atoms and wrong bonds.
+        - Preserves disorder parts via ``PART`` cards so the bond graph is
+          correct (atoms in different disorder alternatives are not connected).
+        - Adds a ``REM`` warning that the file is not suited for refinement.
+
+        Restraints, ``AFIX``, ``HFIX``, ``ACTA``, ``CONF``, ``ANIS`` and other
+        instruction cards that reference atoms of the original asymmetric unit
+        are omitted from the output.
+
+        :param filename: Output file path (string or :class:`~pathlib.Path`).
+        :param with_qpeaks: Include Q-peaks in the grown structure (default
+            ``False``).
+        """
+        if isinstance(filename, str):
+            filename = Path(filename)
+
+        grown_atoms = self.grow(with_qpeaks=with_qpeaks)
+        real_grown = [a for a in grown_atoms if not a.qpeak] if not with_qpeaks else grown_atoms
+
+        lines: List[str] = []
+
+        # ── Warning comment ───────────────────────────────────────────────
+        lines.append('REM This file was grown from the asymmetric unit to complete molecules.')
+        lines.append('REM It has P1 symmetry and is NOT suited for refinement unless you know what you are doing.')
+
+        # ── Iterate the original _reslist, filtering/transforming as needed ──
+        atoms_inserted = False
+        for num, item in enumerate(self._reslist):
+            if num in self.delete_on_write:
+                continue
+            if item == '':
+                continue
+
+            # Skip original atoms — replaced by the grown atom list
+            if isinstance(item, Atom):
+                continue
+
+            # Skip SYMM cards — P1 has no extra symmetry operations
+            if isinstance(item, SYMM):
+                continue
+
+            # Skip all restraints — they reference asymmetric-unit atom names
+            if isinstance(item, Restraint):
+                continue
+
+            # Skip instruction cards that only make sense in the context of
+            # the original asymmetric unit
+            if isinstance(item, (AFIX, PART, RESI, HFIX, ANIS)):
+                continue
+
+            # Skip refinement-specific cards not needed in a visualization file
+            if isinstance(item, (ACTA, CONF)):
+                continue
+
+            # Skip include-file references (+filename) — they are local to the
+            # original file's directory and would not resolve for the grown output
+            if isinstance(item, str) and item.startswith('+'):
+                continue
+
+            # Replace LATT with LATT -1 (primitive, non-centrosymmetric = P1)
+            if isinstance(item, LATT):
+                lines.append('LATT -1')
+                continue
+
+            # Before the HKLF card: insert grown atoms with PART grouping
+            if isinstance(item, HKLF) and not atoms_inserted:
+                atoms_inserted = True
+                current_part = 0
+                for atom in real_grown:
+                    atom_part = atom.part.n
+                    if atom_part != current_part:
+                        lines.append(f'PART {atom_part}')
+                        current_part = atom_part
+                    lines.append(wrap_line(str(atom)))
+                if current_part != 0:
+                    lines.append('PART 0')
+                lines.append('')
+
+            line_str = str(item)
+            if not line_str.strip():
+                continue
+            line_str = '\n'.join([wrap_line(x) for x in line_str.split('\n')])
+            lines.append(line_str)
+
+        with open(filename, 'w') as f:
+            f.write('\n'.join(lines) + '\n')
+
+        if self.verbose or self.debug:
+            print(f'*** Grown file written to {filename.resolve()} ***')
+
     def pack(self, with_qpeaks: bool = False) -> list:
         """Returns a list of atoms representing the packed unit cell.
 

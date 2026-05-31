@@ -441,6 +441,27 @@ Complete or "grow" structures with higher symmetry:
 208
 ```
 
+### Writing a Grown Structure to File
+
+`write_grown_file()` calls `grow()` and writes the complete molecule(s) to a
+standalone `.res` file in **P1 symmetry**.  The output:
+
+- Uses `LATT -1` (primitive, non-centrosymmetric) with no `SYMM` cards, so
+  that SHELXL and viewers like fastmolwidget do **not** re-apply symmetry to
+  the already-grown atoms (preventing duplicate atoms and wrong bonds).
+- Preserves disorder parts via `PART` cards so the bond graph is correct
+  (atoms in different disorder alternatives are not connected to each other).
+- Strips restraints, `AFIX`, `HFIX` and other cards that only make sense in
+  the context of the original asymmetric unit.
+- Adds a `REM` warning that the file is **not suited for refinement**.
+
+```python
+>>> shx2 = Shelxfile()
+>>> shx2.read_file('tests/resources/p-31c.res')
+>>> shx2.write_grown_file('grown_p1.res')
+# grown_p1.res is a valid P1 .res file with 208 atoms and PART cards
+```
+
 ### Packing the Unit Cell
 
 `pack()` applies all symmetry operations to the asymmetric unit and folds every
