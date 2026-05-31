@@ -144,11 +144,11 @@ def split_fvar_and_parameter(parameter: float) -> tuple:
     >>> split_fvar_and_parameter(-10.33333333)
     (-1, -0.33333333)
     """
-    fvar = abs(int(str(parameter).split('.')[0])) // 10  # The free variable number e.g. 2
-    value = abs(float(parameter)) % 10  # The value with which the free variable was multiplied e.g. 0.5
+    abs_p = abs(parameter)
+    fvar = int(abs_p) // 10  # The free variable number e.g. 2
+    value = abs_p % 10       # The value with which the free variable was multiplied e.g. 0.5
     if parameter < 0:
-        value *= -1
-        fvar *= -1
+        return -fvar, -round(value, 8)
     return fvar, round(value, 8)
 
 
@@ -465,6 +465,24 @@ def frac_to_cart(frac_coord: (list, tuple), cell: list) -> list:
     yc = 0 + (b * sin(gamma)) * y + (-c * sin(beta) * cosastar) * z
     zc = 0 + 0 + (c * sin(beta) * sinastar) * z
     return [xc, yc, zc]
+
+
+def frac_to_cart_fast(x: float, y: float, z: float, cell) -> tuple:
+    """
+    Fast fractional→Cartesian conversion using precomputed upper-triangular matrix
+    scalars stored on a CELL object (_M00 … _M22).  Avoids all trig calls.
+
+    :param x: fractional x
+    :param y: fractional y
+    :param z: fractional z
+    :param cell: a CELL instance with precomputed ``_M00``…``_M22`` attributes
+    :return: (xc, yc, zc) Cartesian coordinates
+    """
+    return (
+        cell._M00 * x + cell._M01 * y + cell._M02 * z,
+        cell._M11 * y + cell._M12 * z,
+        cell._M22 * z,
+    )
 
 
 def cart_to_frac(cart_coord: list, cell: list) -> tuple:

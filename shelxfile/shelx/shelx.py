@@ -441,7 +441,7 @@ class Shelxfile():
                     print('AFIX in line {} was not closed'.format(line_num + 1))
             elif word == 'AFIX':
                 self.afix = self._assign_card(AFIX(self, spline), line_num)
-            elif self.is_atom(line):
+            elif self.is_atom_spline(word, spline):
                 # A SHELXL atom:
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
                 #            0.03649  -0.00522  -0.01212   0.00157 )
@@ -1108,6 +1108,34 @@ class Shelxfile():
             return True
         else:
             return False
+
+    @staticmethod
+    def is_atom_spline(word4: str, spline: List[str]) -> bool:
+        """
+        Fast atom check using a pre-split, pre-uppercased spline.
+
+        Avoids re-splitting the line and uppercasing it again — the caller
+        (``_parse_cards``) has already computed both ``word = line[:4]`` and
+        ``spline`` before reaching this check.
+
+        :param word4: The first four characters of the line, upper-cased.
+        :param spline: The line already split on whitespace (comments stripped).
+        """
+        if word4 in SHX_CARDS:
+            return False
+        if len(spline) < 5:
+            return False
+        if '.' in spline[1]:
+            return False
+        # Inline coordinate-realism check (avoids genexpr + slice + function call):
+        try:
+            if float(spline[2]) > 4.0 or float(spline[3]) > 4.0 or float(spline[4]) > 4.0:
+                return False
+        except ValueError:
+            return False
+        if len(spline) > 5 and spline[5] == '!':
+            return False
+        return True
 
     @staticmethod
     def _coordinates_are_unrealistic(spline: List[str]) -> bool:

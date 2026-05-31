@@ -7,7 +7,7 @@ with suppress(Exception):
     from shelxfile import Shelxfile
 from shelxfile.misc.dsrmath import atomic_distance
 from shelxfile.misc.elements import get_atomic_number, get_radius_from_element
-from shelxfile.misc.misc import split_fvar_and_parameter, ParseSyntaxError, frac_to_cart, ParseUnknownParam
+from shelxfile.misc.misc import split_fvar_and_parameter, ParseSyntaxError, frac_to_cart_fast, ParseUnknownParam
 from shelxfile.shelx.cards import PART, AFIX, RESI, CELL, Restraints
 
 
@@ -165,7 +165,7 @@ class Atom():
         self.sfac_num = sfac_num
         self.frac_coords = coords
         self.x, self.y, self.z = coords[0], coords[1], coords[2]
-        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, list(self._cell))
+        self.xc, self.yc, self.zc = frac_to_cart_fast(self.x, self.y, self.z, self._cell)
         self.part = part
         self.afix = afix
         self.resi = resi
@@ -179,7 +179,10 @@ class Atom():
         Sets u values and checks if a free variable was used.
         """
         self.uvals = uvals
-        if sum([abs(x) for x in uvals[2:]]) > 0.000001:  # 0 is Uiso and 1 q-peak height
+        # Check for anisotropic atom: any of the last four uvals is non-zero.
+        # Using direct addition instead of a list comprehension avoids both the
+        # temporary list allocation and repeated abs() dispatch overhead.
+        if abs(uvals[2]) + abs(uvals[3]) + abs(uvals[4]) + abs(uvals[5]) > 0.000001:
             # Handle regular atom:
             for n, u in enumerate(uvals):
                 if abs(u) > 4.0:
@@ -209,7 +212,7 @@ class Atom():
         self.resi = resi
         self._get_part_and_occupation(atline)
         self.x, self.y, self.z = self._get_atom_coordinates(atline)
-        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, list(self._cell))
+        self.xc, self.yc, self.zc = frac_to_cart_fast(self.x, self.y, self.z, self._cell)
         if abs(self.uvals[1]) > 0.0 and abs(
                 self.uvals[2]) < 0.000001 and self.shx.hklf:  # qpeaks are always behind hklf
             self.peak_height = uvals[1]
@@ -298,9 +301,9 @@ class Atom():
         R = self.shx.symmcards[symmetry_number].matrix  # numpy (3,3)
         N = np.diag([self._cell.astar, self._cell.bstar, self._cell.cstar])
         N_inv = np.linalg.inv(N)
-        Ustar = N @ self.ucif @ N.T               # U(star)
-        Ustar_n = R @ Ustar @ R.T                 # symmetry-transformed U(star)
-        Ucif_n = N_inv @ Ustar_n @ N_inv.T        # back to U(cif)
+        Ustar = N @ self.ucif @ N.T  # U(star)
+        Ustar_n = R @ Ustar @ R.T  # symmetry-transformed U(star)
+        Ucif_n = N_inv @ Ustar_n @ N_inv.T  # back to U(cif)
         return (Ucif_n[0, 0], Ucif_n[1, 1], Ucif_n[2, 2],
                 Ucif_n[1, 2], Ucif_n[0, 2], Ucif_n[0, 1])
 

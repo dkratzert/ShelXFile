@@ -381,6 +381,18 @@ class CELL(Command):
             self.cosga = cos(radians(self.gamma))
             self.V = self.volume
             self.o = OrthogonalMatrix(self.a, self.b, self.c, self.alpha, self.beta, self.gamma)
+            # Precompute flat matrix elements for fast frac→cart (avoids trig per atom).
+            # The orthogonalisation matrix is upper-triangular:
+            #   [M00 M01 M02]   [a  b·cos γ  c·cos β          ]
+            #   [ 0  M11 M12] = [0  b·sin γ  c·(cos α-cos β·cos γ)/sin γ]
+            #   [ 0   0  M22]   [0  0        V/(a·b·sin γ)    ]
+            _vals = self.o.m.values
+            self._M00: float = _vals[0][0]
+            self._M01: float = _vals[0][1]
+            self._M02: float = _vals[0][2]
+            self._M11: float = _vals[1][1]
+            self._M12: float = _vals[1][2]
+            self._M22: float = _vals[2][2]
             # calculate reciprocal lattice vectors:
             self.astar = (self.b * self.c * sin(radians(self.alpha))) / self.V
             self.bstar = (self.a * self.c * sin(radians(self.beta))) / self.V
