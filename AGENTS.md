@@ -1,5 +1,11 @@
 # AGENTS.md — ShelXFile Codebase Guide
 
+* Do not write code immediately. Plan your approach first.
+* Focus on understanding the architecture and conventions before making changes.
+* When in doubt, refer back to this guide or ask for clarification.
+* When adding new features, ensure they fit within the existing architecture and follow established conventions.
+* When writing tests, use the existing test files in `tests` as fixtures instead of creating new ones, unless absolutely necessary.
+
 ## Project Overview
 ShelXFile is a Python library for parsing, editing, and writing SHELXL crystallographic structure files (`.res`/`.ins`). The public API is a single class: `from shelxfile import Shelxfile`.
 
