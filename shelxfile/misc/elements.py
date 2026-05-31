@@ -571,9 +571,15 @@ def get_radius(atomic_number: int) -> float:
 
 def get_radius_from_element(element: str) -> float:
     """
-    Returns the radius of an atom by its element name.
+    Returns the covalent radius (Å) of an atom by its element name.
+    Strips trailing digits (e.g. 'O2' → 'O') before lookup and falls back
+    to carbon's radius silently for unknown/unsupported elements.
     """
-    return element2cov[element]
+    try:
+        cleaned = get_atomlabel(element)
+    except KeyError:
+        cleaned = element
+    return element2cov.get(cleaned.capitalize(), element2cov['C'])
 
 
 def get_atomic_number(element: str) -> int:

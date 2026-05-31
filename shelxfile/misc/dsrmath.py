@@ -14,6 +14,8 @@ from math import sqrt, radians, cos, sin, acos, degrees, floor
 from operator import sub, add
 from typing import List, Union, Optional, Iterable, Tuple, Self
 
+import numpy as np
+
 from shelxfile.misc.misc import flatten, determinante
 
 
@@ -412,6 +414,10 @@ class Matrix(object):
 class SymmetryElement(object):
     """
     Class representing a symmetry operation.
+
+    Uses numpy arrays for the rotation matrix and translation vector so that
+    downstream code (SDM, U-value transforms) can use efficient numpy algebra
+    instead of the custom Matrix/Array classes.
     """
     symm_id = 1
     __slots__ = ['centric', 'symms', 'ID', 'matrix', 'trans']
@@ -430,70 +436,57 @@ class SymmetryElement(object):
             line, t = self._parse_line(symm)
             lines.append(line)
             trans.append(t)
-        self.matrix = Matrix(lines).transposed
-        self.trans = Array(trans)
+        # matrix[i, j] = coefficient of input axis j for output axis i  (row-major, NOT transposed)
+        self.matrix: np.ndarray = np.array(lines, dtype=float)
+        self.trans: np.ndarray = np.array(trans, dtype=float)
         if centric:
             self.matrix *= -1
             self.trans *= -1
 
-    def __str__(self):
-        string = "|{aa:2} {ab:2} {ac:2}|   |{v:>4.2}|\n" \
-                 "|{ba:2} {bb:2} {bc:2}| + |{vv:>4.2}|\n" \
-                 "|{ca:2} {cb:2} {cc:2}|   |{vvv:>4.2}|\n".format(aa=self.matrix[0, 0],
-                                                                  ab=self.matrix[0, 1],
-                                                                  ac=self.matrix[0, 2],
-                                                                  ba=self.matrix[1, 0],
-                                                                  bb=self.matrix[1, 1],
-                                                                  bc=self.matrix[1, 2],
-                                                                  ca=self.matrix[2, 0],
-                                                                  cb=self.matrix[2, 1],
-                                                                  cc=self.matrix[2, 2],
-                                                                  v=float(self.trans[0]),
-                                                                  vv=float(self.trans[1]),
-                                                                  vvv=float(self.trans[2]))
+    def __str__(self) -> str:
+        m = self.matrix.astype(int)
+        string = (f"|{m[0, 0]:2} {m[0, 1]:2} {m[0, 2]:2}|   |{float(self.trans[0]):>4.2}|\n"
+                  f"|{m[1, 0]:2} {m[1, 1]:2} {m[1, 2]:2}| + |{float(self.trans[1]):>4.2}|\n"
+                  f"|{m[2, 0]:2} {m[2, 1]:2} {m[2, 2]:2}|   |{float(self.trans[2]):>4.2}|\n")
         return string
 
     def __repr__(self):
         return self.to_shelxl()
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'SymmetryElement') -> bool:
         """
         Check two SymmetryElement instances for equivalence.
         Note that differences in lattice translation are ignored.
         :param other: SymmetryElement instance
         :return: True/False
         """
-        m = (self.matrix == other.matrix)
-        t1 = Array([v % 1 for v in self.trans])
-        t2 = Array([v % 1 for v in other.trans])
-        t = (t1 == t2)
+        m = np.array_equal(self.matrix, other.matrix)
+        t = np.array_equal(self.trans % 1, other.trans % 1)
         return m and t
 
-    def __sub__(self, other):
+    def __sub__(self, other: 'SymmetryElement') -> Union[np.ndarray, float]:
         """
         Computes and returns the translational difference between two SymmetryElements. Returns 999.0 if the elements
         cannot be superimposed via an integer shift of the translational parts.
         :param other: SymmetryElement instance
-        :return: float
+        :return: np.ndarray or 999.0
         """
         if self != other:
             return 999.0
         return self.trans - other.trans
 
-    def apply_latt_symm(self, latt_symm):
+    def apply_latt_symm(self, latt_symm: 'SymmetryElement') -> 'SymmetryElement':
         """
         Copies SymmetryElement instance and returns the copy after applying the translational part of 'lattSymm'.
         :param latt_symm: SymmetryElement.
         :return: SymmetryElement.
         """
         new_symm = SymmetryElement(self.to_shelxl().split(','))
-        new_symm.trans = Array([(self.trans[0] + latt_symm.trans[0]) / 1,
-                                (self.trans[1] + latt_symm.trans[1]) / 1,
-                                (self.trans[2] + latt_symm.trans[2]) / 1])
+        new_symm.trans = self.trans + latt_symm.trans
         new_symm.centric = self.centric
         return new_symm
 
-    def to_shelxl(self):
+    def to_shelxl(self) -> str:
         """
         Generate and return string representation of Symmetry Operation in Shelxl syntax.
         :return: string.
@@ -501,7 +494,7 @@ class SymmetryElement(object):
         axes = ['X', 'Y', 'Z']
         lines = []
         for i in range(3):
-            text = str(self.trans[i]) if self.trans[i] else ''
+            text = str(float(self.trans[i])) if self.trans[i] else ''
             for j in range(3):
                 s = '' if not self.matrix[i, j] else axes[j]
                 if self.matrix[i, j] < 0:

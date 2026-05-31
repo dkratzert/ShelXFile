@@ -1,11 +1,11 @@
 from contextlib import suppress
 from typing import Union, List, Tuple, Optional
 
-from shelxfile.misc import misc
+import numpy as np
 
 with suppress(Exception):
     from shelxfile import Shelxfile
-from shelxfile.misc.dsrmath import atomic_distance, Array, Matrix, SymmetryElement
+from shelxfile.misc.dsrmath import atomic_distance
 from shelxfile.misc.elements import get_atomic_number, get_radius_from_element
 from shelxfile.misc.misc import split_fvar_and_parameter, ParseSyntaxError, frac_to_cart, ParseUnknownParam
 from shelxfile.shelx.cards import PART, AFIX, RESI, CELL, Restraints
@@ -209,7 +209,7 @@ class Atom():
         self.resi = resi
         self._get_part_and_occupation(atline)
         self.x, self.y, self.z = self._get_atom_coordinates(atline)
-        self.xc, self.yc, self.zc = self._cell.o * Array(self.frac_coords)
+        self.xc, self.yc, self.zc = frac_to_cart(self.frac_coords, list(self._cell))
         if abs(self.uvals[1]) > 0.0 and abs(
                 self.uvals[2]) < 0.000001 and self.shx.hklf:  # qpeaks are always behind hklf
             self.peak_height = uvals[1]
@@ -224,58 +224,73 @@ class Atom():
         # print(self.name, [round(x, 6) for x in transformed_u], self.frac_coords)
 
     @property
-    def ucif(self):
+    def ucif(self) -> np.ndarray:
+        """
+        Returns U(cif) as a symmetric 3×3 numpy array.
+        SHELXL stores U11 U22 U33 U23 U13 U12.
+        """
         return self.set_ucif(self.uvals)
 
     @property
-    def ustar(self):
-        return self.ucif * self._cell.N * self._cell.N.T
+    def ustar(self) -> np.ndarray:
+        """
+        Returns U(star) = N @ U(cif) @ N.T  using numpy.
+        N = diag(a*, b*, c*)
+        """
+        N = np.diag([self._cell.astar, self._cell.bstar, self._cell.cstar])
+        return N @ self.ucif @ N.T
 
     @property
-    def u_cart(self):
-        return self.ustar * self._cell.o * self._cell.o.T
+    def u_cart(self) -> np.ndarray:
+        """
+        Returns U(cart) = A @ U(star) @ A.T  using numpy.
+        A is the orthogonalisation matrix.
+        """
+        A = np.array(self._cell.o.values, dtype=float)
+        return A @ self.ustar @ A.T
 
     @property
-    def ueq(self):
+    def ueq(self) -> float:
         return self.set_ueq(self.uvals)
 
-    def set_ueq(self, uvals):
+    def set_ueq(self, uvals: List[float]) -> float:
         # This is a q-peak:
         if uvals[0] > 0 and not sum(uvals[2:]):
             ueq = uvals[0]
-        # This is a hydrogen atom with negative thermal parameter:
-        # elif uvals[0] < 0 and not sum(uvals[1:]):
-        #    ueq = self.pivot.Uiso * abs(uvals[0])
         else:
-            # This is a non-hydrogen atom with an ADP
-            ueq = self.u_cart.trace / 3
+            # Non-hydrogen atom with ADP – use numpy trace for speed/clarity
+            ueq = float(np.trace(self.u_cart)) / 3
         return ueq
 
-    def set_ucif(self, uvals):
+    def set_ucif(self, uvals: List[float]) -> np.ndarray:
         """
-        SHELXL uses U(cif)
-        U(star) = N * U(cif) * N.T
-        U(cart) = A * U(star) * A.T
-        U(star) = R * U(star) * R^t
-        U(cif) = N^-1 * U(star) * (N^-1).T
-        U(star) = A^-1 * U(cart) * A^-1.T
+        Returns U(cif) as a symmetric 3×3 numpy array.
+
+        SHELXL convention: U11 U22 U33 U23 U13 U12
+        U(star) = N @ U(cif) @ N.T
+        U(cart) = A @ U(star) @ A.T
+        U(star) = R @ U(star) @ R.T   (symmetry transformation)
+        U(cif)  = N⁻¹ @ U(star) @ (N⁻¹).T
         """
         U11, U22, U33, U23, U13, U12 = uvals
-        U21 = U12
-        U32 = U23
-        U31 = U13
-        return Matrix([[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]])
+        return np.array([[U11, U12, U13],
+                         [U12, U22, U23],
+                         [U13, U23, U33]], dtype=float)
 
-    def transform_u_by_symmetry(self, symmetry_number: int):
-        symm = '-y, +x-y, +z'.split(',')
-        R = SymmetryElement(symm).matrix
-        Ustar_n = self.ustar * R * R.T
-        Ucif_n = Ustar_n * self._cell.N.inversed * self._cell.N.inversed.T
-        uvals = Ucif_n
-        upper_diagonal = uvals.values[0][0], uvals.values[1][1], uvals.values[2][2], \
-            uvals.values[1][2], uvals.values[0][2], \
-            uvals.values[0][1]
-        return upper_diagonal
+    def transform_u_by_symmetry(self, symmetry_number: int) -> tuple:
+        """
+        Transforms U(cif) values by the given symmetry operation.
+        Implements:  U*(new) = R @ U*(old) @ R.T
+        followed by back-conversion to U(cif).
+        """
+        R = self.shx.symmcards[symmetry_number].matrix  # numpy (3,3)
+        N = np.diag([self._cell.astar, self._cell.bstar, self._cell.cstar])
+        N_inv = np.linalg.inv(N)
+        Ustar = N @ self.ucif @ N.T               # U(star)
+        Ustar_n = R @ Ustar @ R.T                 # symmetry-transformed U(star)
+        Ucif_n = N_inv @ Ustar_n @ N_inv.T        # back to U(cif)
+        return (Ucif_n[0, 0], Ucif_n[1, 1], Ucif_n[2, 2],
+                Ucif_n[1, 2], Ucif_n[0, 2], Ucif_n[0, 1])
 
     def _get_part_and_occupation(self, atline: List[str]) -> None:
         # TODO: test all variants of PART and AFIX sof combinations:
@@ -327,11 +342,9 @@ class Atom():
         return [[U11, U12, U13], [U21, U22, U23], [U31, U32, U33]]
 
     def is_npd(self) -> bool:
-        eigenvalues = misc.eigenvals(self.u_cart.values)
-        if any(ev <= 0 for ev in eigenvalues):
-            return True
-        else:
-            return False
+        """Returns True if the ADP matrix is not positive definite."""
+        eigenvalues = np.linalg.eigvalsh(self.u_cart)
+        return bool(np.any(eigenvalues <= 0))
 
     @property
     def element(self) -> str:

@@ -199,7 +199,7 @@ class TestAtoms(TestCase):
 
     def test_get_coordinates(self):
         c = self.shx.atoms.get_atom_by_name('C1_4').cart_coords
-        self.assertEqual([-0.19777464582151, 4.902748697, 6.89776640065678], [round(x, 14) for x in c])
+        self.assertEqual([-0.1977746458215, 4.9027486970000, 6.8977664006568], [round(x, 13) for x in c])
 
     def test_to_isotropic(self):
         # We have regular u values of atom 40
@@ -210,8 +210,8 @@ class TestAtoms(TestCase):
         self.assertEqual([0.04, 0.0, 0.0, 0.0, 0.0, 0.0], self.shx.atoms.get_atom_by_id(40).uvals)
 
     def test_cart_coords(self):
-        self.assertEqual([-0.19777464582151, 4.902748697, 6.89776640065678],
-                         [round(x, 14) for x in self.shx.atoms.get_atom_by_id(40).cart_coords])
+        self.assertEqual([-0.1977746458215, 4.9027486970000, 6.8977664006568],
+                         [round(x, 13) for x in self.shx.atoms.get_atom_by_id(40).cart_coords])
 
     def test_cartesian_from_method(self):
         self.assertEqual(

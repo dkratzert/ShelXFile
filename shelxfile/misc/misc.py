@@ -552,6 +552,90 @@ def eigenvals(matrix: list[list[float]], iterations: int = 100) -> tuple[float, 
     return eigenvalues[2], eigenvalues[1], eigenvalues[0]
 
 
+def build_conntable(
+        coords: 'np.ndarray',
+        types: list,
+        parts: list,
+        radii: 'np.ndarray | None' = None,
+        extra_param: float = 1.2,
+        symmgen: 'list[bool] | np.ndarray | None' = None,
+) -> tuple:
+    """Vectorised connectivity-table builder.
+
+    Parameters
+    ----------
+    coords : ndarray of shape (N, 3)
+        Cartesian atom positions (Å).
+    types : list[str]
+        Element symbols (length N).
+    parts : list[int]
+        SHELX disorder-part numbers (length N).
+    radii : ndarray of shape (N,), optional
+        Pre-computed covalent radii.  If *None*, looked up from *types*.
+    extra_param : float
+        Multiplier applied to the sum of covalent radii for bond detection
+        (default 1.2).
+    symmgen : list[bool] or ndarray of shape (N,), optional
+        Per-atom flag indicating whether the atom was symmetry-generated.
+        Required for the negative-PART exclusion rule.
+
+    Returns
+    -------
+    tuple of (i, j) pairs with i < j, where i and j are indices into *coords*.
+    """
+    import numpy as np
+    from shelxfile.misc.elements import get_radius_from_element
+
+    n = len(coords)
+    if n == 0:
+        return ()
+
+    coords = np.asarray(coords, dtype=np.float64)
+
+    # pairwise distance matrix
+    diff = coords[:, None, :] - coords[None, :, :]   # (N, N, 3)
+    dists = np.linalg.norm(diff, axis=2)              # (N, N)
+
+    # per-pair bond-distance thresholds
+    if radii is None:
+        radii = np.array([get_radius_from_element(t) for t in types], dtype=np.float64)
+    else:
+        radii = np.asarray(radii, dtype=np.float64)
+
+    radii_sum = (radii[:, None] + radii[None, :]) * extra_param  # (N, N)
+
+    # upper triangle (i < j), non-trivial distance, within 4 Å pre-filter
+    triu = np.triu(np.ones((n, n), dtype=bool), k=1)
+    bond_mask = triu & (dists > 0.01) & (dists <= 4.0) & (dists < radii_sum)
+
+    if not np.any(bond_mask):
+        return ()
+
+    # Part filter: forbidden when both parts are non-zero and differ
+    parts_arr = np.array(parts, dtype=np.int32)
+    bond_mask &= ~(
+            (parts_arr[:, None] != 0)
+            & (parts_arr[None, :] != 0)
+            & (parts_arr[:, None] != parts_arr[None, :])
+    )
+
+    # Negative-part filter: bonds crossing the asymmetric-unit / symmetry-copy
+    # boundary are excluded for atoms with a negative part number.
+    if symmgen is not None:
+        symmgen_arr = np.asarray(symmgen, dtype=bool)
+        neg_part = parts_arr < 0
+        cross_boundary = symmgen_arr[:, None] != symmgen_arr[None, :]
+        either_neg = neg_part[:, None] | neg_part[None, :]
+        bond_mask &= ~(either_neg & cross_boundary)
+
+    # H–H filter: skip bonds between two hydrogen atoms
+    is_h = np.array([t in ('H', 'D') for t in types], dtype=bool)
+    bond_mask &= ~(is_h[:, None] & is_h[None, :])
+
+    rows, cols = np.where(bond_mask)
+    return tuple(zip(rows.tolist(), cols.tolist()))
+
+
 if __name__ == '__main__':
     matrix = [
         [0.1, 0.02, 0.03],

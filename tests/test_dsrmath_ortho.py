@@ -2,6 +2,7 @@ from unittest import TestCase
 
 from shelxfile import Shelxfile
 from shelxfile.misc.dsrmath import Array
+from shelxfile.misc.misc import frac_to_cart
 
 
 class TestOrthogonalMatrix(TestCase):
@@ -10,8 +11,9 @@ class TestOrthogonalMatrix(TestCase):
         self.shx.read_file('tests/resources/jkd77.res')
 
     def test_frac_to_cart(self):
-        self.assertListEqual(list(self.shx.atoms.all_atoms[2].cart_coords),
-                             list(self.shx.cell.o * Array(self.shx.atoms.all_atoms[2].frac_coords)))
+        atom = self.shx.atoms.all_atoms[2]
+        self.assertListEqual(list(atom.cart_coords),
+                             list(frac_to_cart(atom.frac_coords, list(self.shx.cell))))
 
     def test_cart_to_frac(self):
         self.assertListEqual(list(self.shx.atoms.all_atoms[2].frac_coords),
@@ -20,7 +22,8 @@ class TestOrthogonalMatrix(TestCase):
 
     def test_frac_to_cart_all(self):
         for atom in self.shx.atoms.all_atoms:
-            self.assertListEqual(list(atom.cart_coords), list(self.shx.cell.o * Array(atom.frac_coords)))
+            self.assertListEqual(list(atom.cart_coords),
+                                 list(frac_to_cart(atom.frac_coords, list(self.shx.cell))))
 
     def test_cart_to_frac_all(self):
         for atom in self.shx.atoms.all_atoms:

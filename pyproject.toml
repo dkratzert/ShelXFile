@@ -19,7 +19,7 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python :: 3",
 ]
-dependencies = []
+dependencies = ["numpy>=1.21"]
 
 [dependency-groups]
 dev = [

@@ -1,10 +1,13 @@
 from math import acos, sqrt, degrees
 from typing import Union, List, TYPE_CHECKING, Iterator, Dict
 
+import numpy as np
+
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
 from shelxfile.atoms.atom import Atom
 from shelxfile.misc.dsrmath import atomic_distance, Array
+from shelxfile.misc.misc import build_conntable
 
 
 class Atoms():
@@ -239,6 +242,31 @@ class Atoms():
         ang = acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (
                 sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) * sqrt(b[0] * b[0] + b[1] * b[1] + b[2] * b[2])))
         return degrees(ang) if direction > 0 else degrees(-ang)
+
+    @property
+    def conntable(self) -> tuple:
+        """Connectivity table for all atoms in the asymmetric unit.
+
+        Returns a tuple of ``(i, j)`` index pairs (i < j) where atoms *i* and
+        *j* are considered covalently bonded based on the sum of their covalent
+        radii multiplied by 1.2.  Disorder-part rules and H–H bonds are
+        handled automatically.
+
+        The indices correspond to positions in :attr:`all_atoms`.
+
+        Returns
+        -------
+        tuple of (int, int)
+        """
+        atoms = self.all_atoms
+        if not atoms:
+            return ()
+        coords = np.array([[at.xc, at.yc, at.zc] for at in atoms], dtype=np.float64)
+        types = [at.element for at in atoms]
+        parts = [at.part.n for at in atoms]
+        radii = np.array([at.radius for at in atoms], dtype=np.float64)
+        symmgen = [at.symmgen for at in atoms]
+        return build_conntable(coords, types, parts, radii=radii, symmgen=symmgen)
 
     def atoms_in_class(self, name: str) -> list:
         """
