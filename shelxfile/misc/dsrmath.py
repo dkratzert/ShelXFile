@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):

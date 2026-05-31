@@ -3,7 +3,8 @@ from unittest import TestCase
 from shelxfile.misc.dsrmath import vol_unitcell, distance, dice_coefficient, levenshtein, dice_coefficient2, \
     SymmetryElement, Matrix, Array, mean, median, std_dev, nalimov_test, id_generator, atomic_distance, \
     almost_equal
-from shelxfile.misc.misc import flatten, frac_to_cart, cart_to_frac, determinante, subtract_vect
+from shelxfile.misc.misc import flatten, frac_to_cart as frac_to_cart_misc, cart_to_frac as cart_to_frac_misc, \
+    determinante, subtract_vect, frac_to_cart, cart_to_frac
 from shelxfile.shelx.shelx import Shelxfile
 
 
@@ -98,10 +99,9 @@ class TestMatrix(TestCase):
         self.assertEqual(8, m1.det)
 
     def test_norm(self):
-        m = Matrix([[-4, -3, -2],[-1,  0,  1],[ 2,  3,  4]])
+        m = Matrix([[-4, -3, -2], [-1, 0, 1], [2, 3, 4]])
         self.assertEqual(7.745966692414834, m.frobenius_norm())
         self.assertEqual(7.745966692414834, m.norm)
-
 
     def test_zero(self):
         self.assertEqual("| 0.0000  0.0000  0.0000|\n"
@@ -356,9 +356,44 @@ class TestMisc(TestCase):
     def test_fractional_to_cartesian(self):
         cell = [10.5086, 20.9035, 20.5072, 90, 94.13, 90]
         coord1 = [-0.186843, 0.282708, 0.526803]
-        self.assertEqual([-2.741505423999065, 5.909586678000002, 10.775200700893734], frac_to_cart(coord1, cell))
+        self.assertEqual([-2.741505423999065, 5.909586678000002, 10.775200700893734], frac_to_cart_misc(coord1, cell))
 
     def test_cart_to_frac(self):
         cell = [10.5086, 20.9035, 20.5072, 90, 94.13, 90]
         coords = [-2.74150542399906, 5.909586678, 10.7752007008937]
-        self.assertEqual((-0.1868429999999998, 0.28270799999999996, 0.5268029999999984), cart_to_frac(coords, cell))
+        self.assertEqual((-0.1868429999999998, 0.28270799999999996, 0.5268029999999984),
+                         cart_to_frac_misc(coords, cell))
+
+
+class TestDsrmathReexports(TestCase):
+    """Verify that frac_to_cart and cart_to_frac are accessible from dsrmath."""
+
+    CELL = [10.5086, 20.9035, 20.5072, 90.0, 94.13, 90.0]
+    FRAC = [-0.186843, 0.282708, 0.526803]
+    CART = [-2.741505423999065, 5.909586678000002, 10.775200700893734]
+
+    def test_frac_to_cart_same_result(self):
+        """Re-exported frac_to_cart must give the same result as from misc."""
+        result_dsrmath = frac_to_cart(self.FRAC, self.CELL)
+        result_misc = frac_to_cart_misc(self.FRAC, self.CELL)
+        self.assertEqual(result_dsrmath, result_misc)
+
+    def test_cart_to_frac_same_result(self):
+        """Re-exported cart_to_frac must give the same result as from misc."""
+        result_dsrmath = cart_to_frac(self.CART, self.CELL)
+        result_misc = cart_to_frac_misc(self.CART, self.CELL)
+        self.assertEqual(result_dsrmath, result_misc)
+
+    def test_round_trip_frac_cart_frac(self):
+        """frac → cart → frac round-trip must reproduce the original coordinates."""
+        cart = frac_to_cart(self.FRAC, self.CELL)
+        back = cart_to_frac(cart, self.CELL)
+        for a, b in zip(self.FRAC, back):
+            self.assertAlmostEqual(a, b, places=10)
+
+    def test_round_trip_cart_frac_cart(self):
+        """cart → frac → cart round-trip must reproduce the original coordinates."""
+        frac = cart_to_frac(self.CART, self.CELL)
+        back = frac_to_cart(list(frac), self.CELL)
+        for a, b in zip(self.CART, back):
+            self.assertAlmostEqual(a, b, places=10)

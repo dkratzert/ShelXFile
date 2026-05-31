@@ -8,6 +8,149 @@ from shelxfile.shelx import sdm as sdm_module
 from shelxfile.shelx.sdm import SDM, HAS_CPP
 from shelxfile import Shelxfile
 
+
+class TestPackUnitCell(TestCase):
+    """Tests for :meth:`SDM.pack_unit_cell` and :meth:`Shelxfile.pack`."""
+
+    RES_FILE = 'tests/resources/p21c.res'
+    RES_FILE_P31C = 'tests/resources/p-31c.res'
+
+    def _fresh_shx(self, path: str = None) -> Shelxfile:
+        shx = Shelxfile()
+        shx.read_file(path or self.RES_FILE)
+        return shx
+
+    # ------------------------------------------------------------------
+    # Basic correctness
+    # ------------------------------------------------------------------
+
+    def test_packed_nonempty(self):
+        """pack_unit_cell must return at least one atom."""
+        shx = self._fresh_shx()
+        sdm = SDM(shx)
+        packed = sdm.pack_unit_cell()
+        self.assertGreater(len(packed), 0)
+
+    def test_packed_larger_than_asymm(self):
+        """Packed unit cell must contain more atoms than the asymmetric unit."""
+        shx = self._fresh_shx()
+        asymm_count = len(shx.atoms.all_atoms)
+        sdm = SDM(shx)
+        packed = sdm.pack_unit_cell()
+        self.assertGreater(len(packed), asymm_count)
+
+    def test_all_coords_in_unit_cell(self):
+        """All fractional coordinates must be in [0, 1)."""
+        shx = self._fresh_shx()
+        sdm = SDM(shx)
+        for at in sdm.pack_unit_cell():
+            self.assertGreaterEqual(at.x, 0.0, f"{at.name}.x = {at.x}")
+            self.assertLess(at.x, 1.0,          f"{at.name}.x = {at.x}")
+            self.assertGreaterEqual(at.y, 0.0, f"{at.name}.y = {at.y}")
+            self.assertLess(at.y, 1.0,          f"{at.name}.y = {at.y}")
+            self.assertGreaterEqual(at.z, 0.0, f"{at.name}.z = {at.z}")
+            self.assertLess(at.z, 1.0,          f"{at.name}.z = {at.z}")
+
+    def test_returns_atom_objects(self):
+        """pack_unit_cell must return Atom objects."""
+        from shelxfile.atoms.atom import Atom
+        shx = self._fresh_shx()
+        sdm = SDM(shx)
+        packed = sdm.pack_unit_cell()
+        for at in packed:
+            self.assertIsInstance(at, Atom)
+
+    def test_no_qpeaks_by_default(self):
+        """Q-peaks must be excluded unless with_qpeaks=True."""
+        shx = self._fresh_shx()
+        sdm = SDM(shx)
+        packed = sdm.pack_unit_cell(with_qpeaks=False)
+        self.assertFalse(any(at.qpeak for at in packed))
+
+    def test_with_qpeaks(self):
+        """with_qpeaks=True must include Q-peaks when the structure has them."""
+        shx = self._fresh_shx()
+        sdm = SDM(shx)
+        packed_no_q = sdm.pack_unit_cell(with_qpeaks=False)
+        packed_with_q = sdm.pack_unit_cell(with_qpeaks=True)
+        # p21c.res may or may not have Q-peaks; the with_q count must be >= without_q
+        self.assertGreaterEqual(len(packed_with_q), len(packed_no_q))
+
+    # ------------------------------------------------------------------
+    # Symmetry-operation selection
+    # ------------------------------------------------------------------
+
+    def test_identity_only_gives_asymm_unit(self):
+        """Selecting only the identity (index 0) must give one atom per asymm-unit atom."""
+        shx = self._fresh_shx()
+        asymm = [at for at in shx.atoms.all_atoms if not at.qpeak]
+        sdm = SDM(shx)
+        packed = sdm.pack_unit_cell(symmop_indices=[0])
+        self.assertEqual(len(packed), len(asymm))
+
+    def test_symmop_indices_none_uses_all_ops(self):
+        """None (default) must apply all symmetry operations."""
+        shx = self._fresh_shx()
+        sdm = SDM(shx)
+        sdm._build_symm_arrays()
+        packed_all = sdm.pack_unit_cell(symmop_indices=None)
+        packed_sel = sdm.pack_unit_cell(symmop_indices=list(range(len(sdm._symm_m))))
+        self.assertEqual(len(packed_all), len(packed_sel))
+
+    # ------------------------------------------------------------------
+    # Before calc_sdm
+    # ------------------------------------------------------------------
+
+    def test_usable_without_calc_sdm(self):
+        """pack_unit_cell must work on a fresh SDM that has not run calc_sdm."""
+        shx = self._fresh_shx()
+        sdm = SDM(shx)
+        # Do NOT call calc_sdm; pack_unit_cell must still work
+        packed = sdm.pack_unit_cell()
+        self.assertGreater(len(packed), 0)
+
+    # ------------------------------------------------------------------
+    # Duplicate elimination
+    # ------------------------------------------------------------------
+
+    def test_no_duplicate_positions(self):
+        """No two atoms must share the same position within the tolerance."""
+        shx = self._fresh_shx()
+        sdm = SDM(shx)
+        packed = sdm.pack_unit_cell(cart_tolerance=0.2)
+        coords = [(round(at.x, 4), round(at.y, 4), round(at.z, 4)) for at in packed]
+        self.assertEqual(len(coords), len(set(coords)),
+                         "Duplicate fractional positions found in packed unit cell")
+
+    # ------------------------------------------------------------------
+    # Shelxfile.pack() high-level API
+    # ------------------------------------------------------------------
+
+    def test_shelxfile_pack_matches_sdm_pack(self):
+        """`Shelxfile.pack()` and `SDM.pack_unit_cell()` must give the same count."""
+        shx1 = self._fresh_shx()
+        shx2 = self._fresh_shx()
+        direct = SDM(shx1).pack_unit_cell()
+        via_api = shx2.pack()
+        self.assertEqual(len(direct), len(via_api))
+
+    def test_shelxfile_pack_returns_list(self):
+        """`Shelxfile.pack()` must return a list."""
+        shx = self._fresh_shx()
+        self.assertIsInstance(shx.pack(), list)
+
+    # ------------------------------------------------------------------
+    # P-31c (different space group)
+    # ------------------------------------------------------------------
+
+    def test_p31c_packed_count(self):
+        """P-31c structure must produce a non-trivial packed unit cell."""
+        shx = self._fresh_shx(self.RES_FILE_P31C)
+        sdm = SDM(shx)
+        packed = sdm.pack_unit_cell()
+        self.assertGreater(len(packed), len(shx.atoms.all_atoms))
+
+
 @unittest.skip("Rust version does not work atm.")
 class MySDMtest(TestCase):
     def setUp(self) -> None:

@@ -854,6 +854,20 @@ class Shelxfile():
         packed_atoms = sdm.packer(sdm, needsymm, with_qpeaks=with_qpeaks)
         return packed_atoms
 
+    def pack(self, with_qpeaks: bool = False) -> list:
+        """Returns a list of atoms representing the packed unit cell.
+
+        Applies all symmetry operations to the asymmetric unit and folds every
+        position back into [0, 1) fractional coordinates, removing duplicates.
+        Unlike :meth:`grow`, this does not stitch molecular fragments together —
+        it simply fills one unit cell.
+
+        :param with_qpeaks: include Q-peaks (difference-map peaks) in the output.
+        :returns: List of :class:`~shelxfile.atoms.atom.Atom` objects.
+        """
+        sdm = SDM(self)
+        return sdm.pack_unit_cell(with_qpeaks=with_qpeaks)
+
     def refine(self, cycles: Union[int, None] = None, backup_before: bool = True) -> bool:
         if self.resfile:
             filen = self.resfile.stem
@@ -1116,7 +1130,7 @@ class Shelxfile():
 if __name__ == "__main__":
     print(Path('.').resolve())
     # file = r'../shelxfile/tests/resources/p21c.res'
-    #file = r'D:\_DEV\GitHub\ShelXFile\tests\resources\test_bedelone.res'
+    # file = r'D:\_DEV\GitHub\ShelXFile\tests\resources\test_bedelone.res'
     file = r'/Users/daniel/Documents/GitHub/FinalCif/tests/examples/Esser_JW367_0m-finalcif.res'
     shx = Shelxfile(debug=True)
     shx.read_file(file)

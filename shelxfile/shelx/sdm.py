@@ -18,6 +18,7 @@ import numpy as np
 
 try:
     import sdm_cpp
+
     HAS_CPP = True
 except ImportError:
     HAS_CPP = False
@@ -179,12 +180,12 @@ class SDM():
                         A = 2.0 * (dpx * dpy * aga + dpx * dpz * bbe + dpy * dpz * cal)
                         dk2 = dpx * dpx * asq + dpy * dpy * bsq + dpz * dpz * csq + A
 
-                        if dk2 > 16.0:      # 4 Å hard cutoff (squared) – skip sqrt
+                        if dk2 > 16.0:  # 4 Å hard cutoff (squared) – skip sqrt
                             continue
 
                         dk = sqrt(dk2)
                         if n:
-                            dk += 0.0001   # slight penalty for symmetry-generated images
+                            dk += 0.0001  # slight penalty for symmetry-generated images
 
                         if (dk > 0.01) and (mind >= dk):
                             mind = dk
@@ -418,6 +419,149 @@ class SDM():
 
         return showatoms
 
+    def pack_unit_cell(
+            self,
+            symmop_indices: list[int] | None = None,
+            *,
+            cart_tolerance: float = 0.2,
+            with_qpeaks: bool = False,
+    ) -> list:
+        """Pack all symmetry-equivalent positions into one unit cell.
+
+        For every atom in the asymmetric unit every selected symmetry operation
+        is applied and the result is folded back into [0, 1) fractional
+        coordinates.  Positions already occupied within *cart_tolerance* Å
+        (with periodic boundary conditions) are discarded as duplicates.
+
+        This can be called on a fresh :class:`SDM` object before
+        :meth:`calc_sdm` — it does **not** require the SDM to have been run.
+
+        :param symmop_indices: 0-based indices into the symmetry-card list
+            (identity is index 0).  ``None`` applies all operations.
+        :param cart_tolerance: Cartesian duplicate threshold in Å (default 0.2).
+        :param with_qpeaks: include Q-peaks in the output (default False).
+        :returns: List of :class:`~shelxfile.atoms.atom.Atom` objects with
+            updated fractional coordinates.
+        """
+        if not self._symm_m:
+            self._build_symm_arrays()
+        symm_m = self._symm_m
+        symm_t = self._symm_t
+
+        selected: list[int] = (
+            list(range(len(symm_m)))
+            if symmop_indices is None
+            else list(symmop_indices)
+        )
+
+        a, b, c, alpha, beta, gamma = self.cell
+        aga, bbe, cal = self.aga, self.bbe, self.cal
+        asq, bsq, csq = self.asq, self.bsq, self.csq
+        tol_sq = cart_tolerance * cart_tolerance
+
+        # Spatial grid for O(1) average-case duplicate detection.
+        # Each bin spans ~cart_tolerance; at least 3 bins per axis so the
+        # 3×3×3 neighbour check covers exactly one cell-image distance.
+        grid_nx = max(3, int(a / cart_tolerance))
+        grid_ny = max(3, int(b / cart_tolerance))
+        grid_nz = max(3, int(c / cart_tolerance))
+
+        # grid maps (ix, iy, iz) → [(fx, fy, fz, part, packed_idx), ...]
+        grid: dict[tuple[int, int, int], list[tuple]] = {}
+        # packed entries: (orig_atom, px, py, pz, symm_idx)
+        packed: list[tuple] = []
+
+        asymm = self.shx.atoms.all_atoms
+        for at in asymm:
+            if not with_qpeaks and at.qpeak:
+                continue
+            x1, y1, z1 = at.x, at.y, at.z
+            part = at.part.n
+
+            for idx in selected:
+                m = symm_m[idx]
+                t = symm_t[idx]
+
+                # Apply symmetry operation (column-major) and fold to [0, 1)
+                px = (x1 * m[0][0] + y1 * m[1][0] + z1 * m[2][0] + t[0]) % 1.0
+                py = (x1 * m[0][1] + y1 * m[1][1] + z1 * m[2][1] + t[1]) % 1.0
+                pz = (x1 * m[0][2] + y1 * m[1][2] + z1 * m[2][2] + t[2]) % 1.0
+
+                # Determine grid bin for this candidate position
+                ix = int(px * grid_nx) % grid_nx
+                iy = int(py * grid_ny) % grid_ny
+                iz = int(pz * grid_nz) % grid_nz
+
+                # Check 3×3×3 neighbouring bins for a duplicate
+                is_dup = False
+                for dix in (-1, 0, 1):
+                    if is_dup:
+                        break
+                    nix = (ix + dix) % grid_nx
+                    for diy in (-1, 0, 1):
+                        if is_dup:
+                            break
+                        niy = (iy + diy) % grid_ny
+                        for diz in (-1, 0, 1):
+                            if is_dup:
+                                break
+                            niz = (iz + diz) % grid_nz
+                            bucket = grid.get((nix, niy, niz))
+                            if bucket is None:
+                                continue
+                            for (efx, efy, efz, epart, _) in bucket:
+                                # Different non-zero disorder parts are never duplicates
+                                if epart != 0 and part != 0 and epart != part:
+                                    continue
+                                # Fractional difference folded to [-0.5, 0.5]
+                                ddx = px - efx
+                                ddx -= int(ddx + (0.5 if ddx >= 0.0 else -0.5))
+                                ddy = py - efy
+                                ddy -= int(ddy + (0.5 if ddy >= 0.0 else -0.5))
+                                ddz = pz - efz
+                                ddz -= int(ddz + (0.5 if ddz >= 0.0 else -0.5))
+                                d2 = (ddx * ddx * asq + ddy * ddy * bsq
+                                      + ddz * ddz * csq
+                                      + 2.0 * (ddx * ddy * aga
+                                               + ddx * ddz * bbe
+                                               + ddy * ddz * cal))
+                                if d2 < tol_sq:
+                                    is_dup = True
+                                    break
+
+                if not is_dup:
+                    idx_packed = len(packed)
+                    packed.append((at, px, py, pz, idx))
+                    key = (ix, iy, iz)
+                    bucket = grid.get(key)
+                    if bucket is None:
+                        grid[key] = [(px, py, pz, part, idx_packed)]
+                    else:
+                        bucket.append((px, py, pz, part, idx_packed))
+
+        # Build Atom objects with the packed fractional coordinates
+        result: list[Atom] = []
+        for (orig_at, px, py, pz, symm_num) in packed:
+            new_atom = Atom(self.shx)
+            uvals = list(orig_at.uvals)
+            if sum(abs(u) for u in uvals[2:]) > 1e-5:
+                uvals = list(self.transform_uvalues(uvals, symm_num))
+            new_atom.set_atom_parameters(
+                name=orig_at.name,
+                sfac_num=orig_at.sfac_num,
+                coords=[px, py, pz],
+                part=orig_at.part,
+                afix=AFIX(self.shx, orig_at.afix.split()) if orig_at.afix else None,
+                resi=RESI(self.shx, f'RESI {orig_at.resinum} {orig_at.resiclass}'.split())
+                if orig_at.resi else None,
+                site_occupation=orig_at.sof,
+                uvals=uvals,
+                symmgen=(symm_num != 0),
+            )
+            result.append(new_atom)
+
+        return result
+
     def transform_uvalues(self, uvals: list | tuple, symm_num: int) -> tuple:
         """
         Transforms the Uij values according to the given symmetry rotation.
@@ -438,7 +582,7 @@ class SDM():
                          [U13, U23, U33]], dtype=float)
         N = np.diag([self.astar, self.bstar, self.cstar])
         N_inv = np.linalg.inv(N)
-        R = self.shx.symmcards[symm_num].matrix   # numpy (3,3), not transposed
+        R = self.shx.symmcards[symm_num].matrix  # numpy (3,3), not transposed
 
         Ustar = N @ Ucif @ N.T
         Ustar = R @ Ustar @ R.T
