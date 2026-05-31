@@ -157,7 +157,7 @@ class Atom():
     def set_atom_parameters(self, name: str = 'C', sfac_num: int = 1, coords: List[float] = None, part: PART = None,
                             afix: AFIX = None, resi: RESI = None, site_occupation: float = 11.0,
                             uvals: (list, tuple) = None,
-                            symmgen: bool = True):
+                            symmgen: bool = False):
         """
         Sets atom properties manually if not parsed from a SHELXL file.
         """

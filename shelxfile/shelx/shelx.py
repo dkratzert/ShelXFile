@@ -31,7 +31,7 @@ from shelxfile.misc.dsrmath import Array
 from shelxfile.misc.elements import weight_from_symbol
 # noinspection PyUnresolvedReferences
 from shelxfile.misc.misc import ParseOrderError, ParseNumError, ParseUnknownParam, \
-    multiline_test, dsr_regex, wrap_line, ParseSyntaxError
+    multiline_test, dsr_regex, wrap_line, ParseSyntaxError, cart_to_frac
 from shelxfile.refine.refine import ShelxlRefine
 from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
@@ -803,23 +803,194 @@ class Shelxfile():
                     if self.debug:
                         raise ParseUnknownParam(debug=self.debug, verbose=self.verbose)
 
-    def add_atom(self, name: str = None, coordinates: list = None, element='C', uvals: list = None, part: int = 0,
-                 sof: float = 11.0):
+    def _find_atom_insert_position(self, after: Optional['Atom'] = None) -> int:
         """
-        Adds an atom to the ShelxFile.atoms list. If no element is given, carbon atoms are assumed.
+        Returns the index in ``_reslist`` at which a new atom should be inserted.
+
+        Priority order:
+        1. Directly after *after* (if given and present in ``_reslist``).
+        2. Directly after the last real (non-Q-peak) :class:`~shelxfile.atoms.atom.Atom`
+           in ``_reslist``.
+        3. Directly before the ``HKLF`` card.
+        4. One position before the end of ``_reslist`` as a last resort.
         """
+        if after is not None:
+            try:
+                return self._reslist.index(after) + 1
+            except ValueError:
+                pass
+        # Find last non-Q-peak atom
+        last_atom_pos = None
+        for i, item in enumerate(self._reslist):
+            if isinstance(item, Atom) and not item.qpeak:
+                last_atom_pos = i
+        if last_atom_pos is not None:
+            return last_atom_pos + 1
+        # Fall back to before HKLF
+        for i, item in enumerate(self._reslist):
+            if isinstance(item, HKLF):
+                return i
+        return max(len(self._reslist) - 1, 0)
+
+    def unused_atom_name(self, element: str) -> str:
+        """
+        Returns the first atom name of the given element that is not yet used in residue 0.
+
+        SHELX limits atom labels to **4 characters**, so the numeric suffix is capped
+        accordingly: a 1-character element (e.g. ``'C'``) allows up to ``C999``; a
+        2-character element (e.g. ``'Fe'``) allows up to ``Fe99``.
+
+        Example::
+
+            shx.unused_atom_name('C')   # -> 'C1' if C1_0 is free, else 'C2', …
+            shx.unused_atom_name('Fe')  # -> 'Fe1' if Fe1_0 is free, …
+
+        :param element: Chemical element symbol (case-insensitive), e.g. ``'C'``, ``'Fe'``.
+        :returns: An atom name string (without residue suffix) that is not present in the
+                  file and is at most 4 characters long.
+        :raises ValueError: if no unused name can be found within the allowed range.
+        """
+        prefix = element.capitalize()
+        max_digits = 4 - len(prefix)
+        if max_digits < 1:
+            raise ValueError(
+                f"Element symbol {prefix!r} is {len(prefix)} characters long; "
+                f"no room for a numeric suffix within SHELX's 4-character name limit."
+            )
+        max_num = 10 ** max_digits - 1  # e.g. 999 for 1-char element, 99 for 2-char
+        existing = set(self.atoms.nameslist)  # upper-cased "NAME_RESINUM"
+        for n in range(1, max_num + 1):
+            candidate = f'{prefix}{n}'
+            if f'{candidate}_0'.upper() not in existing:
+                return candidate
+        raise ValueError(
+            f"No unused atom name found for element {element!r} "
+            f"(tried {prefix}1 … {prefix}{max_num})"
+        )
+
+    def add_atom(self,
+                 name: str,
+                 coordinates: list,
+                 element: str = 'C',
+                 uvals: list = None,
+                 part: int = 0,
+                 sof: Optional[float] = None,
+                 occupancy: Optional[float] = None,
+                 fvar: int = 1,
+                 resi: int = 0,
+                 after: Optional['Atom'] = None,
+                 coords_are_cartesian: bool = False) -> 'Atom':
+        """
+        Add a new atom to the structure and insert it into the ``_reslist`` at the
+        correct position so that ``write_shelx_file`` produces a valid file.
+
+        **Occupation encoding** — two mutually exclusive styles are supported:
+
+        * *High-level*: pass ``occupancy`` (0.0–1.0) and optionally ``fvar``
+          (free-variable number, default 1).  The raw SHELX site-occupation factor
+          is computed automatically as ``fvar * 10 + occupancy``, e.g.
+          ``occupancy=0.5, fvar=2`` → ``sof=20.5``.
+        * *Raw SHELX*: pass ``sof`` directly, e.g. ``sof=21.0`` (fvar 2,
+          occupancy 1.0).
+
+        Passing both ``occupancy`` (or ``fvar``) **and** ``sof`` raises a
+        :exc:`ValueError` to prevent ambiguous input.  If neither is given the
+        atom is fully occupied on fvar 1 (``sof=11.0``).
+
+        :param name: Atom label, e.g. ``'C1'`` (max 4 characters).  Must not
+                     already exist in residue *resi*; a :exc:`ValueError` is raised
+                     if it does.
+        :param coordinates: Fractional (default) or Cartesian (if
+                            *coords_are_cartesian* is ``True``) coordinates
+                            ``[x, y, z]``.
+        :param element: Chemical element symbol (default ``'C'``).  If the element
+                        is not yet in the SFAC table it is added automatically
+                        together with a matching UNIT count of 1.
+        :param uvals: Displacement parameters.  Pass one value ``[Uiso]`` for
+                      isotropic, or six values ``[U11, U22, U33, U23, U13, U12]``
+                      for anisotropic.  A single-element list is silently expanded
+                      to six values.  Defaults to ``[0.04, 0, 0, 0, 0, 0]``
+                      (isotropic, Uiso = 0.04).
+        :param part: PART number (default 0 = no disorder part).
+        :param sof: Raw SHELXL site-occupation factor, e.g. ``11.0`` (fvar 1 ×
+                    1.0 = fully occupied).  Mutually exclusive with *occupancy* /
+                    *fvar*; defaults to ``11.0`` when neither *sof* nor *occupancy*
+                    is given.
+        :param occupancy: Fractional occupancy in the range 0.0–1.0.  When given,
+                          the raw ``sof`` is computed as ``fvar * 10 + occupancy``.
+                          Mutually exclusive with the raw *sof* parameter.
+        :param fvar: Free-variable number used together with *occupancy* (default
+                     1).  Mutually exclusive with the raw *sof* parameter.
+        :param resi: Residue number (default 0).
+        :param after: If given, the new atom is inserted directly after this
+                      :class:`~shelxfile.atoms.atom.Atom` in the file.  Otherwise
+                      the atom is appended after the last real atom (before
+                      ``HKLF``).
+        :param coords_are_cartesian: If ``True``, *coordinates* are treated as
+                                     Cartesian (Å) and converted to fractional
+                                     automatically.
+        :returns: The new :class:`~shelxfile.atoms.atom.Atom` object.
+        :raises ValueError: if *name* is already used in residue *resi*, or if
+                            both *sof* and *occupancy*/*fvar* are provided.
+        """
+        # --- guard against mixed occupation styles ---
+        high_level = occupancy is not None or fvar != 1
+        raw_sof = sof is not None
+        if high_level and raw_sof:
+            raise ValueError(
+                "Specify occupation using either 'occupancy'/'fvar' or 'sof', not both."
+            )
+        # --- validate name uniqueness ---
+        full_name = f'{name}_{resi}'
+        if self.atoms.has_atom(full_name):
+            raise ValueError(f"Atom '{full_name}' already exists in the structure.")
+        # --- resolve site-occupation factor ---
+        if occupancy is not None:
+            sof = fvar * 10 + occupancy
+        elif sof is None:
+            sof = 11.0  # default: fvar 1, fully occupied
+        # --- normalise uvals ---
         if uvals is None:
-            uvals = [0.04]
-        part = PART(self, f'PART {part}'.split())
-        afix = AFIX(self, 'AFIX 0'.split())
-        resi = RESI(self, 'RESI 0'.split())
-        a = Atom(self)
+            uvals = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]
+        elif len(uvals) == 1:
+            uvals = [uvals[0], 0.0, 0.0, 0.0, 0.0, 0.0]
+        # --- convert coordinates if needed ---
+        if coords_are_cartesian:
+            coordinates = list(cart_to_frac(coordinates, list(self.cell)))
+        # --- auto-register element in SFAC/UNIT ---
+        if not self.sfac_table.has_element(element):
+            self.sfac_table.add_element(element)
         sfac_num = self.elem2sfac(element)
+        # --- build context cards ---
+        part_card = PART(self, f'PART {part}'.split())
+        afix_card = AFIX(self, 'AFIX 0'.split())
+        # Resolve residue: look for an existing RESI card matching *resi*, else create one.
+        resi_card = None
+        for r in self.residues.all_residues:
+            if r.residue_number == resi:
+                resi_card = r
+                break
+        if resi_card is None:
+            resi_card = RESI(self, ['RESI', str(resi)])
+        # --- construct atom ---
+        a = Atom(self)
+        a.set_atom_parameters(
+            name=name,
+            sfac_num=sfac_num,
+            coords=coordinates,
+            part=part_card,
+            afix=afix_card,
+            resi=resi_card,
+            site_occupation=sof,
+            uvals=uvals,
+            symmgen=False,
+        )
+        # --- insert into _reslist at the correct position ---
+        insert_pos = self._find_atom_insert_position(after=after)
+        self._reslist.insert(insert_pos, a)
+        self.atoms.append(a)
         self.atoms._atomsdict.clear()
-        a.set_atom_parameters(name=name, sfac_num=sfac_num, coords=coordinates,
-                              part=part, afix=afix, resi=resi, site_occupation=sof, uvals=uvals)
-        self._append_card(self.atoms, a, 0)
-        self.atoms._atomsdict.clear()
+        return a
 
     def frac_to_cart(self, coordinates: list) -> Array:
         """

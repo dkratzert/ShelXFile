@@ -1,7 +1,10 @@
+import tempfile
 from pathlib import Path
 from unittest import TestCase
 
 from shelxfile import Shelxfile
+from shelxfile.atoms.atom import Atom
+from shelxfile.shelx.cards import HKLF
 
 
 class TestShelxFileIsAtom(TestCase):
@@ -165,3 +168,242 @@ class TestWriteFile(TestCase):
     def test_write_shelx_file(self):
         self.shx.write_shelx_file(str(self.testwritepath))
         self.assertEqual(self.written.read_bytes(), self.testwritepath.read_bytes())
+
+
+# ---------------------------------------------------------------------------
+# Tests for the improved add_atom / unused_atom_name interface
+# ---------------------------------------------------------------------------
+
+class TestAddAtom(TestCase):
+    """Tests for Shelxfile.add_atom() and Shelxfile.unused_atom_name()."""
+
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/p21c.res')
+
+    # ------------------------------------------------------------------
+    # Basic insertion
+    # ------------------------------------------------------------------
+
+    def test_add_atom_returns_atom_object(self):
+        a = self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+        self.assertIsInstance(a, Atom)
+
+    def test_add_atom_appears_in_atoms_list(self):
+        count_before = len(self.shx.atoms)
+        self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+        self.assertEqual(count_before + 1, len(self.shx.atoms))
+
+    def test_add_atom_lookup_by_name(self):
+        self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+        found = self.shx.atoms.get_atom_by_name('C99')
+        self.assertIsNotNone(found)
+        self.assertEqual('C99', found.name)
+
+    # ------------------------------------------------------------------
+    # _reslist position: must NOT overwrite TITL (index 0)
+    # ------------------------------------------------------------------
+
+    def test_add_atom_does_not_corrupt_reslist_index_0(self):
+        self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+        first = str(self.shx._reslist[0])
+        self.assertIn('TITL', first.upper())
+
+    def test_add_atom_placed_before_hklf(self):
+        self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+        atom_idx = self.shx._reslist.index(self.shx.atoms.get_atom_by_name('C99'))
+        hklf_idx = next(i for i, x in enumerate(self.shx._reslist) if isinstance(x, HKLF))
+        self.assertLess(atom_idx, hklf_idx)
+
+    def test_add_atom_placed_after_last_real_atom(self):
+        # The last non-Q-peak atom before adding:
+        existing_atoms = [x for x in self.shx._reslist if isinstance(x, Atom) and not x.qpeak]
+        last_existing_pos = self.shx._reslist.index(existing_atoms[-1])
+        self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+        new_atom_pos = self.shx._reslist.index(self.shx.atoms.get_atom_by_name('C99'))
+        self.assertGreater(new_atom_pos, last_existing_pos)
+
+    # ------------------------------------------------------------------
+    # after= parameter
+    # ------------------------------------------------------------------
+
+    def test_add_atom_after_specific_atom(self):
+        anchor = self.shx.atoms.get_atom_by_name('C1')
+        anchor_pos = self.shx._reslist.index(anchor)
+        self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3], after=anchor)
+        new_pos = self.shx._reslist.index(self.shx.atoms.get_atom_by_name('C99'))
+        self.assertEqual(anchor_pos + 1, new_pos)
+
+    # ------------------------------------------------------------------
+    # uvals handling
+    # ------------------------------------------------------------------
+
+    def test_add_atom_uvals_default_isotropic(self):
+        a = self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+        self.assertEqual([0.04, 0.0, 0.0, 0.0, 0.0, 0.0], a.uvals)
+
+    def test_add_atom_uvals_single_value_expanded(self):
+        a = self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3], uvals=[0.05])
+        self.assertEqual([0.05, 0.0, 0.0, 0.0, 0.0, 0.0], a.uvals)
+
+    def test_add_atom_uvals_anisotropic(self):
+        uvals = [0.03, 0.04, 0.05, 0.001, 0.002, 0.003]
+        a = self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3], uvals=uvals)
+        self.assertEqual(uvals, a.uvals)
+
+    # ------------------------------------------------------------------
+    # symmgen flag
+    # ------------------------------------------------------------------
+
+    def test_add_atom_not_symmgen(self):
+        a = self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+        self.assertFalse(a.symmgen)
+
+    # ------------------------------------------------------------------
+    # Element auto-registration
+    # ------------------------------------------------------------------
+
+    def test_add_atom_known_element_carbon(self):
+        a = self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3], element='C')
+        self.assertEqual('C', a.element)
+
+    def test_add_atom_new_element_auto_added_to_sfac(self):
+        # 'Xe' is not in p21c.res SFAC table
+        self.assertFalse(self.shx.sfac_table.has_element('Xe'))
+        self.shx.add_atom(name='XE1', coordinates=[0.1, 0.2, 0.3], element='Xe')
+        self.assertTrue(self.shx.sfac_table.has_element('Xe'))
+
+    def test_add_atom_new_element_sfac_num_nonzero(self):
+        a = self.shx.add_atom(name='XE1', coordinates=[0.1, 0.2, 0.3], element='Xe')
+        self.assertGreater(a.sfac_num, 0)
+        self.assertEqual('Xe', a.element)
+
+    # ------------------------------------------------------------------
+    # Duplicate name validation
+    # ------------------------------------------------------------------
+
+    def test_add_atom_duplicate_name_raises(self):
+        self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+        with self.assertRaises(ValueError):
+            self.shx.add_atom(name='C99', coordinates=[0.2, 0.3, 0.4])
+
+    # ------------------------------------------------------------------
+    # Cartesian coordinates
+    # ------------------------------------------------------------------
+
+    def test_add_atom_cartesian_coords(self):
+        # Provide a clearly non-fractional Cartesian point; the atom should land in _reslist
+        a = self.shx.add_atom(name='C99', coordinates=[1.0, 2.0, 3.0], coords_are_cartesian=True)
+        # Fractional coords must all be in a sane range (not equal to 1.0/2.0/3.0 directly)
+        self.assertFalse(a.x == 1.0 and a.y == 2.0 and a.z == 3.0)
+
+    # ------------------------------------------------------------------
+    # PART and SOF
+    # ------------------------------------------------------------------
+
+    def test_add_atom_with_part(self):
+        a = self.shx.add_atom(name='C99', coordinates=[0.5, 0.5, 0.5], part=1, sof=21.0)
+        self.assertEqual(1, a.part.n)
+        self.assertEqual(21.0, a.sof)
+
+    def test_add_atom_occupancy_parameter(self):
+        """occupancy=0.5 with default fvar=1 → sof=10.5"""
+        a = self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3], occupancy=0.5)
+        self.assertAlmostEqual(10.5, a.sof)
+
+    def test_add_atom_occupancy_with_fvar(self):
+        """occupancy=1.0, fvar=2 → sof=21.0"""
+        a = self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3],
+                              occupancy=1.0, fvar=2)
+        self.assertAlmostEqual(21.0, a.sof)
+
+    def test_add_atom_occupancy_takes_priority_over_sof(self):
+        """Mixing occupancy and sof raises ValueError."""
+        with self.assertRaises(ValueError):
+            self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3],
+                              occupancy=0.5, sof=10.5)
+
+    def test_add_atom_fvar_with_sof_raises(self):
+        """Mixing fvar (non-default) and sof raises ValueError."""
+        with self.assertRaises(ValueError):
+            self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3],
+                              fvar=2, sof=21.0)
+
+    def test_add_atom_occupancy_half_disorder(self):
+        """Typical 50:50 disorder: occupancy=0.5 for both parts."""
+        a1 = self.shx.add_atom(name='C97', coordinates=[0.1, 0.2, 0.3],
+                               occupancy=0.5, fvar=1, part=1)
+        a2 = self.shx.add_atom(name='C98', coordinates=[0.1, 0.2, 0.31],
+                               occupancy=0.5, fvar=1, part=2)
+        self.assertAlmostEqual(10.5, a1.sof)
+        self.assertAlmostEqual(10.5, a2.sof)
+        self.assertEqual(1, a1.part.n)
+        self.assertEqual(2, a2.part.n)
+
+    # ------------------------------------------------------------------
+    # Written output is valid
+    # ------------------------------------------------------------------
+
+    def test_add_atom_written_to_file(self):
+        self.shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+        with tempfile.NamedTemporaryFile(suffix='.res', delete=False) as tmp:
+            tmppath = Path(tmp.name)
+        try:
+            self.shx.write_shelx_file(tmppath)
+            content = tmppath.read_text()
+            self.assertIn('C99', content)
+            self.assertIn('TITL', content)
+            self.assertIn('HKLF', content)
+        finally:
+            tmppath.unlink(missing_ok=True)
+
+    # ------------------------------------------------------------------
+    # unused_atom_name
+    # ------------------------------------------------------------------
+
+    def test_unused_atom_name_carbon(self):
+        name = self.shx.unused_atom_name('C')
+        # It must be a valid, non-existing name
+        self.assertFalse(self.shx.atoms.has_atom(name))
+        self.assertTrue(name.startswith('C'))
+
+    def test_unused_atom_name_new_element(self):
+        name = self.shx.unused_atom_name('Xe')
+        self.assertEqual('Xe1', name)
+
+    def test_unused_atom_name_max_4_chars(self):
+        """Every generated name must fit within SHELX's 4-character limit."""
+        for element in ('C', 'Fe', 'Al'):
+            name = self.shx.unused_atom_name(element)
+            self.assertLessEqual(len(name), 4, f"Name {name!r} exceeds 4 chars")
+
+    def test_unused_atom_name_two_char_element_limit(self):
+        """For a 2-char element like 'Fe', max suffix is 99 (Fe99 = 4 chars)."""
+        # Fill Fe1..Fe99 artificially by patching nameslist lookup
+        shx = Shelxfile()
+        shx.read_file('tests/resources/p21c.res')
+        # Add Fe1..Fe99 to the atoms dict cache to simulate exhaustion
+        fake_names = {f'FE{n}_0' for n in range(1, 100)}  # FE1_0 … FE99_0
+        original_nameslist = shx.atoms.nameslist
+        # Monkey-patch nameslist for this one test
+        from unittest.mock import patch
+        with patch.object(type(shx.atoms), 'nameslist',
+                          new_callable=lambda: property(lambda self: original_nameslist + tuple(fake_names))):
+            with self.assertRaises(ValueError):
+                shx.unused_atom_name('Fe')
+
+    def test_unused_atom_name_returns_unique_name(self):
+        name1 = self.shx.unused_atom_name('C')
+        self.shx.add_atom(name=name1, coordinates=[0.1, 0.2, 0.3])
+        name2 = self.shx.unused_atom_name('C')
+        self.assertNotEqual(name1, name2)
+        self.assertFalse(self.shx.atoms.has_atom(name2))
+
+    def test_unused_atom_name_combines_with_add_atom(self):
+        """Round-trip: get a name then add an atom with it."""
+        name = self.shx.unused_atom_name('N')
+        a = self.shx.add_atom(name=name, coordinates=[0.3, 0.3, 0.3], element='N')
+        self.assertEqual(name, a.name)
+        self.assertIsNotNone(self.shx.atoms.get_atom_by_name(name))
+
+

@@ -223,8 +223,61 @@ SFAC C  H  O  F  Al  Ga  Na
 ### Adding and Deleting Atoms
 
 ```python
-# Add a new atom:
->>> shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3], element='C')
+# Add a new atom (isotropic carbon, fully occupied, default Uiso = 0.04):
+>>> a = shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3])
+# The atom is inserted directly before HKLF (after the last real atom).
+# write_shelx_file() produces a valid file immediately.
+
+# Specify element, disorder part, and occupancy (high-level style):
+>>> shx.add_atom(name='N1', coordinates=[0.5, 0.5, 0.5], element='N',
+...              occupancy=0.5, part=1)      # → sof = 1*10 + 0.5 = 10.5
+
+# Tie occupancy to a specific free variable (e.g. fvar 2):
+>>> shx.add_atom(name='C2A', coordinates=[0.1, 0.2, 0.3],
+...              occupancy=1.0, fvar=2, part=1)   # → sof = 21.0
+>>> shx.add_atom(name='C2B', coordinates=[0.1, 0.2, 0.35],
+...              occupancy=-1.0, fvar=2, part=2)  # → sof = 19.0 (complementary)
+
+# Raw SHELXL sof encoding is still accepted when occupancy is not given:
+>>> shx.add_atom(name='N1', coordinates=[0.5, 0.5, 0.5], sof=21.0)
+
+# Mixing the two styles raises ValueError:
+>>> shx.add_atom(name='N1', coordinates=[0.5, 0.5, 0.5], occupancy=0.5, sof=10.5)
+ValueError: Specify occupation using either 'occupancy'/'fvar' or 'sof', not both.
+
+# Anisotropic displacement parameters [U11, U22, U33, U23, U13, U12]:
+>>> shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3],
+...              uvals=[0.03, 0.04, 0.05, 0.001, 0.002, 0.003])
+
+# A single Uiso value is automatically expanded to six parameters:
+>>> shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3], uvals=[0.05])
+
+# Insert directly after a specific atom in the file:
+>>> anchor = shx.atoms.get_atom_by_name('C1')
+>>> shx.add_atom(name='C99', coordinates=[0.1, 0.2, 0.3], after=anchor)
+
+# Provide Cartesian coordinates (auto-converted to fractional):
+>>> shx.add_atom(name='C99', coordinates=[1.0, 2.0, 3.0],
+...              coords_are_cartesian=True)
+
+# Elements not yet in the SFAC table are registered automatically:
+>>> shx.add_atom(name='XE1', coordinates=[0.1, 0.2, 0.3], element='Xe')
+>>> shx.sfac_table
+SFAC C  H  O  F  Al  Ga  Xe
+
+# Get the next available atom name for an element (max 4 chars: C→C999, Fe→Fe99):
+>>> shx.unused_atom_name('C')
+'C149'   # (or whichever number is free)
+>>> shx.unused_atom_name('Fe')
+'Fe1'    # two-char element: up to Fe99
+
+# Combine: generate a unique name and add the atom in one go:
+>>> name = shx.unused_atom_name('N')
+>>> shx.add_atom(name=name, coordinates=[0.3, 0.3, 0.3], element='N')
+
+# Duplicate names raise ValueError:
+>>> shx.add_atom(name='C99', coordinates=[0.2, 0.2, 0.2])  # already exists
+ValueError: Atom 'C99_0' already exists in the structure.
 
 # Delete atoms around a given atom:
 >>> for x in a.find_atoms_around(dist=2.5, only_part=2):
