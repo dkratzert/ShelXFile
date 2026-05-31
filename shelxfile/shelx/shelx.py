@@ -257,13 +257,28 @@ class Shelxfile():
 
     def _assign_atoms_to_restraints(self) -> List[str]:
         warnings = []
+        # Pre-compute which residue numbers contain atoms for each residue class.
+        # This allows skipping empty residues (defined by RESI but without atoms)
+        # during restraint validation, matching SHELXL's own behaviour.
+        populated_resi_nums_by_class: dict = {}
+        for atom in self.atoms:
+            cls = atom.resiclass
+            num = atom.resinum
+            if cls not in populated_resi_nums_by_class:
+                populated_resi_nums_by_class[cls] = set()
+            populated_resi_nums_by_class[cls].add(num)
         for restraint in self.restraints:
             bad_atoms = []
             for restraint_atom in restraint.atoms:
                 if restraint_atom in ('>', '<', '='):
                     continue
                 if (restraint.residue_class or sum(restraint.residue_number) > 0) and '_' not in restraint_atom:
+                    populated_nums = populated_resi_nums_by_class.get(restraint.residue_class, set())
                     for num in restraint.residue_number:
+                        # Skip residue numbers of this class that have no atoms at all.
+                        # SHELXL silently ignores empty residues for restraints too.
+                        if restraint.residue_class and num not in populated_nums:
+                            continue
                         self.does_atom_exist(f'{restraint_atom}_{num}', bad_atoms, f'{restraint_atom}_{num}')
                 elif '_' in restraint_atom:
                     self.does_atom_exist(f'{restraint_atom}', bad_atoms, restraint_atom)
@@ -1094,7 +1109,8 @@ class Shelxfile():
 if __name__ == "__main__":
     print(Path('.').resolve())
     # file = r'../shelxfile/tests/resources/p21c.res'
-    file = r'D:\_DEV\GitHub\ShelXFile\tests\resources\test_bedelone.res'
+    #file = r'D:\_DEV\GitHub\ShelXFile\tests\resources\test_bedelone.res'
+    file = r'/Users/daniel/Documents/GitHub/FinalCif/tests/examples/Esser_JW367_0m-finalcif.res'
     shx = Shelxfile(debug=True)
     shx.read_file(file)
     # print(shx.atoms)
