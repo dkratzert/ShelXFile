@@ -11,31 +11,30 @@ class TestAtoms(TestCase):
         self.shx = Shelxfile()
         self.shx.read_file('tests/resources/p21c.res')
 
-    @unittest.skip('I am usure about the values')
     def test_u_eq_of_hydrogen_atom_in_single_afix(self):
         h = self.shx.atoms.get_atom_by_name('H34')
         self.assertEqual('C34', h.pivot.name)
-        self.assertEqual(0.02959929, round(h.Uiso, 8))
-        self.assertEqual(h.pivot.Uiso * 1.2, h.Uiso)
+        self.assertAlmostEqual(0.02956060, round(h.Uiso, 8))
+        self.assertAlmostEqual(h.pivot.Uiso * 1.2, h.Uiso)
 
-    @unittest.skip('I am usure about the values')
     def test_u_eq_of_hydrogen_atom_in_afix_137(self):
         h1 = self.shx.atoms.get_atom_by_name('H36A')
         h2 = self.shx.atoms.get_atom_by_name('H36B')
         h3 = self.shx.atoms.get_atom_by_name('H36C')
         self.assertEqual('C36', h1.pivot.name)
         self.assertEqual('C36', h2.pivot.name)
-        self.assertEqual('C36', h2.pivot.name)
-        self.assertEqual(0.05123489, round(h1.Uiso, 8))
-        self.assertEqual(0.05123489, round(h2.Uiso, 8))
-        self.assertEqual(0.05123489, round(h3.Uiso, 8))
+        self.assertEqual('C36', h3.pivot.name)
+        self.assertAlmostEqual(0.05117007, round(h1.Uiso, 8))
+        self.assertAlmostEqual(0.05117007, round(h2.Uiso, 8))
+        self.assertAlmostEqual(0.05117007, round(h3.Uiso, 8))
 
-    @unittest.skip('I am usure about the values')
     def test_uiso_of_pivot_of_H36x(self):
         c36 = self.shx.atoms.get_atom_by_name('C36')
-        self.assertEqual(None, c36.pivot)
-        self.assertEqual(0.03415659, round(c36.Uiso, 8))
-        self.assertEqual(0.03415659 * 1.5, 0.051234885)
+        h36a = self.shx.atoms.get_atom_by_name('H36A')
+        self.assertIsNone(c36.pivot)
+        self.assertAlmostEqual(0.03411338, round(c36.Uiso, 8))
+        # H36A/B/C Uiso = 1.5 × C36 Ueq
+        self.assertAlmostEqual(c36.Uiso * 1.5, h36a.Uiso, places=12)
 
     def test_number(self):
         self.assertEqual(148, self.shx.atoms.number)

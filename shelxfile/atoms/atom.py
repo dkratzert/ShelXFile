@@ -253,6 +253,18 @@ class Atom():
     def ueq(self) -> float:
         return self.set_ueq(self.uvals)
 
+    @property
+    def Uiso(self) -> float:
+        """Isotropic displacement parameter.
+
+        For riding hydrogen atoms whose ``uvals[0]`` is negative (SHELXL
+        encoding ``-factor``), returns ``abs(factor) × pivot.ueq``.
+        For all other atoms, returns :attr:`ueq` (trace of U_cart / 3).
+        """
+        if self.uvals[0] < 0 and self.pivot is not None:
+            return abs(self.uvals[0]) * self.pivot.ueq
+        return self.ueq
+
     def set_ueq(self, uvals: List[float]) -> float:
         # This is a q-peak:
         if uvals[0] > 0 and not sum(uvals[2:]):
