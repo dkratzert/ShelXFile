@@ -170,6 +170,42 @@ False
 'F1    4    0.245205    0.192674    0.649231   -21.00000    0.05143    ...'
 ```
 
+### Displacement Parameters
+
+```python
+>>> c = shx.atoms.get_atom_by_name('C1')
+
+# Equivalent isotropic U (trace of U_cart / 3, IUCr definition):
+>>> c.ueq
+0.027...
+
+# For riding hydrogen atoms the Uiso is a multiple of the pivot atom's Ueq:
+>>> h = shx.atoms.get_atom_by_name('H34')
+>>> h.pivot.name       # the carbon H34 rides on
+'C34'
+>>> h.Uiso             # = 1.2 × C34.ueq  (encoded as -1.2 in the .res file)
+0.02956...
+>>> h.Uiso == h.pivot.Uiso * 1.2
+True
+
+# Full anisotropic U-value chain (numpy arrays):
+>>> c.ucif              # 3×3 U(cif) matrix  [U11 U12 U13 / U12 U22 U23 / U13 U23 U33]
+array(...)
+>>> c.ustar             # U(star) = N @ U(cif) @ N.T,  N = diag(a*, b*, c*)
+array(...)
+>>> c.u_cart            # U(cart) = A @ U(star) @ A.T,  A = orthogonalisation matrix
+array(...)
+```
+
+### Connectivity Table
+
+```python
+# Pairwise bond connectivity for all atoms in the asymmetric unit:
+>>> conn = shx.atoms.conntable   # tuple of (i, j) index pairs
+>>> conn[0]
+(0, 1)
+```
+
 ### Modifying Atoms
 
 ```python
@@ -296,6 +332,28 @@ Complete or "grow" structures with higher symmetry:
 208
 ```
 
+### Packing the Unit Cell
+
+`pack()` applies all symmetry operations to the asymmetric unit and folds every
+position back into `[0, 1)` fractional coordinates, removing duplicates.
+Unlike `grow()`, it does not stitch molecular fragments together — it simply
+fills one unit cell.
+
+```python
+>>> shx2 = Shelxfile()
+>>> shx2.read_file('tests/resources/p-31c.res')
+>>> len(shx2.atoms)          # asymmetric unit
+88
+>>> packed = shx2.pack()
+>>> len(packed)              # full unit cell (Z × asymm unit, minus special positions)
+304
+>>> all(0.0 <= a.x < 1.0 and 0.0 <= a.y < 1.0 and 0.0 <= a.z < 1.0 for a in packed)
+True
+```
+
+The result is a plain list of `Atom` objects — the `Shelxfile` object itself is
+not modified.  Q-peaks can be included with `shx.pack(with_qpeaks=True)`.
+
 ### Writing Files
 
 Writes the current `shx` object to a SHELX file.
@@ -304,6 +362,27 @@ specified by SHELXL during the file writing.
 
 ```python
 >>> shx.write_shelx_file('test.ins')
+```
+
+### Optional C++ Acceleration
+
+The SDM (Shortest Distance Matrix), which underlies `grow()` and `pack()`, ships
+with an optional C++ extension (`sdm_cpp`) compiled with pybind11 and OpenMP.
+When present it is used automatically and can give a **5–10× speedup** on large
+structures; if it is absent the pure-Python fallback is used silently.
+
+```bash
+# Build the extension (requires a C++17 compiler):
+pip install pybind11
+pip install -e . --no-build-isolation
+
+# macOS only — OpenMP support:
+brew install libomp
+```
+
+```python
+from shelxfile.shelx.sdm import HAS_CPP
+print(HAS_CPP)   # True when the extension is installed
 ```
 
 ### Sum Formula

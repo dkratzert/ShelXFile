@@ -21,13 +21,14 @@ ShelXFile is a Python library for parsing, editing, and writing SHELXL crystallo
 
 | Path | Responsibility |
 |---|---|
-| `shelxfile/shelx/shelx.py` | `Shelxfile` class — parser, high-level API |
+| `shelxfile/shelx/shelx.py` | `Shelxfile` class — parser, high-level API (`grow()`, `pack()`, …) |
 | `shelxfile/shelx/cards.py` | All SHELX instruction classes (`CELL`, `DFIX`, `Restraint`, …) |
-| `shelxfile/atoms/atom.py` | `Atom` class — fractional/Cartesian coords, occupancy, SFAC |
-| `shelxfile/atoms/atoms.py` | `Atoms` container — iteration, lookup, geometry methods |
-| `shelxfile/shelx/sdm.py` | SDM (Shortest Distance Matrix) — structure growing, bonding |
-| `shelxfile/misc/misc.py` | Parse error classes, `wrap_line`, `build_conntable` |
-| `shelxfile/misc/dsrmath.py` | `Array`, `OrthogonalMatrix`, crystallographic math |
+| `shelxfile/atoms/atom.py` | `Atom` class — fractional/Cartesian coords, occupancy, SFAC, U-value chain (`ucif`, `ustar`, `u_cart`, `ueq`, `Uiso`) |
+| `shelxfile/atoms/atoms.py` | `Atoms` container — iteration, lookup, geometry methods, `conntable` property |
+| `shelxfile/shelx/sdm.py` | SDM (Shortest Distance Matrix) — `calc_sdm()`, `packer()`, `pack_unit_cell()`; optional C++ fast path via `sdm_cpp` |
+| `shelxfile/misc/misc.py` | Parse error classes, `wrap_line`, `build_conntable`, `frac_to_cart`, `cart_to_frac` |
+| `shelxfile/misc/dsrmath.py` | `Array`, `OrthogonalMatrix`, crystallographic math; also re-exports `frac_to_cart` and `cart_to_frac` |
+| `shelxfile/misc/elements.py` | Element data tables, `get_radius_from_element()` |
 | `shelxfile/refine/refine.py` | Thin wrapper that calls the external `shelxl` binary |
 | `shelxfile/cif/cif_write.py` | CIF export using a Jinja-style template |
 | `shelxfile/version.py` | **Single source of version**: `VERSION = '23'` |
@@ -60,6 +61,32 @@ Shelxfile(debug=True)    # halts on first error (for development)
 pip install pybind11
 pip install -e . --no-build-isolation
 # macOS OpenMP: brew install libomp (detected automatically by setup.py)
+```
+The module-level `HAS_CPP: bool` flag reflects whether the extension is loaded.  
+Both `calc_sdm()` and the pure-Python path produce identical results; the C++ version uses OpenMP to parallelise the outer atom loop.
+
+### SDM methods
+- `calc_sdm()` — builds the shortest-distance matrix and assigns `molindex` to every atom (Union-Find).
+- `packer(sdm, need_symm)` — grows molecules by applying symmetry operations collected by `calc_sdm()`.
+- `pack_unit_cell(symmop_indices=None, cart_tolerance=0.2, with_qpeaks=False)` — applies all (or selected) symmetry operations, folds positions to `[0, 1)`, deduplicates, and returns `list[Atom]`. Does **not** require `calc_sdm()` to have been called first.
+
+### Atom U-value chain
+`atom.uvals` stores the raw SHELXL values `[U11, U22, U33, U23, U13, U12]` (or `[Uiso, 0, 0, 0, 0, 0]`).  
+Derived properties (all computed on-demand using numpy):
+- `atom.ucif` — symmetric 3×3 U(cif) matrix
+- `atom.ustar` — U(star) = N @ U(cif) @ N.T, N = diag(a\*, b\*, c\*)
+- `atom.u_cart` — U(cart) = A @ U(star) @ A.T (A = orthogonalisation matrix)
+- `atom.ueq` — equivalent isotropic U = trace(U_cart) / 3 (IUCr definition)
+- `atom.Uiso` — for riding hydrogens (`uvals[0] < 0`): `abs(uvals[0]) × pivot.ueq`; otherwise equals `ueq`
+
+### Connectivity table
+`shx.atoms.conntable` returns a tuple of `(i, j)` index pairs (into `all_atoms`) representing covalent bonds, computed by `build_conntable()` in `misc/misc.py`.  Disorder parts, negative-part/symmgen fragments, and H–H pairs are excluded.
+
+### Coordinate conversion utilities
+`frac_to_cart(frac, cell)` and `cart_to_frac(cart, cell)` live in `shelxfile/misc/misc.py` and are **also re-exported** from `shelxfile/misc/dsrmath.py`, so either import path works:
+```python
+from shelxfile.misc.misc import frac_to_cart, cart_to_frac
+from shelxfile.misc.dsrmath import frac_to_cart, cart_to_frac  # same functions
 ```
 
 ## Developer Workflows
