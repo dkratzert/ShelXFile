@@ -267,6 +267,13 @@ class Shelxfile():
             if cls not in populated_resi_nums_by_class:
                 populated_resi_nums_by_class[cls] = set()
             populated_resi_nums_by_class[cls].add(num)
+        # Warn about residues that are defined (via RESI) but contain no atoms.
+        empty_residues = []
+        for resi in self.residues.all_residues:
+            if resi.residue_number not in populated_resi_nums_by_class.get(resi.residue_class, set()):
+                empty_residues.append(f'{resi.residue_class} {resi.residue_number}')
+        if empty_residues:
+            warnings.append(f'*** Empty residue(s) detected (no atoms): {", ".join(empty_residues)} ***')
         for restraint in self.restraints:
             bad_atoms = []
             for restraint_atom in restraint.atoms:

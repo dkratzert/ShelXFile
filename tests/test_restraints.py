@@ -77,10 +77,10 @@ class TestRestraintsWarnings(unittest.TestCase):
         Residues 1 and 2 of class BF4 are empty (defined by RESI but have no atoms).
         Residues 3 and 4 do have the atoms B1, F1, F2, F3, F4.
         SHELXL silently ignores empty residues for restraint application, so there
-        should be no warnings reported.
+        should be no atom-missing warnings — only the dedicated empty-residue notice.
         """
         shx = Shelxfile()
         shx.read_file('tests/resources/restraint_tests/class_with_empty_residues.res')
         result = shx._assign_atoms_to_restraints()
-        self.assertListEqual([], result)
+        self.assertListEqual(['*** Empty residue(s) detected (no atoms): BF4 1, BF4 2 ***'], result)
 
