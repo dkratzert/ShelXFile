@@ -35,6 +35,8 @@ ShelXFile is a Python library for parsing, editing, and writing SHELXL crystallo
 
 ## Key Conventions
 
+* When making major changes. Add them to the documentation in README.md.
+
 ### Card parsing pattern
 - Singleton cards use `self._assign_card(CardClass(self, spline), line_num)` → stored on a named attribute (`shx.cell`, `shx.wght`).
 - List cards use `self._append_card(self.restraints, CardClass(self, spline), line_num)` → appended to a list attribute.
