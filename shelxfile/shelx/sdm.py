@@ -16,6 +16,12 @@ from string import ascii_letters
 
 import numpy as np
 
+try:
+    import sdm_cpp
+    HAS_CPP = True
+except ImportError:
+    HAS_CPP = False
+
 from shelxfile.atoms.atom import Atom
 from shelxfile.misc.dsrmath import vol_unitcell
 from shelxfile.misc.misc import wrap_line
@@ -111,7 +117,6 @@ class SDM():
 
         # Pre-extract primitive data to avoid per-iteration attribute lookups
         coords = [(at.x, at.y, at.z) for at in all_atoms]
-        at2_plushalf = [(x + 0.5, y + 0.5, z + 0.5) for (x, y, z) in coords]
         radii = [at.radius for at in all_atoms]
         is_h = [at.ishydrogen for at in all_atoms]
         parts = [at.part.n for at in all_atoms]
@@ -119,77 +124,101 @@ class SDM():
         aga, bbe, cal = self.aga, self.bbe, self.cal
         asq, bsq, csq = self.asq, self.bsq, self.csq
 
-        for i, at1 in enumerate(all_atoms):
-            x1, y1, z1 = coords[i]
-
-            # Apply all symmetry operations to at1 once (outer loop)
-            prime_array = []
-            for m, t in zip(symm_m, symm_t):
-                px = x1 * m[0][0] + y1 * m[1][0] + z1 * m[2][0] + t[0]
-                py = x1 * m[0][1] + y1 * m[1][1] + z1 * m[2][1] + t[1]
-                pz = x1 * m[0][2] + y1 * m[1][2] + z1 * m[2][2] + t[2]
-                prime_array.append((px, py, pz))
-
-            for j, at2 in enumerate(all_atoms):
-                mind = 1_000_000.0
-                hma = False
-                atp_x, atp_y, atp_z = at2_plushalf[j]
+        # ── C++ fast path ──────────────────────────────────────────────────
+        if HAS_CPP:
+            cpp_results = sdm_cpp.calc_sdm_cpp(
+                coords, symm_m, symm_t,
+                aga, bbe, cal,
+                asq, bsq, csq,
+                radii, is_h, parts,
+            )
+            for (i, j, best_n, mind, dddd, covalent) in cpp_results:
                 sdm_item = SDMItem()
+                sdm_item.dist = mind
+                sdm_item.atom1 = all_atoms[i]
+                sdm_item.atom2 = all_atoms[j]
+                sdm_item.a1 = i
+                sdm_item.a2 = j
+                sdm_item.symmetry_number = best_n
+                sdm_item.dddd = dddd
+                sdm_item.covalent = covalent
+                self.sdm_list.append(sdm_item)
 
-                for n in range(nlen):
-                    px, py, pz = prime_array[n]
+        # ── Pure-Python fallback ────────────────────────────────────────────
+        else:
+            at2_plushalf = [(x + 0.5, y + 0.5, z + 0.5) for (x, y, z) in coords]
 
-                    dx = px - atp_x
-                    dy = py - atp_y
-                    dz = pz - atp_z
+            for i, at1 in enumerate(all_atoms):
+                x1, y1, z1 = coords[i]
 
-                    dpx = dx - floor(dx) - 0.5
-                    dpy = dy - floor(dy) - 0.5
-                    dpz = dz - floor(dz) - 0.5
+                # Apply all symmetry operations to at1 once (outer loop)
+                prime_array = []
+                for m, t in zip(symm_m, symm_t):
+                    px = x1 * m[0][0] + y1 * m[1][0] + z1 * m[2][0] + t[0]
+                    py = x1 * m[0][1] + y1 * m[1][1] + z1 * m[2][1] + t[1]
+                    pz = x1 * m[0][2] + y1 * m[1][2] + z1 * m[2][2] + t[2]
+                    prime_array.append((px, py, pz))
 
-                    A = 2.0 * (dpx * dpy * aga + dpx * dpz * bbe + dpy * dpz * cal)
-                    dk2 = dpx * dpx * asq + dpy * dpy * bsq + dpz * dpz * csq + A
+                for j, at2 in enumerate(all_atoms):
+                    mind = 1_000_000.0
+                    hma = False
+                    atp_x, atp_y, atp_z = at2_plushalf[j]
+                    sdm_item = SDMItem()
 
-                    if dk2 > 16.0:      # 4 Å hard cutoff (squared) – skip sqrt
+                    for n in range(nlen):
+                        px, py, pz = prime_array[n]
+
+                        dx = px - atp_x
+                        dy = py - atp_y
+                        dz = pz - atp_z
+
+                        dpx = dx - floor(dx) - 0.5
+                        dpy = dy - floor(dy) - 0.5
+                        dpz = dz - floor(dz) - 0.5
+
+                        A = 2.0 * (dpx * dpy * aga + dpx * dpz * bbe + dpy * dpz * cal)
+                        dk2 = dpx * dpx * asq + dpy * dpy * bsq + dpz * dpz * csq + A
+
+                        if dk2 > 16.0:      # 4 Å hard cutoff (squared) – skip sqrt
+                            continue
+
+                        dk = sqrt(dk2)
+                        if n:
+                            dk += 0.0001   # slight penalty for symmetry-generated images
+
+                        if (dk > 0.01) and (mind >= dk):
+                            mind = dk
+                            sdm_item.dist = mind
+                            sdm_item.atom1 = at1
+                            sdm_item.atom2 = at2
+                            sdm_item.a1 = i
+                            sdm_item.a2 = j
+                            sdm_item.symmetry_number = n
+                            hma = True
+
+                    if not sdm_item.atom1:
                         continue
 
-                    dk = sqrt(dk2)
-                    if n:
-                        dk += 0.0001   # slight penalty for symmetry-generated images
+                    if ((not is_h[i] and not is_h[j]) and parts[i] * parts[j] == 0) \
+                            or parts[i] == parts[j]:
+                        dddd = (radii[i] + radii[j]) * 1.2
+                        sdm_item.dddd = dddd
+                    else:
+                        dddd = 0.0
 
-                    if (dk > 0.01) and (mind >= dk):
-                        mind = dk
-                        sdm_item.dist = mind
-                        sdm_item.atom1 = at1
-                        sdm_item.atom2 = at2
-                        sdm_item.a1 = i
-                        sdm_item.a2 = j
-                        sdm_item.symmetry_number = n
-                        hma = True
+                    if sdm_item.dist < dddd:
+                        if hma:
+                            sdm_item.covalent = True
+                    else:
+                        sdm_item.covalent = False
 
-                if not sdm_item.atom1:
-                    continue
-
-                if ((not is_h[i] and not is_h[j]) and parts[i] * parts[j] == 0) \
-                        or parts[i] == parts[j]:
-                    dddd = (radii[i] + radii[j]) * 1.2
-                    sdm_item.dddd = dddd
-                else:
-                    dddd = 0.0
-
-                if sdm_item.dist < dddd:
                     if hma:
-                        sdm_item.covalent = True
-                else:
-                    sdm_item.covalent = False
-
-                if hma:
-                    self.sdm_list.append(sdm_item)
+                        self.sdm_list.append(sdm_item)
 
         t2 = time.perf_counter()
         self.sdmtime = t2 - t1
         if self.shx.debug:
-            print('Zeit sdm_calc:', self.sdmtime)
+            print(f'SDM {"(C++)" if HAS_CPP else "(Python fallback)"}: {self.sdmtime:.4f} s')
 
         self.sdm_list.sort()
         self.calc_molindex(all_atoms)

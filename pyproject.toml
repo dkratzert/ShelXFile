@@ -1,6 +1,8 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+# setuptools is used instead of hatchling to support the optional sdm_cpp
+# pybind11 C++ extension.  pybind11 and wheel are build-time only.
+requires = ["setuptools>=68", "pybind11>=2.13", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "shelxfile"
@@ -21,6 +23,10 @@ classifiers = [
 ]
 dependencies = ["numpy>=1.21"]
 
+[project.optional-dependencies]
+# Build-time only: pybind11 for the C++ SDM acceleration
+cpp = ["pybind11>=2.13"]
+
 [dependency-groups]
 dev = [
     "pytest",
@@ -32,21 +38,11 @@ dev = [
 "Homepage" = "https://dkratzert.de/shelxfile.html"
 "Bug Tracker" = "https://github.com/dkratzert/ShelXFile/issues"
 
-[tool.hatch.version]
-path = "shelxfile/version.py"
-pattern = "VERSION\\s*=\\s*'(?P<version>\\d+\\.{0,1}\\d{0,1})'"
+[tool.setuptools.dynamic]
+version = {attr = "shelxfile.version.VERSION"}
 
-[tool.hatch.build.targets.sdist]
-only-include = ["shelxfile"]
-exclude = [
-    "/.github",
-    "/test-data",
-    "/scripts",
-    "/setup",
-    "/tests",
-    "/docs",
-    "/requirements-devel.txt",
-    "/requirements.txt",
-    "/make_release.sh",
-    "/venv*",
-]
+[tool.setuptools.packages.find]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+shelxfile = ["**/*.py"]
