@@ -179,10 +179,9 @@ class Atom():
         Sets u values and checks if a free variable was used.
         """
         self.uvals = uvals
-        # Check for anisotropic atom: any of the last four uvals is non-zero.
-        # Using direct addition instead of a list comprehension avoids both the
-        # temporary list allocation and repeated abs() dispatch overhead.
-        if abs(uvals[2]) + abs(uvals[3]) + abs(uvals[4]) + abs(uvals[5]) > 0.000001:
+        # uvals[2] == U33: non-zero only for genuine anisotropic atoms.
+        # Isotropic atoms and Q-peaks always have uvals[2] == 0.0.
+        if uvals[2] != 0.0:
             # Handle regular atom:
             for n, u in enumerate(uvals):
                 if abs(u) > 4.0:
@@ -345,8 +344,21 @@ class Atom():
         return x, y, z
 
     @property
+    def is_anisotropic(self) -> bool:
+        """
+        Returns True if the atom has anisotropic displacement parameters.
+
+        In SHELXL encoding ``uvals = [U11, U22, U33, U23, U13, U12]``.  For an
+        isotropic atom ``uvals[1:]`` are all zero; for a Q-peak ``uvals[2]`` is
+        also zero (only ``uvals[1]`` carries the peak height).  Therefore
+        ``uvals[2] != 0.0`` (i.e. U33 is non-zero) is the exact discriminator
+        for a genuine anisotropic atom — no sum, no abs, no list needed.
+        """
+        return self.uvals[2] != 0.0
+
+    @property
     def is_isotropic(self) -> bool:
-        return sum(self.uvals[1:]) == 0
+        return not self.is_anisotropic
 
     @property
     def uvals_as_list(self) -> List[list[float]]:
@@ -418,7 +430,7 @@ class Atom():
             # An atom from a FRAG/FEND instruction
             return Atom._fragatomstr.format(self.name, self.x, self.y, self.z)
         else:
-            if sum([abs(u) for u in self.uvals[2:]]) > 0.00001 and not self.qpeak:
+            if self.is_anisotropic:
                 # anisotropic atom
                 try:
                     return Atom._anisatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof,
