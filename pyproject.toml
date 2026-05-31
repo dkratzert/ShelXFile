@@ -46,3 +46,15 @@ exclude = ["tests*"]
 
 [tool.setuptools.package-data]
 shelxfile = ["**/*.py"]
+
+[tool.cibuildwheel]
+# Build wheels for Python 3.11–3.14; skip 32-bit targets
+skip = ["*-win32", "*-manylinux_i686"]
+build = ["cp311-*", "cp312-*", "cp313-*", "cp314-*"]
+# Tests are run by the separate `tests` job; skip per-wheel testing here
+test-skip = "*"
+
+[tool.cibuildwheel.macos]
+# universal2 covers both arm64 and x86_64 on a single macOS runner
+archs = ["universal2"]
+

@@ -6,8 +6,18 @@ on:
 jobs:
   tests:
     uses: ./.github/workflows/unit-tests.yml
-  build:
-    runs-on: ubuntu-latest
+
+  release-build:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: macos-14        # arm64 + x86_64 via universal2
+            macos_deployment_target: "14.0"
+          - os: windows-latest
+
     # Build and publish are gated on successful tests.
     needs:
       - tests
@@ -15,20 +25,30 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.14"
+      - uses: actions/setup-python@v6
 
-      - run: uv build
+      # Add -fopenmp for macOS builds to enable OpenMP support.
+      - name: Install OpenMP on macOS
+        if: runner.os == 'macOS'
+        run: brew install libomp
+
+      - name: Set MACOSX_DEPLOYMENT_TARGET for ARM builds
+        if: matrix.macos_deployment_target
+        run: echo "MACOSX_DEPLOYMENT_TARGET=${{ matrix.macos_deployment_target }}" >> "$GITHUB_ENV"
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.4
+        with:
+          output-dir: dist
 
       - uses: actions/upload-artifact@v7
         with:
-          name: release-dists
+          name: release-dists-${{ matrix.os }}
           path: dist/
 
   pypi-publish:
     needs:
-      - build
+      - release-build
     environment:
       name: publish
 
@@ -40,8 +60,9 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: release-dists
+          pattern: release-dists-*
           path: dist/
+          merge-multiple: true
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
