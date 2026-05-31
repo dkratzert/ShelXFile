@@ -12,7 +12,6 @@
 import time
 from math import sqrt, radians, sin, floor
 from pathlib import Path
-from string import ascii_letters
 
 import numpy as np
 
@@ -27,6 +26,37 @@ from shelxfile.atoms.atom import Atom
 from shelxfile.misc.dsrmath import vol_unitcell
 from shelxfile.misc.misc import wrap_line
 from shelxfile.shelx.cards import AFIX, RESI
+
+
+def _unique_legal_atom_name(element: str, used_names: set) -> str:
+    """Return a unique, legal SHELXL atom name (≤4 alphanumeric chars).
+
+    The name follows the pattern ``El1``, ``El2``, … up to the digit limit
+    imposed by the 4-character maximum:
+    - 1-char element symbol  → up to ``E999``
+    - 2-char element symbol  → up to ``EE99``
+
+    The generated name is added to *used_names* (upper-case) before returning
+    so subsequent calls automatically avoid it.
+
+    :raises ValueError: when the numbering range for the element is exhausted.
+    """
+    prefix = element.capitalize()
+    max_digits = 4 - len(prefix)
+    if max_digits < 1:
+        raise ValueError(
+            f"Element symbol '{element}' is too long to form a legal SHELXL atom name."
+        )
+    max_num = 10 ** max_digits - 1
+    for n in range(1, max_num + 1):
+        candidate = f'{prefix}{n}'
+        if candidate.upper() not in used_names:
+            used_names.add(candidate.upper())
+            return candidate
+    raise ValueError(
+        f"Cannot generate a unique legal SHELXL atom name for element '{element}': "
+        f"all {max_num} slots are taken."
+    )
 
 
 class SDMItem(object):
@@ -358,6 +388,10 @@ class SDM():
         else:
             showatoms = [at for at in asymm if not at.qpeak]
 
+        # Seed used_names with all names already present so generated names
+        # never clash with the asymmetric-unit atoms or with each other.
+        used_names: set = {at.name.upper() for at in showatoms}
+
         for symm in need_symm:
             symm_num, h, k, l, symmgroup = symm  # noqa: E741
             h -= 5
@@ -390,8 +424,12 @@ class SDM():
                 py = x1 * m[0][1] + y1 * m[1][1] + z1 * m[2][1] + t[1] + k
                 pz = x1 * m[0][2] + y1 * m[1][2] + z1 * m[2][2] + t[2] + l
 
+                # Assign a unique, legal SHELXL atom name (≤4 alphanumeric chars).
+                element = self.shx.sfac2elem(atom.sfac_num)
+                new_name = _unique_legal_atom_name(element, used_names)
+
                 new_atom.set_atom_parameters(
-                    name=atom.name[:3] + ">>" + str(symm_num) + '_' + ascii_letters[atom.part.n],
+                    name=new_name,
                     sfac_num=atom.sfac_num,
                     coords=[px, py, pz],
                     part=atom.part,
@@ -416,6 +454,9 @@ class SDM():
                             break
                 if not isthere:
                     showatoms.append(new_atom)
+                else:
+                    # Atom was a duplicate — release the name we just reserved
+                    used_names.discard(new_name.upper())
 
         return showatoms
 
@@ -539,15 +580,28 @@ class SDM():
                     else:
                         bucket.append((px, py, pz, part, idx_packed))
 
-        # Build Atom objects with the packed fractional coordinates
+        # Build Atom objects with the packed fractional coordinates.
+        # Assign unique, legal SHELXL names: identity-operation atoms keep
+        # their original names; symmetry-generated copies get new sequential
+        # names so no two atoms in the result share the same label.
         result: list[Atom] = []
+        used_names: set = set()
         for (orig_at, px, py, pz, symm_num) in packed:
             new_atom = Atom(self.shx)
             uvals = list(orig_at.uvals)
             if sum(abs(u) for u in uvals[2:]) > 1e-5:
                 uvals = list(self.transform_uvalues(uvals, symm_num))
+            # For the identity operation the original name is available unless
+            # already taken (shouldn't happen, but guard anyway).
+            orig_name_up = orig_at.name.upper()
+            if orig_name_up not in used_names:
+                atom_name = orig_at.name
+                used_names.add(orig_name_up)
+            else:
+                element = self.shx.sfac2elem(orig_at.sfac_num)
+                atom_name = _unique_legal_atom_name(element, used_names)
             new_atom.set_atom_parameters(
-                name=orig_at.name,
+                name=atom_name,
                 sfac_num=orig_at.sfac_num,
                 coords=[px, py, pz],
                 part=orig_at.part,

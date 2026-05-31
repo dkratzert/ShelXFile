@@ -218,6 +218,52 @@ WGHT      0.0348      0.6278
         sdm = SDM(shx)
         self.assertEqual(7.343581289102655, sdm.vector_length(-0.3665069999999999, 0.293439, -0.06597900000000001))
 
+    def test_grown_atom_names_are_legal(self):
+        """Symmetry-generated atoms returned by packer() must have legal SHELXL names."""
+        import re
+        legal = re.compile(r'^[A-Za-z][A-Za-z0-9]{0,3}$')
+        shx = Shelxfile()
+        shx.read_file('tests/resources/p-31c.res')
+        sdm = SDM(shx)
+        needsymm = sdm.calc_sdm()
+        packed_atoms = sdm.packer(sdm, needsymm)
+        for at in packed_atoms:
+            if at.symmgen:  # only check atoms created by the packer
+                self.assertRegex(at.name, legal,
+                                 f"Atom name '{at.name}' is not a legal SHELXL name")
+
+    def test_grown_atom_names_are_unique(self):
+        """Every atom returned by packer() must have a unique name."""
+        shx = Shelxfile()
+        shx.read_file('tests/resources/p-31c.res')
+        sdm = SDM(shx)
+        needsymm = sdm.calc_sdm()
+        packed_atoms = sdm.packer(sdm, needsymm)
+        names = [at.name.upper() for at in packed_atoms]
+        self.assertEqual(len(names), len(set(names)),
+                         "Duplicate atom names found in packer() output")
+
+    def test_pack_unit_cell_names_are_legal(self):
+        """Symmetry-generated atoms from pack_unit_cell() must have legal SHELXL names."""
+        import re
+        legal = re.compile(r'^[A-Za-z][A-Za-z0-9]{0,3}$')
+        shx = Shelxfile()
+        shx.read_file('tests/resources/p-31c.res')
+        sdm = SDM(shx)
+        for at in sdm.pack_unit_cell():
+            if at.symmgen:  # only check atoms created by the packer
+                self.assertRegex(at.name, legal,
+                                 f"Atom name '{at.name}' is not a legal SHELXL name")
+
+    def test_pack_unit_cell_names_are_unique(self):
+        """Every atom returned by pack_unit_cell() must have a unique name."""
+        shx = Shelxfile()
+        shx.read_file('tests/resources/p-31c.res')
+        sdm = SDM(shx)
+        names = [at.name.upper() for at in sdm.pack_unit_cell()]
+        self.assertEqual(len(names), len(set(names)),
+                         "Duplicate atom names found in pack_unit_cell() output")
+
 class TestSDMCpp(TestCase):
     """Tests for the C++ SDM acceleration (sdm_cpp).
 
