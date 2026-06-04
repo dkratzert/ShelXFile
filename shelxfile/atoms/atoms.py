@@ -396,7 +396,7 @@ class Atoms():
             for bond in shx.atoms.full_bond_list():
                 print(bond)
             # AL1    – O1      1.7236 Å
-            # AL1    – O2 [-x, y+1/2, -z+1/2]  1.7095 Å
+            # AL1    – O2      1.7095 Å   #2 [-x, y+1/2, -z+1/2]
             # ...
 
             # Unpack all four fields:
@@ -455,7 +455,7 @@ class Atoms():
             else:
                 # Symmetry bond: atom2 bonds to image of atom1 via symm n + (h,k,l).
                 symm_label = _build_symm_label(symm, h, k, l)
-                result.append(SymBond(item.atom2, item.atom1, item.dist, symm_label))
+                result.append(SymBond(item.atom2, item.atom1, item.dist, symm_label, symm_number=n))
 
         result.sort(key=lambda b: (b.atom1.fullname_short, b.atom2.fullname_short))
         return result

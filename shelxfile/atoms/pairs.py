@@ -72,11 +72,16 @@ class SymBond(Bond):
     symm_label : str
         Symmetry operation string, e.g. ``'-x, y+1/2, -z+1/2'``, or an
         empty string for plain asymmetric-unit bonds.
+    symm_number : int
+        0-based index of the symmetry operation in ``Shelxfile.symmcards``
+        (0 = identity).  Always 0 for plain asymmetric-unit bonds.
     """
 
-    def __init__(self, atom1, atom2, distance: float, symm_label: str = '') -> None:
+    def __init__(self, atom1, atom2, distance: float,
+                 symm_label: str = '', symm_number: int = 0) -> None:
         super().__init__(atom1, atom2, distance)
         self.symm_label = symm_label
+        self.symm_number = symm_number
 
     @property
     def is_symmetry_bond(self) -> bool:
@@ -95,16 +100,17 @@ class SymBond(Bond):
             return (f"SymBond({self.atom1.fullname_short}, "
                     f"{self.atom2.fullname_short}, "
                     f"{self.distance:.4f} Å, "
-                    f"[{self.symm_label}])")
+                    f"#{self.symm_number} [{self.symm_label}])")
         return (f"SymBond({self.atom1.fullname_short}, "
                 f"{self.atom2.fullname_short}, "
                 f"{self.distance:.4f} Å)")
 
     def __str__(self) -> str:
-        neighbor = self.atom2.fullname_short
+        suffix = ''
         if self.symm_label:
-            neighbor = f'{neighbor} [{self.symm_label}]'
+            suffix = f'   #{self.symm_number} [{self.symm_label}]'
         return (f"{self.atom1.fullname_short:<6s}"
                 f" – "
-                f"{neighbor}"
-                f"  {self.distance:.4f} Å")
+                f"{self.atom2.fullname_short:<6s}"
+                f"  {self.distance:.4f} Å"
+                f"{suffix}")
