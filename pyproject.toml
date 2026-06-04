@@ -19,13 +19,8 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Chemistry",
     "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3",
 ]
 dependencies = ["numpy>=1.21"]
-
-[project.optional-dependencies]
-# Build-time only: pybind11 for the C++ SDM acceleration
-cpp = ["pybind11>=2.13"]
 
 [dependency-groups]
 dev = [
@@ -45,7 +40,7 @@ version = {attr = "shelxfile.version.VERSION"}
 exclude = ["tests*"]
 
 [tool.setuptools.package-data]
-shelxfile = ["**/*.py"]
+shelxfile = ["**/*.py", "cif/*.tmpl"]
 
 [tool.cibuildwheel]
 # Build wheels for Python 3.11–3.14; skip 32-bit targets
