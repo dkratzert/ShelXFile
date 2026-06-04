@@ -1,1 +1,1 @@
-VERSION = '23'
+VERSION = '24'
