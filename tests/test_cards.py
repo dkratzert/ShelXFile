@@ -1,3 +1,5 @@
+import contextlib
+import io
 from pathlib import Path
 from unittest import TestCase
 
@@ -227,6 +229,96 @@ class TestwithDEFS(TestCase):
         a = DFIX(self.shx, 'DFIX 1.45 0.022 C1 C2 C2 C3 C3 C4'.split())
         self.assertEqual(1.45, a.d)
         self.assertEqual(0.022, a.s)
+
+
+class TestDFIX(TestCase):
+    """
+    DFIX d s[0.02] atom pairs
+
+    Wrong argument order (d < s) is only warned about, never raises — unlike DANG.
+    """
+
+    def setUp(self) -> None:
+        # p21c.res contains a DEFS card (sd=0.0234) to test DEFS-driven defaults.
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/p21c.res')
+
+    # --- basic parameter parsing ---
+
+    def test_dfix_d(self):
+        a = DFIX(self.shx, 'DFIX 1.45 C1 C2'.split())
+        self.assertEqual(1.45, a.d)
+
+    def test_dfix_explicit_s(self):
+        a = DFIX(self.shx, 'DFIX 1.45 0.022 C1 C2'.split())
+        self.assertEqual(1.45, a.d)
+        self.assertEqual(0.022, a.s)
+
+    def test_dfix_default_s_from_defs(self):
+        """s defaults to the value from the DEFS card when present."""
+        a = DFIX(self.shx, 'DFIX 1.45 C1 C2'.split())
+        self.assertEqual(0.0234, a.s)
+
+    def test_dfix_default_s_without_defs(self):
+        """s falls back to the SHELXL default of 0.02 when no DEFS card exists."""
+        shx = Shelxfile()
+        a = DFIX(shx, 'DFIX 1.45 C1 C2'.split())
+        self.assertEqual(0.02, a.s)
+
+    # --- atom list ---
+
+    def test_dfix_atoms_single_pair(self):
+        a = DFIX(self.shx, 'DFIX 1.45 C1 C2'.split())
+        self.assertEqual(['C1', 'C2'], a.atoms)
+
+    def test_dfix_atoms_multiple_pairs(self):
+        a = DFIX(self.shx, 'DFIX 1.45 C1 C2 C2 C3 C3 C4'.split())
+        self.assertEqual(['C1', 'C2', 'C2', 'C3', 'C3', 'C4'], a.atoms)
+
+    # --- string representation ---
+
+    def test_dfix_repr(self):
+        a = DFIX(self.shx, 'DFIX 1.45 0.022 C1 C2'.split())
+        self.assertEqual('DFIX 1.45 0.022 C1 C2', repr(a))
+
+    # --- residue suffix ---
+
+    def test_dfix_residue_number_from_suffix(self):
+        a = DFIX(self.shx, 'DFIX_1 1.45 C1 C2'.split())
+        self.assertEqual([1], a.residue_number)
+
+    def test_dfix_residue_class_from_suffix(self):
+        a = DFIX(self.shx, 'DFIX_TOL 1.45 C1 C2'.split())
+        self.assertEqual('TOL', a.residue_class)
+
+    # --- wrong argument order (d and s swapped) ---
+
+    def test_dfix_wrong_order_silent_no_exception(self):
+        """In silent mode, swapped d/s is stored as-is and no exception is raised."""
+        shx = Shelxfile()  # neither verbose nor debug
+        a = DFIX(shx, 'DFIX 0.01 1.45 C1 C2'.split())
+        self.assertEqual(0.01, a.d)
+        self.assertEqual(1.45, a.s)
+
+    def test_dfix_wrong_order_verbose_prints_warning(self):
+        """In verbose mode, a warning is printed but no exception is raised."""
+        shx = Shelxfile(verbose=True)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            a = DFIX(shx, 'DFIX 0.01 1.45 C1 C2'.split())
+        self.assertIn('WRONG', buf.getvalue())
+        self.assertEqual(0.01, a.d)
+        self.assertEqual(1.45, a.s)
+
+    def test_dfix_wrong_order_debug_prints_warning(self):
+        """In debug mode, a warning is printed but no exception is raised."""
+        shx = Shelxfile(debug=True)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            a = DFIX(shx, 'DFIX 0.01 1.45 C1 C2'.split())
+        self.assertIn('WRONG', buf.getvalue())
+        self.assertEqual(0.01, a.d)
+        self.assertEqual(1.45, a.s)
 
 
 class TestPLAN(TestCase):
