@@ -191,13 +191,16 @@ If both do, the instruction closer to the atom wins.
 
 # Equivalent isotropic U (trace of U_cart / 3, IUCr definition):
 >>> c.ueq
-0.027...
+0.019868...
 
-# For riding hydrogen atoms the Uiso is a multiple of the pivot atom's Ueq:
+# For riding hydrogen atoms SHELXL stores a negative multiplier of the pivot
+# atom's Ueq. Both ueq and Uiso resolve that encoding (Uiso is an alias of ueq):
 >>> h = shx.atoms.get_atom_by_name('H34')
 >>> h.pivot.name       # the carbon H34 rides on
 'C34'
->>> h.Uiso             # = 1.2 × C34.ueq  (encoded as -1.2 in the .res file)
+>>> h.uvals[0]         # raw SHELXL value in the .res file
+-1.2
+>>> h.Uiso             # = 1.2 × C34.ueq
 0.02956...
 >>> h.Uiso == h.pivot.Uiso * 1.2
 True

@@ -78,8 +78,8 @@ Derived properties (all computed on-demand using numpy):
 - `atom.ucif` — symmetric 3×3 U(cif) matrix
 - `atom.ustar` — U(star) = N @ U(cif) @ N.T, N = diag(a\*, b\*, c\*)
 - `atom.u_cart` — U(cart) = A @ U(star) @ A.T (A = orthogonalisation matrix)
-- `atom.ueq` — equivalent isotropic U = trace(U_cart) / 3 (IUCr definition)
-- `atom.Uiso` — for riding hydrogens (`uvals[0] < 0`): `abs(uvals[0]) × pivot.ueq`; otherwise equals `ueq`
+- `atom.ueq` — equivalent isotropic U. Anisotropic atoms: trace(U_cart) / 3 (IUCr definition); isotropic atoms and Q-peaks: `uvals[0]`; riding atoms with a negative `uvals[0]` (SHELXL `-factor`): `abs(uvals[0]) × pivot.ueq`
+- `atom.Uiso` — alias of `atom.ueq`
 
 ### Connectivity table
 `shx.atoms.conntable` returns a tuple of `(i, j)` index pairs (into `all_atoms`) representing covalent bonds, computed by `build_conntable()` in `misc/misc.py`.  Disorder parts, negative-part/symmgen fragments, and H–H pairs are excluded.

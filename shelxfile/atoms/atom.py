@@ -255,28 +255,29 @@ class Atom():
 
     @property
     def ueq(self) -> float:
+        """Equivalent isotropic displacement parameter.
+
+        For riding atoms whose ``uvals[0]`` is negative (SHELXL encoding
+        ``-factor``), the value is resolved to ``abs(factor) × pivot.ueq``.
+        """
         return self.set_ueq(self.uvals)
 
     @property
     def Uiso(self) -> float:
-        """Isotropic displacement parameter.
-
-        For riding hydrogen atoms whose ``uvals[0]`` is negative (SHELXL
-        encoding ``-factor``), returns ``abs(factor) × pivot.ueq``.
-        For all other atoms, returns :attr:`ueq` (trace of U_cart / 3).
-        """
-        if self.uvals[0] < 0 and self.pivot is not None:
-            return abs(self.uvals[0]) * self.pivot.ueq
+        """Isotropic displacement parameter. Alias of :attr:`ueq`."""
         return self.ueq
 
     def set_ueq(self, uvals: List[float]) -> float:
-        # This is a q-peak:
-        if uvals[0] > 0 and not sum(uvals[2:]):
-            ueq = uvals[0]
-        else:
-            # Non-hydrogen atom with ADP – use numpy trace for speed/clarity
-            ueq = float(np.trace(self.u_cart)) / 3
-        return ueq
+        # Riding atom: SHELXL encodes -factor, meaning factor times Ueq of the pivot atom:
+        if uvals[0] < 0 and not any(uvals[1:]):
+            if self.pivot is None:
+                return uvals[0]
+            return abs(uvals[0]) * self.pivot.ueq
+        # Isotropic atom or q-peak:
+        if not sum(uvals[2:]):
+            return uvals[0]
+        # Anisotropic atom – use numpy trace for speed/clarity:
+        return float(np.trace(self.u_cart)) / 3
 
     def set_ucif(self, uvals: List[float]) -> np.ndarray:
         """

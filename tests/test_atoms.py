@@ -303,6 +303,39 @@ class TestOccupancyOnSpecialPositions(TestCase):
         self.assertAlmostEqual(0.33333, h23a.occupancy, places=6)
 
 
+class TestNegativeUisoResolution(TestCase):
+    """
+    SHELXL encodes the Uiso of riding atoms as a negative multiplier of the
+    Ueq of their pivot atom. Both ueq and Uiso must resolve this encoding.
+    """
+
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/p-31c.res')
+
+    def test_ueq_of_riding_hydrogen_is_resolved(self):
+        h23a = self.shx.atoms.get_atom_by_name('H23A')
+        c23 = self.shx.atoms.get_atom_by_name('C23')
+        self.assertEqual(-1.5, h23a.uvals[0])
+        self.assertEqual('C23', h23a.pivot.name)
+        self.assertAlmostEqual(0.078595, h23a.ueq, places=6)
+        self.assertAlmostEqual(c23.ueq * 1.5, h23a.ueq, places=12)
+
+    def test_ueq_of_riding_hydrogen_on_nitrogen(self):
+        h1 = self.shx.atoms.get_atom_by_name('H1')
+        n1 = self.shx.atoms.get_atom_by_name('N1')
+        self.assertAlmostEqual(n1.ueq * 1.3, h1.ueq, places=12)
+
+    def test_uiso_is_alias_of_ueq(self):
+        for name in ('H23A', 'C23', 'H1D', "C1'"):
+            atom = self.shx.atoms.get_atom_by_name(name)
+            self.assertEqual(atom.ueq, atom.Uiso)
+
+    def test_ueq_of_anisotropic_atom_is_unchanged(self):
+        c23 = self.shx.atoms.get_atom_by_name('C23')
+        self.assertAlmostEqual(0.052397, c23.ueq, places=6)
+
+
 class TestRidingAtoms(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()
