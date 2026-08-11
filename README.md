@@ -170,6 +170,20 @@ False
 'F1    4    0.245205    0.192674    0.649231   -21.00000    0.05143    ...'
 ```
 
+`atom.occupancy` resolves the SHELXL free-variable encoding of `atom.sof`:
+
+| sof          | meaning                                       |
+|--------------|-----------------------------------------------|
+| `11.00000`   | full occupancy                                |
+| `21.00000`   | `1.0 × FVAR₂`                                 |
+| `-21.00000`  | `1.0 × (1 − FVAR₂)`                           |
+| `30.33333`   | `0.33333 × FVAR₃` (special position)          |
+| `-30.33333`  | `0.33333 × (1 − FVAR₃)` (special position)    |
+
+A `PART` or `AFIX` instruction only overrides the sof of the atom line if it
+carries an explicit sof of its own (a sof of `11.0` means "not specified").
+If both do, the instruction closer to the atom wins.
+
 ### Displacement Parameters
 
 ```python

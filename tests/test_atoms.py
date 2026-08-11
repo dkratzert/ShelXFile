@@ -265,6 +265,44 @@ class TestAtoms(TestCase):
         self.assertEqual('[Atom ID: 134, Atom ID: 141, Atom ID: 148]', str(self.shx.atoms.riding_atoms[:3]))
 
 
+class TestOccupancyOnSpecialPositions(TestCase):
+    """
+    Atoms on special positions with a site occupancy factor != 1 combined with a
+    free variable reference. FVAR 0.22604 0.76052 0.85152
+    """
+
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/p-31c.res')
+
+    def test_positive_fvar_with_site_occupancy_factor(self):
+        # 30.33333 -> 0.33333 * FVAR3
+        self.assertAlmostEqual(0.2838372, self.shx.atoms.get_atom_by_name('C1').occupancy, places=6)
+        # 20.33333 -> 0.33333 * FVAR2
+        self.assertAlmostEqual(0.2535041, self.shx.atoms.get_atom_by_name('C12').occupancy, places=6)
+        # 10.33333 -> 0.33333 (FVAR1 is 1.0)
+        self.assertAlmostEqual(0.33333, self.shx.atoms.get_atom_by_name('N3').occupancy, places=6)
+
+    def test_negative_fvar_with_site_occupancy_factor(self):
+        # -30.33333 -> 0.33333 * (1 - FVAR3)
+        self.assertAlmostEqual(0.049493, self.shx.atoms.get_atom_by_name("C1'").occupancy, places=6)
+        # -20.33333 -> 0.33333 * (1 - FVAR2)
+        self.assertAlmostEqual(0.0798259, self.shx.atoms.get_atom_by_name("C12'").occupancy, places=6)
+
+    def test_negative_fvar_without_site_occupancy_factor(self):
+        # -31.00000 -> 1.0 * (1 - FVAR3)
+        self.assertAlmostEqual(0.14848, self.shx.atoms.get_atom_by_name("N1'").occupancy, places=6)
+
+    def test_afix_without_sof_keeps_atom_sof(self):
+        # AFIX 137 without own sof must not overwrite the sof of the atom line:
+        h1d = self.shx.atoms.get_atom_by_name('H1D')
+        self.assertEqual(-30.33333, h1d.sof)
+        self.assertAlmostEqual(0.049493, h1d.occupancy, places=6)
+        h23a = self.shx.atoms.get_atom_by_name('H23A')
+        self.assertEqual(10.33333, h23a.sof)
+        self.assertAlmostEqual(0.33333, h23a.occupancy, places=6)
+
+
 class TestRidingAtoms(TestCase):
     def setUp(self) -> None:
         self.shx = Shelxfile()

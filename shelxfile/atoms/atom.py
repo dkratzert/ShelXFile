@@ -115,8 +115,10 @@ class Atom():
         return occ
 
     def _get_negative_occupancy(self, occ):
+        # SHELXL: a negative free variable reference means occ = |p| * (1 - fvar)
+        # where |p| is the site occupancy factor of the atom.
         try:
-            occ = 1 + (self.shx.fvars[self.fvar] * occ)
+            occ = abs(occ) * (1.0 - self.shx.fvars[self.fvar])
         except IndexError:
             occ = 1.0
             if self.shx.debug:
@@ -307,19 +309,16 @@ class Atom():
                 Ucif_n[1, 2], Ucif_n[0, 2], Ucif_n[0, 1])
 
     def _get_part_and_occupation(self, atline: List[str]) -> None:
-        # TODO: test all variants of PART and AFIX sof combinations:
-        if self.part.sof != 11.0:
-            if self.afix and self.afix.sof:  # handles position of afix and part:
-                if self.afix.index > self.part.index:
-                    self.sof = self.afix.sof
-            else:
-                self.sof = self.part.sof
-        elif self.afix and self.afix.sof:
-            if self.part.sof != 11.0:
-                if self.part.index > self.afix.index:
-                    self.sof = self.part.sof
-            else:
-                self.sof = self.afix.sof
+        # A sof of 11.0 means "not specified", thus the atoms own sof is used.
+        part_sof = self.part.sof if self.part and self.part.sof != 11.0 else None
+        afix_sof = self.afix.sof if self.afix and self.afix.sof != 11.0 else None
+        if part_sof is not None and afix_sof is not None:
+            # The instruction closer to the atom wins:
+            self.sof = afix_sof if self.afix.index > self.part.index else part_sof
+        elif part_sof is not None:
+            self.sof = part_sof
+        elif afix_sof is not None:
+            self.sof = afix_sof
         elif len(atline) > 5:
             self.sof = float(atline[5])
 
