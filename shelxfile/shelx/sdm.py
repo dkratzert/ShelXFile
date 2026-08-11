@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 
 try:
-    import sdm_cpp
+    from shelxfile import sdm_cpp
 
     HAS_CPP = True
 except ImportError:

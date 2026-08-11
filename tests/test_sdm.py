@@ -303,7 +303,7 @@ class TestSDMCpp(TestCase):
     @unittest.skipUnless(HAS_CPP, 'sdm_cpp extension not available')
     def test_cpp_module_has_openmp_attr(self):
         """sdm_cpp must expose a has_openmp attribute."""
-        import sdm_cpp
+        from shelxfile import sdm_cpp
         self.assertIsInstance(sdm_cpp.has_openmp, bool)
 
     # ------------------------------------------------------------------

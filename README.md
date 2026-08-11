@@ -511,7 +511,7 @@ specified by SHELXL during the file writing.
 ### Optional C++ Acceleration
 
 The SDM (Shortest Distance Matrix), which underlies `grow()` and `pack()`, ships
-with an optional C++ extension (`sdm_cpp`) compiled with pybind11 and OpenMP.
+with an optional C++ extension (`shelxfile.sdm_cpp`) compiled with pybind11 and OpenMP.
 When present it is used automatically and can give a **5–10× speedup** on large
 structures; if it is absent the pure-Python fallback is used silently.
 

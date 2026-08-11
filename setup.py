@@ -1,10 +1,12 @@
 """
-setup.py — responsible only for the optional sdm_cpp C++ extension.
+setup.py — responsible only for the optional shelxfile.sdm_cpp C++ extension.
 All project metadata lives in pyproject.toml.
 
 The sdm_cpp extension is built only when pybind11 is available.  If it is
 absent the package still installs and works correctly using the pure-Python
-SDM implementation.  To enable the C++ acceleration:
+SDM implementation.  The compiled module is installed inside the shelxfile
+package (shelxfile/sdm_cpp.*.pyd|.so), not into the site-packages root.
+To enable the C++ acceleration:
 
     pip install pybind11
     pip install -e . --no-build-isolation
@@ -75,8 +77,8 @@ try:
         base_compile = ["-O3", "-std=c++17"] + omp_compile
 
     sdm_cpp_ext = Extension(
-        name="sdm_cpp",
-        sources=["shelxfile/sdm_cpp/sdm_cpp.cpp"],
+        name="shelxfile.sdm_cpp",
+        sources=["src/sdm_cpp/sdm_cpp.cpp"],
         include_dirs=[pybind11_include],
         extra_compile_args=base_compile,
         extra_link_args=omp_link,

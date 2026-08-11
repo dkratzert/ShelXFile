@@ -37,7 +37,9 @@ dev = [
 version = {attr = "shelxfile.version.VERSION"}
 
 [tool.setuptools.packages.find]
+include = ["shelxfile*"]
 exclude = ["tests*"]
+namespaces = false
 
 [tool.setuptools.package-data]
 shelxfile = ["**/*.py", "cif/*.tmpl"]
