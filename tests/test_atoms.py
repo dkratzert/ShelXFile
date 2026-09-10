@@ -1,6 +1,7 @@
 import unittest
 from unittest import TestCase
 
+from shelxfile.atoms.atom import Atom
 from shelxfile.misc.misc import frac_to_cart
 from shelxfile.shelx.shelx import Shelxfile
 
@@ -376,6 +377,72 @@ class TestUisoOfFreeRefine(TestCase):
         # self.assertEqual(0.04654, h1a.Uiso)
         # self.assertEqual([0.04654, 0.0, 0.0, 0.0, 0.0, 0.0], h1a.uvals)
         self.assertEqual("O3'", h1a.pivot.name)
+
+
+class TestUisoEncodings(TestCase):
+    """SHELXL encodes an isotropic U in three different ways.
+
+    ``-T`` (0.5 < T < 5) is a riding atom, ``10*m + p`` references the m-th
+    free variable, and anything else is a plain U value.
+    """
+
+    def setUp(self) -> None:
+        self.shx = Shelxfile()
+        self.shx.read_file('tests/resources/u_codes.res')
+
+    def _atom(self, name: str):
+        return self.shx.atoms.get_atom_by_name(name)
+
+    def test_plain_u_value_is_unchanged(self):
+        self.assertEqual(0.04, self._atom('C1').Uiso)
+
+    def test_riding_u_of_non_hydrogen_is_resolved(self):
+        # C2 has no pivot atom, because only hydrogens get one:
+        c2 = self._atom('C2')
+        self.assertIsNone(c2.pivot)
+        self.assertEqual('C1', c2.u_reference.name)
+        self.assertEqual(-1.5, c2.uvals[0])
+        self.assertAlmostEqual(1.5 * 0.04, c2.Uiso, places=12)
+
+    def test_riding_u_of_hydrogen_uses_its_pivot(self):
+        h1 = self._atom('H1')
+        self.assertEqual('O1', h1.pivot.name)
+        self.assertAlmostEqual(1.2 * 0.03, h1.Uiso, places=12)
+
+    def test_u_fixed_by_adding_ten_is_resolved(self):
+        # 10.05 means "fixed at 0.05", fv1 is the overall scale factor:
+        self.assertAlmostEqual(0.05, self._atom('C3').Uiso, places=12)
+
+    def test_u_of_free_variable_is_resolved(self):
+        # 20.05 means 0.05 * fv2:
+        self.assertAlmostEqual(0.05 * 0.3, self._atom('C4').Uiso, places=12)
+
+    def test_u_of_negative_free_variable_is_resolved(self):
+        # -20.05 means 0.05 * (1 - fv2), not a riding atom:
+        self.assertAlmostEqual(0.05 * 0.7, self._atom('C5').Uiso, places=12)
+
+    def test_raw_uvals_are_kept_for_file_output(self):
+        self.assertEqual([10.05, 0.0, 0.0, 0.0, 0.0, 0.0], self._atom('C3').uvals)
+        self.assertEqual([-20.05, 0.0, 0.0, 0.0, 0.0, 0.0], self._atom('C5').uvals)
+
+    def test_anisotropic_atom_is_unchanged(self):
+        self.assertAlmostEqual(0.03, self._atom('O1').Uiso, places=12)
+
+    def test_riding_u_without_reference_stays_unresolved(self):
+        c2 = self._atom('C2')
+        c2.pivot = None
+        c2.u_reference = None
+        self.assertEqual(-1.5, c2.Uiso)
+
+    def test_is_riding_u(self):
+        self.assertTrue(Atom.is_riding_u([-1.2, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        self.assertFalse(Atom.is_riding_u([0.04, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        # A free variable reference, not a riding atom:
+        self.assertFalse(Atom.is_riding_u([-20.05, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        # Out of the 0.5 < T < 5 range:
+        self.assertFalse(Atom.is_riding_u([-0.4, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        # A Q-peak carries its height in uvals[1]:
+        self.assertFalse(Atom.is_riding_u([-1.2, 0.5, 0.0, 0.0, 0.0, 0.0]))
 
 
 class TestBedeLoneFile(TestCase):

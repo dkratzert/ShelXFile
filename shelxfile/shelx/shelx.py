@@ -380,6 +380,9 @@ class Shelxfile():
 
     def _parse_cards(self) -> None:
         last_nonhydrogen_atom: Optional[Atom] = None
+        # Reference for riding U values: the previous atom whose own U is not a
+        # riding code. Unlike the pivot atom this is not restricted to hydrogen.
+        last_unconstrained_atom: Optional[Atom] = None
         lastcard = ''
         fvarnum = 1
         for line_num, line in enumerate(self._reslist):
@@ -448,10 +451,13 @@ class Shelxfile():
                 a = Atom(self)
                 if last_nonhydrogen_atom:
                     a.pivot = last_nonhydrogen_atom
+                a.u_reference = last_unconstrained_atom
                 a.parse_line(spline, list_of_lines, part=self.part, afix=self.afix, resi=self.resi)
                 if not a.is_hydrogen:
                     last_nonhydrogen_atom = a
                     a.pivot = None
+                if not a.qpeak and not Atom.is_riding_u(a.uvals):
+                    last_unconstrained_atom = a
                 self._append_card(self.atoms, a, line_num)
             elif word == 'SADI':
                 # SADI s[0.02] pairs of atoms
