@@ -204,6 +204,43 @@ If both do, the instruction closer to the atom wins.
 0.02956...
 >>> h.Uiso == h.pivot.Uiso * 1.2
 True
+```
+
+SHELXL actually overloads a U value into three encodings, all stored unchanged
+in `atom.uvals` (so the file is written back exactly as read) and resolved on
+access via `ueq`/`Uiso`:
+
+| `uvals[0]`          | Meaning                                                        |
+|---------------------|-----------------------------------------------------------------|
+| a plain value        | the U(iso) value itself                                        |
+| `-T` (`0.5 < T < 5`) | riding atom: `T × reference.ueq`                                |
+| `10*m + p` (`abs(p) < 5`) | references FVAR: `abs(m) == 1` fixes it at `p`, `m > 1` means `p × FVAR(m)`, `m < -1` means `abs(p) × (1 − FVAR(m))` |
+
+For a riding atom, the reference is `atom.pivot` for hydrogens (the
+non-hydrogen atom it rides on) and `atom.u_reference` for any other element
+(the previous atom in the file whose own U is not itself a riding code).
+`Atom.is_riding_u(uvals)` tells the two negative encodings apart.
+
+```python
+>>> shx2 = Shelxfile()
+>>> shx2.read_file('tests/resources/u_codes.res')
+>>> c2 = shx2.atoms.get_atom_by_name('C2')  # riding on the non-hydrogen C1
+>>> c2.uvals[0], c2.pivot, c2.u_reference.name
+(-1.5, None, 'C1')
+>>> c2.Uiso == 1.5 * c2.u_reference.Uiso
+True
+
+>>> c3 = shx2.atoms.get_atom_by_name('C3')  # 10.05 -> fixed at 0.05
+>>> c3.uvals[0], c3.Uiso
+(10.05, 0.05)
+
+>>> c4 = shx2.atoms.get_atom_by_name('C4')  # 20.05 -> 0.05 * FVAR_2
+>>> c4.uvals[0], c4.Uiso
+(20.05, 0.015)
+
+>>> c5 = shx2.atoms.get_atom_by_name('C5')  # -20.05 -> 0.05 * (1 - FVAR_2), not riding
+>>> c5.uvals[0], c5.Uiso
+(-20.05, 0.034999999999999996)
 
 # Full anisotropic U-value chain (numpy arrays):
 >>> c.ucif              # 3×3 U(cif) matrix  [U11 U12 U13 / U12 U22 U23 / U13 U23 U33]
