@@ -21,17 +21,17 @@ ShelXFile is a Python library for parsing, editing, and writing SHELXL crystallo
 
 | Path | Responsibility |
 |---|---|
-| `shelxfile/shelx/shelx.py` | `Shelxfile` class — parser, high-level API (`grow()`, `pack()`, …) |
-| `shelxfile/shelx/cards.py` | All SHELX instruction classes (`CELL`, `DFIX`, `Restraint`, …) |
-| `shelxfile/atoms/atom.py` | `Atom` class — fractional/Cartesian coords, occupancy, SFAC, U-value chain (`ucif`, `ustar`, `u_cart`, `ueq`, `Uiso`) |
-| `shelxfile/atoms/atoms.py` | `Atoms` container — iteration, lookup, geometry methods, `conntable` property |
-| `shelxfile/shelx/sdm.py` | SDM (Shortest Distance Matrix) — `calc_sdm()`, `packer()`, `pack_unit_cell()`; optional C++ fast path via `sdm_cpp` |
-| `shelxfile/misc/misc.py` | Parse error classes, `wrap_line`, `build_conntable`, `frac_to_cart`, `cart_to_frac` |
-| `shelxfile/misc/dsrmath.py` | `Array`, `OrthogonalMatrix`, crystallographic math; also re-exports `frac_to_cart` and `cart_to_frac` |
-| `shelxfile/misc/elements.py` | Element data tables, `get_radius_from_element()` |
-| `shelxfile/refine/refine.py` | Thin wrapper that calls the external `shelxl` binary |
-| `shelxfile/cif/cif_write.py` | CIF export using a Jinja-style template |
-| `shelxfile/version.py` | **Single source of version**: `VERSION = '23'` |
+| `src/shelxfile/shelx/shelx.py` | `Shelxfile` class — parser, high-level API (`grow()`, `pack()`, …) |
+| `src/shelxfile/shelx/cards.py` | All SHELX instruction classes (`CELL`, `DFIX`, `Restraint`, …) |
+| `src/shelxfile/atoms/atom.py` | `Atom` class — fractional/Cartesian coords, occupancy, SFAC, U-value chain (`ucif`, `ustar`, `u_cart`, `ueq`, `Uiso`) |
+| `src/shelxfile/atoms/atoms.py` | `Atoms` container — iteration, lookup, geometry methods, `conntable` property |
+| `src/shelxfile/shelx/sdm.py` | SDM (Shortest Distance Matrix) — `calc_sdm()`, `packer()`, `pack_unit_cell()`; optional C++ fast path via `sdm_cpp` |
+| `src/shelxfile/misc/misc.py` | Parse error classes, `wrap_line`, `build_conntable`, `frac_to_cart`, `cart_to_frac` |
+| `src/shelxfile/misc/dsrmath.py` | `Array`, `OrthogonalMatrix`, crystallographic math; also re-exports `frac_to_cart` and `cart_to_frac` |
+| `src/shelxfile/misc/elements.py` | Element data tables, `get_radius_from_element()` |
+| `src/shelxfile/refine/refine.py` | Thin wrapper that calls the external `shelxl` binary |
+| `src/shelxfile/cif/cif_write.py` | CIF export using a Jinja-style template |
+| `src/shelxfile/version.py` | **Single source of version**: `VERSION = '23'` |
 
 ## Key Conventions
 
@@ -58,7 +58,7 @@ Shelxfile(debug=True)    # halts on first error (for development)
 ```
 
 ### C++ SDM acceleration (optional)
-`shelxfile/shelx/sdm.py` tries `from shelxfile import sdm_cpp` first (pybind11 extension built from `shelxfile/sdm_cpp/`, installed as `shelxfile/sdm_cpp.*.pyd|.so`). Falls back to pure Python silently. To build the extension:
+`src/shelxfile/shelx/sdm.py` tries `from shelxfile import sdm_cpp` first (pybind11 extension built from `src/sdm_cpp/`, installed as `shelxfile/sdm_cpp.*.pyd|.so`). Falls back to pure Python silently. To build the extension:
 ```bash
 pip install pybind11
 pip install -e . --no-build-isolation
@@ -85,7 +85,7 @@ Derived properties (all computed on-demand using numpy):
 `shx.atoms.conntable` returns a tuple of `(i, j)` index pairs (into `all_atoms`) representing covalent bonds, computed by `build_conntable()` in `misc/misc.py`.  Disorder parts, negative-part/symmgen fragments, and H–H pairs are excluded.
 
 ### Coordinate conversion utilities
-`frac_to_cart(frac, cell)` and `cart_to_frac(cart, cell)` live in `shelxfile/misc/misc.py` and are **also re-exported** from `shelxfile/misc/dsrmath.py`, so either import path works:
+`frac_to_cart(frac, cell)` and `cart_to_frac(cart, cell)` live in `src/shelxfile/misc/misc.py` and are **also re-exported** from `src/shelxfile/misc/dsrmath.py`, so either import path works:
 ```python
 from shelxfile.misc.misc import frac_to_cart, cart_to_frac
 from shelxfile.misc.dsrmath import frac_to_cart, cart_to_frac  # same functions
@@ -102,8 +102,8 @@ Tests run from the project root; resource files are referenced as `'tests/resour
 
 ### Linting / type checking
 ```bash
-ruff check shelxfile/
-ty check shelxfile/
+ruff check src/shelxfile/
+ty check src/shelxfile/
 ```
 
 ### Dependency management
@@ -111,7 +111,7 @@ The project uses `uv` (`uv.lock` present). Dev deps (`pytest`, `ruff`, `ty`) liv
 
 ## Integration Points
 - **SHELXL binary** (`shx.refine()`): looks for `shelxl` or `xl` on `PATH`; writes a `.ins` file, runs the binary, then reloads the `.res` output.
-- **CIF export** (`shx.to_cif()`): uses `shelxfile/cif/cif_template.tmpl`; a custom template path can be passed.
+- **CIF export** (`shx.to_cif()`): uses `src/shelxfile/cif/cif_template.tmpl`; a custom template path can be passed.
 - **DSR integration**: `REM DSR PUT/REPLACE` lines are collected into `shx.dsrlines` / `shx.dsrline_nums` for use by the DSR fragment-fitting tool.
 - **Include files**: `+filename` lines in `.res` files are inlined during `read_file()`; recursive inclusion is detected and raises `ValueError`.
 

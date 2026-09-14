@@ -119,7 +119,7 @@ shelxfile/tests/p21c.lst
 *.fcf
 shelxfile/tests/p21c.cif
 test.res
-shelxfile/libvector_length.dylib
+src/shelxfile/libvector_length.dylib
 dsr-log.lst
 testr.res
 .DS_Store

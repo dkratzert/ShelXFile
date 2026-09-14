@@ -6,6 +6,7 @@ The sdm_cpp extension is built only when pybind11 is available.  If it is
 absent the package still installs and works correctly using the pure-Python
 SDM implementation.  The compiled module is installed inside the shelxfile
 package (shelxfile/sdm_cpp.*.pyd|.so), not into the site-packages root.
+The C++ sources live in src/sdm_cpp/ alongside the src/shelxfile/ package.
 To enable the C++ acceleration:
 
     pip install pybind11
@@ -78,7 +79,7 @@ try:
 
     sdm_cpp_ext = Extension(
         name="shelxfile.sdm_cpp",
-        sources=["shelxfile/sdm_cpp/sdm_cpp.cpp"],
+        sources=["src/sdm_cpp/sdm_cpp.cpp"],
         include_dirs=[pybind11_include],
         extra_compile_args=base_compile,
         extra_link_args=omp_link,
