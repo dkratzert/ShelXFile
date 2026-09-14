@@ -72,6 +72,27 @@ class TestRestraintsWarnings(unittest.TestCase):
         self.assertListEqual(expected, result)
         self.assertEqual(expected, shx.restraint_errors)
 
+    def test_eqiv_symmetry_generated_atom_is_recognized(self):
+        """
+        H1a_$1 references atom H1a via the symmetry operation defined by 'EQIV $1'.
+        This is not a residue number and must not be reported as an unknown atom.
+        """
+        self.shx.read_file('tests/resources/restraint_tests/eqiv_symmetry_atom_valid.res')
+        result = self.shx._assign_atoms_to_restraints()
+        self.assertListEqual([], result)
+
+    def test_eqiv_symmetry_generated_atom_with_undefined_eqiv_id(self):
+        """
+        H1a_$2 references an EQIV id ($2) that was never defined by an EQIV
+        instruction. The atom H1a itself exists, so this must be reported as a
+        missing EQIV definition, not as an unknown atom.
+        """
+        self.shx.read_file('tests/resources/restraint_tests/eqiv_symmetry_atom_undefined.res')
+        result = self.shx._assign_atoms_to_restraints()
+        expected = ['*** Undefined EQIV in restraint: DFIX 1.52 0.04 H1a H1a_$2, line 15 ***',
+                    '*** No EQIV instruction defines --> H1a_$2 ***']
+        self.assertListEqual(expected, result)
+
     def test_class_with_empty_residues_no_false_positives(self):
         """
         Residues 1 and 2 of class BF4 are empty (defined by RESI but have no atoms).

@@ -79,6 +79,9 @@ SHX_CARDS = ('TITL', 'CELL', 'ZERR', 'LATT', 'SYMM', 'SFAC', 'UNIT', 'LIST', 'L.
              'ADDA', 'STAG', 'NEUT', 'ABIN', 'ANSC', 'ANSR', 'NOTR', 'TWST', 'PART', 'DANG',
              'BEDE', 'LONE', 'REM', 'END')
 
+# Matches a trailing '_$n' EQIV symmetry-equivalent atom suffix, e.g. 'H9a_$1'.
+_EQIV_ATOM_SUFFIX_RE = re.compile(r'^(.*)_\$(\d+)$')
+
 
 class Shelxfile():
     """
@@ -276,6 +279,7 @@ class Shelxfile():
             warnings.append(f'*** Empty residue(s) detected (no atoms): {", ".join(empty_residues)} ***')
         for restraint in self.restraints:
             bad_atoms = []
+            missing_eqiv = []
             for restraint_atom in restraint.atoms:
                 if restraint_atom in ('>', '<', '='):
                     continue
@@ -286,11 +290,12 @@ class Shelxfile():
                         # SHELXL silently ignores empty residues for restraints too.
                         if restraint.residue_class and num not in populated_nums:
                             continue
-                        self.does_atom_exist(f'{restraint_atom}_{num}', bad_atoms, f'{restraint_atom}_{num}')
+                        self.does_atom_exist(f'{restraint_atom}_{num}', bad_atoms, f'{restraint_atom}_{num}',
+                                              missing_eqiv)
                 elif '_' in restraint_atom:
-                    self.does_atom_exist(f'{restraint_atom}', bad_atoms, restraint_atom)
+                    self.does_atom_exist(f'{restraint_atom}', bad_atoms, restraint_atom, missing_eqiv)
                 else:
-                    self.does_atom_exist(f'{restraint_atom}_{0}', bad_atoms, restraint_atom)
+                    self.does_atom_exist(f'{restraint_atom}_{0}', bad_atoms, restraint_atom, missing_eqiv)
             if bad_atoms:
                 sorted_atoms = list(set(bad_atoms))
                 sorted_atoms.sort()
@@ -298,6 +303,11 @@ class Shelxfile():
                                 f'line {restraint.index + 1} ***')
                 warnings.append(f'*** Atom list has no --> {", ".join(sorted_atoms)} ***')
                 bad_atoms.clear()
+            if missing_eqiv:
+                sorted_missing = sorted(set(missing_eqiv))
+                warnings.append(f'*** Undefined EQIV in restraint: {restraint}, line {restraint.index + 1} ***')
+                warnings.append(f'*** No EQIV instruction defines --> {", ".join(sorted_missing)} ***')
+                missing_eqiv.clear()
             if restraint.residue_class and sum(restraint.residue_number) == 0:
                 warnings.append(f"*** Restraint '{restraint}', line {restraint.index + 1}, "
                                 f"has a residue class, but no residues are defined. ***")
@@ -305,11 +315,22 @@ class Shelxfile():
             print('\n'.join(warnings))
         return warnings
 
-    def does_atom_exist(self, atom_name: str, bad_atoms: List[str], restraint_atom: str):
+    def does_atom_exist(self, atom_name: str, bad_atoms: List[str], restraint_atom: str,
+                         missing_eqiv: List[str]) -> None:
+        # A trailing '_$n' references a symmetry equivalent atom defined by an EQIV
+        # instruction (see EQIV documentation), not a residue number. It has to be
+        # stripped off before checking whether the underlying atom really exists.
+        eqiv_match = _EQIV_ATOM_SUFFIX_RE.match(atom_name)
+        eqiv_id = None
+        if eqiv_match:
+            base_name, eqiv_num = eqiv_match.groups()
+            eqiv_id = f'${eqiv_num}'
+            atom_name = base_name if '_' in base_name else f'{base_name}_0'
         residue_number_is_wildcard = '_' in atom_name and atom_name.split('_')[-1] == '*'
         if atom_name.startswith('$'):
             return None
-        elif residue_number_is_wildcard:
+        bad_atoms_before = len(bad_atoms)
+        if residue_number_is_wildcard:
             for num in self.residues.residue_numbers.keys():
                 residue_atom = f"{atom_name.split('_')[0]}_{num}"
                 if not self.atoms.get_atom_by_name(residue_atom):
@@ -317,6 +338,11 @@ class Shelxfile():
         else:
             if not self.atoms.get_atom_by_name(atom_name):
                 bad_atoms.append(restraint_atom)
+        atom_was_found = len(bad_atoms) == bad_atoms_before
+        # Only complain about a missing EQIV definition if the underlying atom itself
+        # exists; otherwise the 'unknown atom' warning above already covers it.
+        if eqiv_id and atom_was_found and not any(entry and entry[0] == eqiv_id for entry in self.eqiv):
+            missing_eqiv.append(restraint_atom)
 
     def _test_if_file_is_valid(self, resfile: Path) -> None:
         if len(self._reslist) < 20 and (self.debug or self.verbose):
