@@ -58,7 +58,7 @@ Shelxfile(debug=True)    # halts on first error (for development)
 ```
 
 ### C++ SDM acceleration (optional)
-`shelxfile/shelx/sdm.py` tries `from shelxfile import sdm_cpp` first (pybind11 extension built from `src/sdm_cpp/`, installed as `shelxfile/sdm_cpp.*.pyd|.so`). Falls back to pure Python silently. To build the extension:
+`shelxfile/shelx/sdm.py` tries `from shelxfile import sdm_cpp` first (pybind11 extension built from `shelxfile/sdm_cpp/`, installed as `shelxfile/sdm_cpp.*.pyd|.so`). Falls back to pure Python silently. To build the extension:
 ```bash
 pip install pybind11
 pip install -e . --no-build-isolation
