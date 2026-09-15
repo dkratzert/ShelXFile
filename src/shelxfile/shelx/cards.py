@@ -5,7 +5,7 @@ from typing import List, Union, TYPE_CHECKING, Optional, Iterator, Tuple, Dict, 
 from shelxfile.atoms.pairs import AtomPair
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix, Matrix
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
-    ParseOrderError, ParseSyntaxError
+    ParseOrderError, ParseSyntaxError, resolve_fvar_encoded_value
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
@@ -1908,6 +1908,107 @@ class WGHT(Command):
             print("No suggested weighting scheme found. Unable to proceed.")
             return [0.0, 0.0]
         return [round(adiff, 3), round(bdiff, 3)]
+
+    def __repr__(self) -> str:
+        return self._as_string()
+
+    def __str__(self) -> str:
+        return self._as_string()
+
+
+class BEDE(Command):
+    """
+    BEDE name1 name2 d a b1 b2 [!BOND! direction]
+
+    Bond electron density instruction used with invariom/Hirshfeld-style
+    non-spherical refinement (see .bodd files). ``a``, ``b1`` and ``b2`` are
+    encoded like a SHELXL occupancy (``10*fvar + factor``); the raw encoded
+    value is kept (for faithful round-trip), while ``a_value``, ``b1_value``
+    and ``b2_value`` resolve them against ``shx.fvars``.
+    """
+
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+        super(BEDE, self).__init__(shx, spline)
+        self.shx = shx
+        self.name1: str = spline[1].upper()
+        self.name2: str = spline[2].upper()
+        self.d: float = float(spline[3])
+        self.a: float = float(spline[4])
+        self.b1: float = float(spline[5])
+        self.b2: float = float(spline[6])
+        # Optional trailing comment: '!BOND! direction'
+        self.direction: Optional[str] = None
+        if len(spline) > 7:
+            rest = spline[7:]
+            if rest and rest[0].upper().strip('!') == 'BOND' and len(rest) > 1:
+                self.direction = rest[1]
+
+    @property
+    def a_value(self) -> float:
+        return resolve_fvar_encoded_value(self.a, self.shx)
+
+    @property
+    def b1_value(self) -> float:
+        return resolve_fvar_encoded_value(self.b1, self.shx)
+
+    @property
+    def b2_value(self) -> float:
+        return resolve_fvar_encoded_value(self.b2, self.shx)
+
+    def _as_string(self) -> str:
+        line = 'BEDE {:<6}{:<6}{:6.4f} {:>6} {:>6} {:>6}'.format(
+            self.name1, self.name2, self.d, self.a, self.b1, self.b2)
+        if self.direction:
+            line += '  !BOND! {}'.format(self.direction)
+        return line
+
+    def __repr__(self) -> str:
+        return self._as_string()
+
+    def __str__(self) -> str:
+        return self._as_string()
+
+
+class LONE(Command):
+    """
+    LONE atomName code a b1 b2 d [angle]
+
+    Lone-pair electron density instruction used with invariom/Hirshfeld-style
+    non-spherical refinement (see .bodd files). ``a``, ``b1`` and ``b2`` are
+    encoded like a SHELXL occupancy (``10*fvar + factor``); the raw encoded
+    value is kept (for faithful round-trip), while ``a_value``, ``b1_value``
+    and ``b2_value`` resolve them against ``shx.fvars``.
+    """
+
+    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+        super(LONE, self).__init__(shx, spline)
+        self.shx = shx
+        self.name: str = spline[1].upper()
+        self.code: str = spline[2]
+        self.a: float = float(spline[3])
+        self.b1: float = float(spline[4])
+        self.b2: float = float(spline[5])
+        self.d: float = float(spline[6])
+        self.angle: Optional[float] = float(spline[7]) if len(spline) > 7 else None
+
+    @property
+    def a_value(self) -> float:
+        return resolve_fvar_encoded_value(self.a, self.shx)
+
+    @property
+    def b1_value(self) -> float:
+        return resolve_fvar_encoded_value(self.b1, self.shx)
+
+    @property
+    def b2_value(self) -> float:
+        return resolve_fvar_encoded_value(self.b2, self.shx)
+
+    def _as_string(self) -> str:
+        line = 'LONE {} {:<6}{:>6} {:>6} {:>6} {:6.4f}'.format(
+            self.code, self.name, self.a, self.b1, self.b2, self.d)
+        if self.angle is not None:
+            line += ' {:6.2f}'.format(self.angle)
+        return line
 
     def __repr__(self) -> str:
         return self._as_string()

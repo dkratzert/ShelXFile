@@ -435,6 +435,46 @@ SADI_CCF3 0.02 C1 C2 C1 C3 C1 C4
 0.02
 ```
 
+### BEDE / LONE (bond and lone-pair electron density)
+
+`BEDE` and `LONE` are used with invariom/Hirshfeld-style non-spherical
+refinement (e.g. `.bodd` files). They are parsed into `shx.bede_cards` /
+`shx.lone_cards`, with `a`, `b1`, `b2` encoded like a SHELXL occupancy
+(`10*fvar + factor`); raw and FVAR-resolved values are both available:
+
+```python
+>>> shx.bede_cards[0]
+BEDE S1    C8    1.7080 20.874 30.112 40.382
+
+>>> shx.bede_cards[0].a, shx.bede_cards[0].a_value
+(20.874, 0.3423021)
+
+>>> shx.get_bede_for_atom('C1')
+[BEDE C1 C2 ..., BEDE C1 C6 ..., BEDE C1 C7 ...  !BOND! C1>C7]
+
+>>> shx.lone_cards[0].code, shx.lone_cards[0].angle
+('2', 92.0)
+
+>>> shx.get_lone_for_atom('S1')
+[LONE 2 S1 ...]
+```
+
+After a refinement that used `BEDE`/`LONE`, SHELXL writes extra pseudo-atoms
+(`L1`, `L2`, ...) into the `.res` file — bond/lone-pair electron-density
+maxima, each carrying a `! b1 b2 ownerAtomName` comment linking it back to
+its real (heavy) atom. These are parsed into `shx.bede_lone_results` (as
+`BedeLoneResultAtom` instances) — **not** into `shx.atoms`, so structure
+viewers and code iterating `shx.atoms` never see them by default:
+
+```python
+>>> l50 = next(r for r in shx.bede_lone_results if r.name == 'L50')
+>>> l50.b1, l50.b2, l50.owner_atom_name
+(-0.23303, 0.36211, 'C6')
+
+>>> l50.owner_atom.name
+'C6'
+```
+
 ### Distances and Angles
 
 ```python

@@ -152,6 +152,32 @@ def split_fvar_and_parameter(parameter: float) -> tuple:
     return fvar, round(value, 8)
 
 
+def resolve_fvar_encoded_value(value: float, shx) -> float:
+    """
+    Resolves a SHELXL "occupancy-style" parameter (e.g. BEDE/LONE a, b1, b2
+    fields, or an atom's sof) that is encoded as ``10*fvar + factor`` against
+    the free variables of *shx*. Values below the encoding threshold
+    (``abs(value) == 1``, i.e. no free variable referenced) are returned
+    unresolved. Mirrors the resolution used for ``Atom.occupancy``.
+
+    :param value: the raw, possibly fvar-encoded value.
+    :param shx: the owning Shelxfile instance (for ``shx.fvars`` access).
+    """
+    fvar, factor = split_fvar_and_parameter(value)
+    if abs(fvar) == 1:
+        return factor
+    try:
+        if fvar > 0:
+            return shx.fvars[fvar] * factor
+        return abs(factor) * (1.0 - shx.fvars[fvar])
+    except IndexError:
+        if shx.debug:
+            raise ParseSyntaxError(debug=shx.debug, verbose=shx.verbose)
+        if shx.verbose:
+            print(f'*** Could not resolve free variable {fvar} of value {value} ***')
+        return factor
+
+
 def flatten(lis):
     """
     Given a list, possibly nested to any level, return it flattened.

@@ -450,12 +450,73 @@ class TestBedeLoneFile(TestCase):
         self.shx = Shelxfile(debug=True)
         self.shx.read_file('tests/resources/test_bedelone.res')
 
-    def test_lone_pairs(self):
-        self.assertEqual(150, len(self.shx.atoms))
-        l50 = self.shx.atoms.get_atom_by_name('L50')
-        self.assertEqual('L50  2   0.822400    0.641000   0.461520   11.00000    0.00000',
-                         str(l50))
-        self.assertEqual(0, l50.part.n)
-        self.assertEqual(11.0, l50.part.sof)
-        self.assertEqual([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], l50.uvals)
-        self.assertEqual(0.8224, l50.x)
+    def test_lone_pairs_not_in_general_atom_list(self):
+        # 44 real crystal atoms + Q-peaks, the 106 L* pseudo-atoms are excluded
+        # from shx.atoms on purpose (so structure viewers do not show them):
+        self.assertEqual(44, len(self.shx.atoms))
+        self.assertIsNone(self.shx.atoms.get_atom_by_name('L50'))
+
+    def test_bede_lone_result_atoms(self):
+        self.assertEqual(106, len(self.shx.bede_lone_results))
+        l50 = next(r for r in self.shx.bede_lone_results if r.name == 'L50')
+        from shelxfile.atoms.atom import BedeLoneResultAtom
+        self.assertIsInstance(l50, BedeLoneResultAtom)
+        self.assertAlmostEqual(0.8224, l50.x)
+        self.assertAlmostEqual(0.641, l50.y)
+        self.assertAlmostEqual(0.46152, l50.z)
+        self.assertAlmostEqual(-0.23303, l50.b1)
+        self.assertAlmostEqual(0.36211, l50.b2)
+        self.assertEqual('C6', l50.owner_atom_name)
+        self.assertEqual('C6', l50.owner_atom.name)
+        self.assertIn('C6', str(l50))
+        self.assertIn('-0.23303', str(l50))
+        self.assertIn('0.36211', str(l50))
+
+    def test_bede_cards(self):
+        self.assertEqual(13, len(self.shx.bede_cards))
+        c1_c7 = next(b for b in self.shx.bede_cards if b.name1 == 'C1' and b.name2 == 'C7')
+        self.assertAlmostEqual(1.501, c1_c7.d)
+        self.assertEqual('C1>C7', c1_c7.direction)
+        bede_for_c1 = self.shx.get_bede_for_atom('C1')
+        self.assertEqual(4, len(bede_for_c1))
+
+    def test_bede_resolved_values(self):
+        # FVAR       1.04075   0.39165   0.51366   0.62866
+        # a=20.874 -> fvar 2 * 0.874;  b1=30.112 -> fvar 3 * 0.112;  b2=40.382 -> fvar 4 * 0.382
+        s1_c8 = next(b for b in self.shx.bede_cards if b.name1 == 'S1' and b.name2 == 'C8')
+        self.assertAlmostEqual(0.39165 * 0.874, s1_c8.a_value, places=5)
+        self.assertAlmostEqual(0.51366 * 0.112, s1_c8.b1_value, places=5)
+        self.assertAlmostEqual(0.62866 * 0.382, s1_c8.b2_value, places=5)
+
+    def test_lone_cards(self):
+        self.assertEqual(3, len(self.shx.lone_cards))
+        s1_lone = self.shx.get_lone_for_atom('S1')
+        self.assertEqual(1, len(s1_lone))
+        self.assertEqual('2', s1_lone[0].code)
+        self.assertAlmostEqual(1.786, s1_lone[0].d)
+        self.assertAlmostEqual(92.00, s1_lone[0].angle)
+
+    def test_bede_lone_roundtrip(self):
+        # Uses a small self-contained fixture without a '+include' file, to
+        # isolate the BEDE/LONE round-trip from unrelated include-file
+        # handling.
+        outfile = 'tests/resources/_test_bedelone_roundtrip.res'
+        shx1 = Shelxfile(debug=True)
+        shx1.read_file('tests/resources/test_bedelone_inline.res')
+        try:
+            shx1.write_shelx_file(outfile)
+            shx2 = Shelxfile(debug=True)
+            shx2.read_file(outfile)
+            self.assertEqual(2, len(shx2.atoms))
+            self.assertIsNone(shx2.atoms.get_atom_by_name('L1'))
+            self.assertEqual(2, len(shx2.bede_lone_results))
+            self.assertEqual(1, len(shx2.bede_cards))
+            self.assertEqual(1, len(shx2.lone_cards))
+            l1_2 = next(r for r in shx2.bede_lone_results if r.name == 'L1')
+            self.assertAlmostEqual(0.18094, l1_2.b1)
+            self.assertAlmostEqual(0.21368, l1_2.b2)
+            self.assertEqual('S1', l1_2.owner_atom_name)
+        finally:
+            import os
+            if os.path.exists(outfile):
+                os.remove(outfile)

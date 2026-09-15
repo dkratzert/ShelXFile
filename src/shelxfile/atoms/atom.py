@@ -551,3 +551,67 @@ class Atom():
         """
         pivots = self.find_atoms_around(dist=1.2)
         return pivots[0] if pivots and self.afix.mn else None'''
+
+
+class BedeLoneResultAtom(Atom):
+    """
+    Represents a bond/lone-pair electron density pseudo-atom ("L1", "L2", ...)
+    that SHELXL writes into the .res file after a refinement using BEDE/LONE
+    instructions, e.g.:
+
+        L50     2    0.822405    0.640999    0.461525  !    0.235    0.164  C6
+
+    Only ``name``, ``sfac`` and the fractional coordinates are real atom
+    fields — there is no occupancy or displacement parameter. The trailing
+    ``! b1 b2 ownerAtomName`` comment links the pseudo-atom back to the real
+    (heavy) atom it belongs to; ``b1``/``b2`` reuse the BEDE/LONE ``b1``/``b2``
+    encoding.
+
+    Instances of this class are intentionally **not** added to ``shx.atoms``
+    (so structure viewers do not show them by default); they live in
+    ``shx.bede_lone_results`` instead, while still occupying their original
+    position in ``shx._reslist`` so file write-back is unaffected.
+    """
+
+    def __init__(self, shx: 'Shelxfile') -> None:
+        super().__init__(shx)
+        self.b1: float = 0.0
+        self.b2: float = 0.0
+        self.owner_atom_name: str = ''
+
+    def parse_result_line(self, pre_tokens: List[str], post_tokens: List[str],
+                           list_of_lines: List[int]) -> None:
+        """
+        Parses a "L*" bond/lone-pair result line.
+
+        :param pre_tokens: tokens before '!', i.e. [name, sfac, x, y, z]
+        :param post_tokens: tokens after '!', i.e. [b1, b2, ownerAtomName]
+        :param list_of_lines: line number(s) this atom occupies in _reslist
+        """
+        self.name = pre_tokens[0][:4]
+        self.sfac_num = int(pre_tokens[1])
+        self.x, self.y, self.z = (float(v) for v in pre_tokens[2:5])
+        self.xc, self.yc, self.zc = frac_to_cart_fast(self.x, self.y, self.z, self._cell)
+        self._line_numbers = list_of_lines
+        if len(post_tokens) >= 1:
+            self.b1 = float(post_tokens[0])
+        if len(post_tokens) >= 2:
+            self.b2 = float(post_tokens[1])
+        if len(post_tokens) >= 3:
+            self.owner_atom_name = post_tokens[2].upper()
+
+    @property
+    def owner_atom(self) -> Optional['Atom']:
+        """The real (heavy) atom this pseudo-atom belongs to, if resolvable."""
+        if not self.owner_atom_name:
+            return None
+        return self.shx.atoms.get_atom_by_name(self.owner_atom_name)
+
+    def __str__(self) -> str:
+        line = '{:<5s}{:>2}{:>12.5f}{:>12.5f}{:>12.5f}'.format(
+            self.name, self.sfac_num, self.x, self.y, self.z)
+        line += '  !{:>10.5f}{:>10.5f}  {}'.format(self.b1, self.b2, self.owner_atom_name)
+        return line
+
+    def __repr__(self) -> str:
+        return self.__str__()

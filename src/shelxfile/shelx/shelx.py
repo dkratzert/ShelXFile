@@ -24,7 +24,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Union, List, Optional
 
-from shelxfile.atoms.atom import Atom
+from shelxfile.atoms.atom import Atom, BedeLoneResultAtom
 from shelxfile.atoms.atoms import Atoms
 from shelxfile.cif.cif_write import CifFile
 from shelxfile.misc.dsrmath import Array
@@ -37,7 +37,7 @@ from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
-    RESI, ABIN, ANIS, Residues, SWAT, Command, Restraint
+    RESI, ABIN, ANIS, Residues, SWAT, Command, Restraint, BEDE, LONE
 from shelxfile.shelx.sdm import SDM
 from shelxfile.version import VERSION
 
@@ -45,7 +45,6 @@ __version__ = VERSION
 
 """
 TODO:
-- Handle BEDE & LONE plus their results
 - Rotate ellipsoids with kabsch
 - killall.Q, killall.C 
 - Q-peak printing is wrong: Q1    1   0.9828    1.1159    0.3148   11.00000  0.04      0.00  
@@ -167,6 +166,9 @@ class Shelxfile():
         self.ansr: float = 0.001
         self.rem: List[REM] = []
         self.atoms: Atoms = Atoms(self)
+        self.bede_cards: List[BEDE] = []
+        self.lone_cards: List[LONE] = []
+        self.bede_lone_results: List[BedeLoneResultAtom] = []
         self.fvars: FVARs = FVARs(self)
         self.restraints: Restraints = Restraints()
         self.sfac_table: SFACTable = SFACTable(self)
@@ -436,6 +438,7 @@ class Shelxfile():
                 else:
                     multiline = False
                 self._reslist[line_num + wrapindex] = ''
+            raw_line_with_comment = line  # keep comment for BEDE/LONE parsing before stripping it below
             # The current line split:
             spline: list = line.split('!')[0].split()  # Ignore comments with "!"
             # The current line as string:
@@ -470,6 +473,14 @@ class Shelxfile():
                     print('AFIX in line {} was not closed'.format(line_num + 1))
             elif word == 'AFIX':
                 self.afix = self._assign_card(AFIX(self, spline), line_num)
+            elif self._is_bede_lone_result(raw_line_with_comment, spline):
+                # A BEDE/LONE bond/lone-pair electron density pseudo-atom result, e.g.:
+                # L50     2    0.822405    0.640999    0.461525  !    0.235    0.164  C6
+                # Kept out of self.atoms on purpose (see BedeLoneResultAtom docstring).
+                post_tokens = raw_line_with_comment.split('!', 1)[1].split()
+                result_atom = BedeLoneResultAtom(self)
+                result_atom.parse_result_line(spline, post_tokens, list_of_lines)
+                self._append_card(self.bede_lone_results, result_atom, line_num)
             elif self.is_atom_spline(word, spline):
                 # A SHELXL atom:
                 # F9    4    0.395366   0.177026   0.601546  21.00000   0.03231  ( 0.03248 =
@@ -811,11 +822,11 @@ class Shelxfile():
                 # XNPD Umin[-0.001]
                 self.xnpd = self._assign_card(XNPD(self, spline), line_num)
             elif word == 'BEDE':
-                # Later...
-                continue
+                # BEDE name1 name2 d a b1 b2 [!BOND! direction]
+                self._append_card(self.bede_cards, BEDE(self, raw_line_with_comment.split()), line_num)
             elif word == 'LONE':
-                # Later...
-                continue
+                # LONE atomName code a b1 b2 d [angle]
+                self._append_card(self.lone_cards, LONE(self, raw_line_with_comment.split()), line_num)
             elif word == 'MOLE':
                 # print('*** MOLE is deprecated! Do not use it! ***')
                 pass
@@ -1272,6 +1283,37 @@ class Shelxfile():
     def _coordinates_are_unrealistic(spline: List[str]) -> bool:
         return any(float(y) > 4.0 for y in spline[2:5])
 
+    @staticmethod
+    def _is_bede_lone_result(raw_line: str, spline: List[str]) -> bool:
+        """
+        Detects a BEDE/LONE bond/lone-pair electron-density pseudo-atom
+        result line, e.g.::
+
+            L50     2    0.822405    0.640999    0.461525  !    0.235    0.164  C6
+
+        Unlike every real SHELXL atom line (which always has at least 6
+        tokens before any comment: name, sfac, x, y, z, occ[, U...]), these
+        pseudo-atom result lines have exactly 5 tokens (name, sfac, x, y, z)
+        followed by a ``!`` comment carrying the BEDE/LONE ``b1``, ``b2`` and
+        owner-atom-name metadata.
+
+        :param raw_line: the line before comment-stripping (still contains '!').
+        :param spline: the same line already split on whitespace with any
+            comment removed.
+        """
+        if '!' not in raw_line:
+            return False
+        if len(spline) != 5:
+            return False
+        if '.' in spline[1]:
+            return False
+        try:
+            if any(abs(float(v)) > 4.0 for v in spline[2:5]):
+                return False
+        except ValueError:
+            return False
+        return True
+
     def to_cif(self, filename: str = None, template: Optional[str] = None) -> None:
         """
         Writes a CIF file from the ShelxFile object.
@@ -1279,6 +1321,20 @@ class Shelxfile():
         if not filename:
             filename = self.resfile.stem + '.cif'
         CifFile(self, template).write_cif(Path(filename))
+
+    def get_bede_for_atom(self, atom_name: str) -> List['BEDE']:
+        """
+        Returns all BEDE cards where the given atom name occurs as name1 or name2.
+        """
+        atom_name = atom_name.upper()
+        return [b for b in self.bede_cards if atom_name in (b.name1, b.name2)]
+
+    def get_lone_for_atom(self, atom_name: str) -> List['LONE']:
+        """
+        Returns all LONE cards for the given atom name.
+        """
+        atom_name = atom_name.upper()
+        return [lo for lo in self.lone_cards if lo.name == atom_name]
 
     def elem2sfac(self, atom_type: str) -> int:
         """
