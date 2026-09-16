@@ -9,6 +9,8 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
+from __future__ import annotations
+
 __doc__ = """
 This is a full implementation of the SHELXL file syntax. Additionally it is able to edit SHELX properties with Python.
 The implementation is Python3-only and supports SHELXL after 2017 (You should not use old versions anyway).
@@ -22,7 +24,7 @@ import re
 import sys
 from contextlib import suppress
 from pathlib import Path
-from typing import Union, List, Optional
+from typing import cast
 
 from shelxfile.atoms.atom import Atom, BedeLoneResultAtom
 from shelxfile.atoms.atoms import Atoms
@@ -42,6 +44,8 @@ from shelxfile.shelx.sdm import SDM
 from shelxfile.version import VERSION
 
 __version__ = VERSION
+
+ResListEntry = str | Command | Restraint | SFACTable | FVARs | Atom | SYMM | BedeLoneResultAtom
 
 """
 TODO:
@@ -82,7 +86,7 @@ SHX_CARDS = ('TITL', 'CELL', 'ZERR', 'LATT', 'SYMM', 'SFAC', 'UNIT', 'LIST', 'L.
 _EQIV_ATOM_SUFFIX_RE = re.compile(r'^(.*)_\$(\d+)$')
 
 
-class Shelxfile():
+class Shelxfile:
     """
     Class for data from a SHELXL res file. Includes Atoms, cards and unit cell.
     """
@@ -103,100 +107,101 @@ class Shelxfile():
         if verbose:
             self.verbose = True
         # print(f'DEBUG: {self.debug}, VERBOSE: {self.verbose}')
-        self.restraint_errors: List[str] = []
+        self.restraint_errors: list[str] = []
         self.temp_in_kelvin: float = 0.0
         self.shelx_max_line_length: int = 79  # maximum character lenth per line in SHELXL
-        self.cell: Optional[CELL] = None
-        self.ansc: List[float] = []
-        self.abin: Optional[ABIN] = None
-        self.acta: Optional[ACTA] = None
-        self.fmap: Optional[FMAP] = None
-        self.xnpd: Optional[XNPD] = None
-        self.wpdb: Optional[WPDB] = None
-        self.wigl: Optional[WIGL] = None
-        self.temp: Union[int, float] = 20
-        self.swat: Optional[SWAT] = None
-        self.stir: Optional[STIR] = None
-        self.spec: Optional[SPEC] = None
-        self.twst: Optional[TWST] = None
-        self.plan: Optional[PLAN] = None
-        self.prig: Optional[PRIG] = None
-        self.merg: Optional[MERG] = None
-        self.more: Optional[MORE] = None
-        self.move: Optional[MOVE] = None
-        self.defs: Optional[DEFS] = None
-        self.zerr: Optional[ZERR] = None
-        self.wght: Optional[WGHT] = None
-        self.frag: Optional[FRAG] = None
-        self.twin: Optional[TWIN] = None
-        self.basf: Optional[BASF] = None
-        self.latt: Optional[LATT] = None
-        self.anis: Optional[ANIS] = None
-        self.damp: Optional[DAMP] = None
-        self.unit: Optional[UNIT] = None
-        self.size: Optional[SIZE] = None
-        self.htab: Optional[HTAB] = None
-        self.shel: Optional[SHEL] = None
-        self.mpla: Optional[MPLA] = None
-        self.hklf: Optional[HKLF] = None
-        self.grid: Optional[GRID] = None
-        self.conn: Optional[CONN] = None
-        self.conf: Optional[CONF] = None
-        self.afix: Optional[AFIX] = None
-        self.rtab: List[RTAB] = []
-        self.omit: List[str] = []
-        self.free: List[FREE] = []
-        self.eqiv: List[str] = []
-        self.bonds: List[BOND] = []
-        self.disp: List[BOND] = []
-        self.bind: List[BIND] = []
-        self.bloc: List[BLOC] = []
+        self.cell: CELL | None = None
+        self.ansc: list[float] = []
+        self.abin: ABIN | None = None
+        self.acta: ACTA | None = None
+        self.fmap: FMAP | None = None
+        self.xnpd: XNPD | None = None
+        self.wpdb: WPDB | None = None
+        self.wigl: WIGL | None = None
+        self.temp: int | float = 20
+        self.swat: SWAT | None = None
+        self.stir: STIR | None = None
+        self.spec: SPEC | None = None
+        self.twst: TWST | None = None
+        self.plan: PLAN | None = None
+        self.prig: PRIG | None = None
+        self.merg: MERG | None = None
+        self.more: MORE | None = None
+        self.move: MOVE | None = None
+        self.defs: DEFS | None = None
+        self.zerr: ZERR | None = None
+        self.wght: WGHT | None = None
+        self.frag: FRAG | None = None
+        self.twin: TWIN | None = None
+        self.basf: BASF | None = None
+        self.latt: LATT | None = None
+        self.anis: ANIS | None = None
+        self.damp: DAMP | None = None
+        self.unit: UNIT | None = None
+        self.size: SIZE | None = None
+        self.htab: HTAB | None = None
+        self.shel: SHEL | None = None
+        self.mpla: MPLA | None = None
+        self.hklf: HKLF | None = None
+        self.grid: GRID | None = None
+        self.conn: CONN | None = None
+        self.conf: CONF | None = None
+        self.afix: AFIX | None = None
+        self.rtab: list[RTAB] = []
+        self.omit: list[list[str]] = []
+        self.free: list[FREE] = []
+        self.eqiv: list[list[str]] = []
+        self.bonds: list[BOND] = []
+        self.disp: list[DISP] = []
+        self.bind: list[BIND] = []
+        self.bloc: list[BLOC] = []
         self.part: PART = PART(self, ['PART', '0'])
         self.resi: RESI = RESI(self, ['RESI', '0'])
         self.residues = Residues(self)
-        self.dsrlines: List[str] = []
-        self.dsrline_nums: List[int] = []
+        self.dsrlines: list[str] = []
+        self.dsrline_nums: list[int] = []
         self.symmcards: SymmCards = SymmCards(self)
-        self.hfixes: List[HFIX] = []
-        self.sump: List[SUMP] = []
-        self.wght_suggested: Optional[WGHT] = None
+        self.hfixes: list[HFIX] = []
+        self.sump: list[SUMP] = []
+        self.wght_suggested: WGHT | None = None
         self.Z: int = 1
         self.titl: str = ""
         self.exti: float = 0.0
         self.ansr: float = 0.001
-        self.rem: List[REM] = []
+        self.rem: list[REM] = []
         self.atoms: Atoms = Atoms(self)
-        self.bede_cards: List[BEDE] = []
-        self.lone_cards: List[LONE] = []
-        self.bede_lone_results: List[BedeLoneResultAtom] = []
+        self.bede_cards: list[BEDE] = []
+        self.lone_cards: list[LONE] = []
+        self.bede_lone_results: list[BedeLoneResultAtom] = []
         self.fvars: FVARs = FVARs(self)
         self.restraints: Restraints = Restraints()
         self.sfac_table: SFACTable = SFACTable(self)
-        self.cycles: Optional[LSCycles] = None
-        self.R1: Optional[float] = None
-        self.wr2: Optional[float] = None
-        self.goof: Optional[float] = None
-        self.rgoof: Optional[float] = None
-        self.space_group: Optional[str] = None
-        self.data: Optional[int] = None
-        self.parameters: Optional[int] = None
-        self.dat_to_param: Optional[float] = None
-        self.num_restraints: Optional[int] = None
-        self.highest_peak: Optional[float] = None
-        self.deepest_hole: Optional[float] = None
-        self.formula_weight: Optional[float] = None
+        self.cycles: LSCycles | None = None
+        self.R1: float | None = None
+        self.wr2: float | None = None
+        self.goof: float | None = None
+        self.rgoof: float | None = None
+        self.space_group: str | None = None
+        self.data: int | None = None
+        self.parameters: int | None = None
+        self.dat_to_param: float | None = None
+        self.num_restraints: int | None = None
+        self.highest_peak: float | None = None
+        self.deepest_hole: float | None = None
+        self.formula_weight: float | None = None
         self.end: bool = False
         self.maxsof: float = 1.0
-        self.delete_on_write: set = set()
+        self.delete_on_write: set[int] = set()
         self.wavelength: float = 0.0
-        self.global_sadi: Optional[int] = None
+        self.global_sadi: int | None = None
         self.list: int = 0
         self.theta_full: float = 0.0
         self.error_line_num: int = -1  # Only used to tell the line number during an exception.
-        self.resfile: Optional[Path] = None
-        self._reslist: List[Union[str, Command, SFACTable, FVARs, Atom, SYMM]] = []
+        self.resfile: Path | None = None
+        self.orthogonal_matrix: Array | None = None
+        self._reslist: list[ResListEntry] = []
 
-    def write_shelx_file(self, filename: Union[str, Path, None] = None) -> None:
+    def write_shelx_file(self, filename: str | Path | None = None) -> None:
         if not self._reslist:
             print('*** No file was loaded for writing. ***')
             return None
@@ -204,6 +209,7 @@ class Shelxfile():
             filename = self.resfile
         if isinstance(filename, str):
             filename = Path(filename)
+        filename = cast(Path, filename)
         with open(filename, 'w') as f:
             for num, line in enumerate(self._reslist):
                 if num in self.delete_on_write:
@@ -219,7 +225,7 @@ class Shelxfile():
         if self.verbose or self.debug:
             print(f'*** File successfully written to {filename.resolve()} ***')
 
-    def read_file(self, resfile: Union[Path, str]) -> None:
+    def read_file(self, resfile: Path | str) -> None:
         """
         Read input from a file path.
         """
@@ -230,7 +236,7 @@ class Shelxfile():
         if self.debug:
             print(f'Resfile is: {resfile}')
         try:
-            self._reslist: List = resfile.read_text().splitlines(keepends=False)
+            self._reslist = cast(list[ResListEntry], resfile.read_text().splitlines(keepends=False))
             self._test_if_file_is_valid(resfile)
         except UnicodeDecodeError:
             if self.debug or self.verbose:
@@ -239,13 +245,13 @@ class Shelxfile():
         self._find_included_files()
         self.parse_cards()
 
-    def read_string(self, resfile_string: str):
+    def read_string(self, resfile_string: str) -> None:
         """
         Read input as string.
         This will not read files included with "+filename" syntax!
         """
         self.__init__(debug=self.debug, verbose=self.verbose)
-        self._reslist = resfile_string.splitlines(keepends=False)
+        self._reslist = cast(list[ResListEntry], resfile_string.splitlines(keepends=False))
         self.parse_cards()
 
     def parse_cards(self) -> None:
@@ -260,12 +266,9 @@ class Shelxfile():
                 return
         self.restraint_errors = self._assign_atoms_to_restraints()
 
-    def _assign_atoms_to_restraints(self) -> List[str]:
-        warnings = []
-        # Pre-compute which residue numbers contain atoms for each residue class.
-        # This allows skipping empty residues (defined by RESI but without atoms)
-        # during restraint validation, matching SHELXL's own behaviour.
-        populated_resi_nums_by_class: dict = {}
+    def _assign_atoms_to_restraints(self) -> list[str]:
+        warnings: list[str] = []
+        populated_resi_nums_by_class: dict[str, set[int]] = {}
         for atom in self.atoms:
             cls = atom.resiclass
             num = atom.resinum
@@ -273,7 +276,7 @@ class Shelxfile():
                 populated_resi_nums_by_class[cls] = set()
             populated_resi_nums_by_class[cls].add(num)
         # Warn about residues that are defined (via RESI) but contain no atoms.
-        empty_residues = []
+        empty_residues: list[str] = []
         for resi in self.residues.all_residues:
             if resi.residue_number not in populated_resi_nums_by_class.get(resi.residue_class, set()):
                 empty_residues.append(f'{resi.residue_class} {resi.residue_number}')
@@ -317,8 +320,13 @@ class Shelxfile():
             print('\n'.join(warnings))
         return warnings
 
-    def does_atom_exist(self, atom_name: str, bad_atoms: List[str], restraint_atom: str,
-                         missing_eqiv: List[str]) -> None:
+    def does_atom_exist(
+        self,
+        atom_name: str,
+        bad_atoms: list[str],
+        restraint_atom: str,
+        missing_eqiv: list[str],
+    ) -> None:
         # A trailing '_$n' references a symmetry equivalent atom defined by an EQIV
         # instruction (see EQIV documentation), not a residue number. It has to be
         # stripped off before checking whether the underlying atom really exists.
@@ -352,7 +360,7 @@ class Shelxfile():
             if self.debug:
                 sys.exit()
 
-    def show_line_where_error_occured(self, e):
+    def show_line_where_error_occured(self, e: Exception) -> None:
         try:
             print(f'Error near:\n {self._reslist[self.error_line_num]}')
         except IndexError:
@@ -362,8 +370,10 @@ class Shelxfile():
 
     def _find_included_files(self) -> None:
         # Tracks the file names of included files in order to find recursive inclusion:
-        includefiles = []
+        includefiles: list[str] = []
         for line_num, line in enumerate(self._reslist):
+            if not isinstance(line, str):
+                continue
             if line.startswith('+'):
                 try:
                     file_included_in_includefile = self._read_included_file(includefiles, line)
@@ -383,8 +393,8 @@ class Shelxfile():
                         print(f'*** CANNOT READ INCLUDE FILE {line} ***')
                     # Not sure if this is a good idea: del reslist[n]
 
-    def _read_included_file(self, includefiles: List[str], line: str):
-        include_filename: Path = self.resfile.resolve().parent.joinpath(line[1:])
+    def _read_included_file(self, includefiles: list[str], line: str) -> list[str]:
+        include_filename: Path = cast(Path, self.resfile).resolve().parent.joinpath(line[1:])
         # Detect recursive file inclusion:
         if include_filename.name in includefiles:
             raise ValueError('*** Recoursive include files detected! ***')
@@ -404,16 +414,18 @@ class Shelxfile():
         """
         if self.debug or self.verbose:
             print(f'*** reloading file: {self.resfile} ***')
-        self.read_file(self.resfile.resolve())
+        self.read_file(cast(Path, self.resfile).resolve())
 
     def _parse_cards(self) -> None:
-        last_nonhydrogen_atom: Optional[Atom] = None
+        last_nonhydrogen_atom: Atom | None = None
         # Reference for riding U values: the previous atom whose own U is not a
         # riding code. Unlike the pivot atom this is not restricted to hydrogen.
-        last_unconstrained_atom: Optional[Atom] = None
+        last_unconstrained_atom: Atom | None = None
         lastcard = ''
         fvarnum = 1
         for line_num, line in enumerate(self._reslist):
+            if not isinstance(line, str):
+                continue
             self.error_line_num = line_num  # For exception during parsing.
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
             if line.startswith(' ') or line == '':
@@ -422,31 +434,32 @@ class Shelxfile():
             # This while loop makes wrapped lines look like they are not wrapped. The following lines are then
             # beginning with a space character and thus are ignored. The 'lines' list holds the line nnumbers where
             # 'line' is located ([line_num]) plus the wrapped lines.
-            if multiline_test(self._reslist[line_num]):
+            if multiline_test(line):
                 multiline = True
             else:
                 multiline = False
             while multiline:
                 # Glue together the two lines wrapped with "=":
                 wrapindex += 1
-                line = line.rpartition('=')[0] + self._reslist[line_num + wrapindex]
+                wrapped_line = cast(str, self._reslist[line_num + wrapindex])
+                line = line.rpartition('=')[0] + wrapped_line
                 # self.delete_on_write.update([line_num + wrapindex])
                 list_of_lines.append(line_num + wrapindex)  # list containing the lines of a multiline command
                 # Do not activate this, otherwise, the unwrapping stops after two lines.
-                if multiline_test(self._reslist[line_num + wrapindex]):
+                if multiline_test(wrapped_line):
                     multiline = True
                 else:
                     multiline = False
                 self._reslist[line_num + wrapindex] = ''
             raw_line_with_comment = line  # keep comment for BEDE/LONE parsing before stripping it below
             # The current line split:
-            spline: list = line.split('!')[0].split()  # Ignore comments with "!"
+            spline: list[str] = line.split('!')[0].split()  # Ignore comments with "!"
             # The current line as string:
             line = line.upper().split('!')[0]  # Ignore comments with "!"
             word = line[:4]
             # get RESI:
             if line.startswith(('END', 'HKLF')) and self.resi:
-                self.resi.num = 0
+                setattr(self.resi, 'num', 0)
                 if self.debug or self.verbose:
                     print('RESI in line {} was not closed'.format(line_num + 1))
                 # Do not continue here, otherwise HKLF is not parsed
@@ -489,7 +502,7 @@ class Shelxfile():
                 if last_nonhydrogen_atom:
                     a.pivot = last_nonhydrogen_atom
                 a.u_reference = last_unconstrained_atom
-                a.parse_line(spline, list_of_lines, part=self.part, afix=self.afix, resi=self.resi)
+                a.parse_line(spline, list_of_lines, part=self.part, afix=cast(AFIX, self.afix), resi=self.resi)
                 if not a.is_hydrogen:
                     last_nonhydrogen_atom = a
                     a.pivot = None
@@ -619,7 +632,8 @@ class Shelxfile():
                             raise
                 else:
                     raise ParseOrderError(debug=shx.debug, verbose=shx.verbose)
-                if len(self.unit.values) != len(self.sfac_table.elements_list) and (self.debug or self.verbose):
+                unit = cast(UNIT, self.unit)
+                if len(unit.values) != len(self.sfac_table.elements_list) and (self.debug or self.verbose):
                     print('*** Number of UNIT and SFAC values differ! ***')
                     if self.debug:
                         raise ParseNumError(debug=self.shx.debug, verbose=self.shx.verbose)
@@ -846,7 +860,7 @@ class Shelxfile():
                     if self.debug:
                         raise ParseUnknownParam(debug=self.debug, verbose=self.verbose)
 
-    def _find_atom_insert_position(self, after: Optional['Atom'] = None) -> int:
+    def _find_atom_insert_position(self, after: Atom | None = None) -> int:
         """
         Returns the index in ``_reslist`` at which a new atom should be inserted.
 
@@ -913,16 +927,16 @@ class Shelxfile():
 
     def add_atom(self,
                  name: str,
-                 coordinates: list,
+                 coordinates: list[float | int],
                  element: str = 'C',
-                 uvals: list = None,
+                 uvals: list[float | int] | None = None,
                  part: int = 0,
-                 sof: Optional[float] = None,
-                 occupancy: Optional[float] = None,
+                 sof: float | None = None,
+                 occupancy: float | None = None,
                  fvar: int = 1,
                  resi: int = 0,
-                 after: Optional['Atom'] = None,
-                 coords_are_cartesian: bool = False) -> 'Atom':
+                 after: Atom | None = None,
+                 coords_are_cartesian: bool = False) -> Atom:
         """
         Add a new atom to the structure and insert it into the ``_reslist`` at the
         correct position so that ``write_shelx_file`` produces a valid file.
@@ -999,7 +1013,7 @@ class Shelxfile():
             uvals = [uvals[0], 0.0, 0.0, 0.0, 0.0, 0.0]
         # --- convert coordinates if needed ---
         if coords_are_cartesian:
-            coordinates = list(cart_to_frac(coordinates, list(self.cell)))
+            coordinates = list(cart_to_frac(coordinates, list(cast(CELL, self.cell))))
         # --- auto-register element in SFAC/UNIT ---
         if not self.sfac_table.has_element(element):
             self.sfac_table.add_element(element)
@@ -1035,13 +1049,13 @@ class Shelxfile():
         self.atoms._atomsdict.clear()
         return a
 
-    def frac_to_cart(self, coordinates: list) -> Array:
+    def frac_to_cart(self, coordinates: list[float | int]) -> Array:
         """
         fractional to cartesian coordinates by applying the orthogonal matrix.
         """
-        return self.orthogonal_matrix * Array(coordinates)
+        return cast(Array, cast(Array, self.orthogonal_matrix) * Array(coordinates))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Represents the shelxl object.
         """
@@ -1059,7 +1073,7 @@ class Shelxfile():
             resl.append(line)
         return "\n".join(resl)
 
-    def grow(self, with_qpeaks: bool = False):
+    def grow(self, with_qpeaks: bool = False) -> list[Atom]:
         """
         Returns a list of atoms that represent the complete molecules of the structure.
         """
@@ -1068,7 +1082,7 @@ class Shelxfile():
         packed_atoms = sdm.packer(sdm, needsymm, with_qpeaks=with_qpeaks)
         return packed_atoms
 
-    def write_grown_file(self, filename: Union[str, Path], with_qpeaks: bool = False) -> None:
+    def write_grown_file(self, filename: str | Path, with_qpeaks: bool = False) -> None:
         """Write a grown (complete molecule) .res file in P1 symmetry.
 
         The output file:
@@ -1096,7 +1110,7 @@ class Shelxfile():
         grown_atoms = self.grow(with_qpeaks=with_qpeaks)
         real_grown = [a for a in grown_atoms if not a.qpeak] if not with_qpeaks else grown_atoms
 
-        lines: List[str] = []
+        lines: list[str] = []
 
         # ── Warning comment ───────────────────────────────────────────────
         lines.append('REM This file was grown from the asymmetric unit to complete molecules.')
@@ -1167,7 +1181,7 @@ class Shelxfile():
         if self.verbose or self.debug:
             print(f'*** Grown file written to {filename.resolve()} ***')
 
-    def pack(self, with_qpeaks: bool = False) -> list:
+    def pack(self, with_qpeaks: bool = False) -> list[Atom]:
         """Returns a list of atoms representing the packed unit cell.
 
         Applies all symmetry operations to the asymmetric unit and folds every
@@ -1181,13 +1195,13 @@ class Shelxfile():
         sdm = SDM(self)
         return sdm.pack_unit_cell(with_qpeaks=with_qpeaks)
 
-    def refine(self, cycles: Union[int, None] = None, backup_before: bool = True) -> bool:
+    def refine(self, cycles: int | None = None, backup_before: bool = True) -> bool:
         if self.resfile:
             filen = self.resfile.stem
             if cycles is not None:
-                self.cycles.number = cycles
+                cast(LSCycles, self.cycles).number = cycles
             ref = ShelxlRefine(self, self.resfile)
-            ref.remove_acta_card(self.acta)
+            ref.remove_acta_card(cast(ACTA, self.acta))
             self.write_shelx_file(filen + '.ins')
             ref.run_shelxl(backup_before=backup_before)
             self.reload()
@@ -1196,13 +1210,13 @@ class Shelxfile():
             return True
         return False
 
-    def refine_weight_convergence(self, stop_after: int = 10):
+    def refine_weight_convergence(self, stop_after: int = 10) -> bool:
         """
         Tries to refine weigting sheme from SHELXL until it converged (self.weight_difference() is zero) or
         stopt_after cycles are reached.
         """
         for _ in range(stop_after):
-            difference = self.wght.difference()
+            difference = cast(WGHT, self.wght).difference()
             print("Weighting difference = {} {}".format(*difference))
             if self._weight_converged(difference):
                 return True
@@ -1212,7 +1226,7 @@ class Shelxfile():
         print("Maximum number of refinement cycles reached, but no WGHT convergence.")
         return False
 
-    def _weight_converged(self, diff: List[float]) -> bool:
+    def _weight_converged(self, diff: list[float]) -> bool:
         return diff == [0.0, 0.0]
 
     def _append_card(self, obj, card, line_num: int) -> Command:
@@ -1235,7 +1249,7 @@ class Shelxfile():
         """
         # no empty line, not in cards and not space at start:
         if atomline[:4].upper() not in SHX_CARDS:  # exclude all non-atom cards
-            spline: List[str] = atomline.split()
+            spline: list[str] = atomline.split()
             # Too few parameter for an atom:
             if len(spline) < 5:
                 return False
@@ -1252,7 +1266,7 @@ class Shelxfile():
             return False
 
     @staticmethod
-    def is_atom_spline(word4: str, spline: List[str]) -> bool:
+    def is_atom_spline(word4: str, spline: list[str]) -> bool:
         """
         Fast atom check using a pre-split, pre-uppercased spline.
 
@@ -1280,11 +1294,11 @@ class Shelxfile():
         return True
 
     @staticmethod
-    def _coordinates_are_unrealistic(spline: List[str]) -> bool:
+    def _coordinates_are_unrealistic(spline: list[str]) -> bool:
         return any(float(y) > 4.0 for y in spline[2:5])
 
     @staticmethod
-    def _is_bede_lone_result(raw_line: str, spline: List[str]) -> bool:
+    def _is_bede_lone_result(raw_line: str, spline: list[str]) -> bool:
         """
         Detects a BEDE/LONE bond/lone-pair electron-density pseudo-atom
         result line, e.g.::
@@ -1314,22 +1328,22 @@ class Shelxfile():
             return False
         return True
 
-    def to_cif(self, filename: str = None, template: Optional[str] = None) -> None:
+    def to_cif(self, filename: str | None = None, template: str | None = None) -> None:
         """
         Writes a CIF file from the ShelxFile object.
         """
         if not filename:
-            filename = self.resfile.stem + '.cif'
+            filename = cast(Path, self.resfile).stem + '.cif'
         CifFile(self, template).write_cif(Path(filename))
 
-    def get_bede_for_atom(self, atom_name: str) -> List['BEDE']:
+    def get_bede_for_atom(self, atom_name: str) -> list[BEDE]:
         """
         Returns all BEDE cards where the given atom name occurs as name1 or name2.
         """
         atom_name = atom_name.upper()
         return [b for b in self.bede_cards if atom_name in (b.name1, b.name2)]
 
-    def get_lone_for_atom(self, atom_name: str) -> List['LONE']:
+    def get_lone_for_atom(self, atom_name: str) -> list[LONE]:
         """
         Returns all LONE cards for the given atom name.
         """
@@ -1364,13 +1378,13 @@ class Shelxfile():
         """
         self._reslist.insert(linenum + 1, line)
 
-    def replace_line(self, obj, new_line: str) -> None:
+    def replace_line(self, obj: ResListEntry, new_line: str) -> None:
         """
         Replaces a single line in the res file with new_line.
         """
         self._reslist[self.index_of(obj)] = new_line
 
-    def index_of(self, obj: Union[Atom, Restraint, Command]) -> int:
+    def index_of(self, obj: ResListEntry) -> int:
         return self._reslist.index(obj)
 
     @property
@@ -1381,12 +1395,13 @@ class Shelxfile():
         formstring = ''
         formula_weight = 0.0
         try:
-            val = self.unit.values
+            unit = cast(UNIT, self.unit)
+            val = unit.values
             eli = self.sfac_table.elements_list
         except AttributeError:
             return ''
         if len(val) == len(eli):
-            for el, num in zip(self.sfac_table.elements_list, self.unit.values):
+            for el, num in zip(self.sfac_table.elements_list, unit.values):
                 try:
                     elcount = num / self.Z
                     formula_weight += elcount * float(weight_from_symbol(el.capitalize()))
@@ -1398,16 +1413,18 @@ class Shelxfile():
 
     def update_weight(self) -> None:
         try:
-            self.wght.a = self.wght_suggested.a
-            self.wght.b = self.wght_suggested.b
-            self.wght.c = self.wght_suggested.c
-            self.wght.d = self.wght_suggested.d
-            self.wght.e = self.wght_suggested.e
-            self.wght.f = self.wght_suggested.f
+            wght = cast(WGHT, self.wght)
+            wght_suggested = cast(WGHT, self.wght_suggested)
+            wght.a = wght_suggested.a
+            wght.b = wght_suggested.b
+            wght.c = wght_suggested.c
+            wght.d = wght_suggested.d
+            wght.e = wght_suggested.e
+            wght.f = wght_suggested.f
         except AttributeError:
             return
 
-    def insert_anis(self, atoms: str = '', residue: str = ''):
+    def insert_anis(self, atoms: str = '', residue: str = '') -> None:
         """
         Inserts ANIS into a results file for refinement of anisotropic displacement parameters.
 
@@ -1415,10 +1432,11 @@ class Shelxfile():
         @param atoms: Specify secific atoms or wildcards of atoms.
         @param residue: Specify a residue like ANIS_ABC with residue='ABC' or ANIS_* (residue='*')
         """
+        unit = cast(UNIT, self.unit)
         if atoms:
-            self.add_line(self.unit.position, f'ANIS{"_" if residue else ""}{residue} {atoms}')
+            self.add_line(unit.position, f'ANIS{"_" if residue else ""}{residue} {atoms}')
         else:
-            self.add_line(self.unit.position, 'ANIS')
+            self.add_line(unit.position, 'ANIS')
 
     @property
     def sum_formula_exact(self) -> str:
@@ -1431,7 +1449,7 @@ class Shelxfile():
             formstring += f"{el.capitalize()}{round(sumdict[el], 2):,g} "
         return formstring.strip()
 
-    def sum_formula_exact_as_dict(self) -> dict:
+    def sum_formula_exact_as_dict(self) -> dict[str, float]:
         """
         The sum formula of the structure with all atom occupancies summed together as dictionary.
         """
@@ -1447,7 +1465,7 @@ class Shelxfile():
                 sumdict[el] = 0.0
         return sumdict
 
-    def insert_frag_fend_entry(self, dbatoms: list, cell: list):
+    def insert_frag_fend_entry(self, dbatoms: list, cell: list) -> None:
         """
         Inserts the FRAG ... FEND entry in the res file.
         :param dbatoms:   list of atoms in the database entry
@@ -1463,7 +1481,7 @@ class Shelxfile():
         # insert the db entry right after FVAR
         self.add_line(self.fvars.position, dblines)
 
-    def _get_residuals(self, spline: List[str], line: str) -> None:
+    def _get_residuals(self, spline: list[str], line: str) -> None:
         if Shelxfile._r1_regex.match(line):
             self._get_r1(spline)
         if Shelxfile._wr2_regex.match(line):
@@ -1477,24 +1495,24 @@ class Shelxfile():
         if Shelxfile._spgrp_regex.match(line):
             self._get_space_group(spline)
 
-    def _get_space_group(self, spline: List[str]) -> None:
+    def _get_space_group(self, spline: list[str]) -> None:
         try:
             self.space_group = spline[3]
         except(IndexError, ValueError):
             pass
 
-    def _get_goof(self, spline: List[str]) -> None:
+    def _get_goof(self, spline: list[str]) -> None:
         with suppress(IndexError, ValueError):
             self.goof = float(spline[8].split(',')[0])
             self.rgoof = float(spline[12].split(',')[0])
 
-    def _get_peak_hole(self, spline: List[str]) -> None:
+    def _get_peak_hole(self, spline: list[str]) -> None:
         # REM Highest difference peak  0.407,  deepest hole -0.691,  1-sigma level  0.073
         with suppress(IndexError, ValueError):
             self.highest_peak = float(spline[4].split(",")[0])
             self.deepest_hole = float(spline[7].split(",")[0])
 
-    def _get_params_and_restraints(self, spline: List[str]) -> None:
+    def _get_params_and_restraints(self, spline: list[str]) -> None:
         with suppress(IndexError):
             self.parameters = int(spline[1])
             if self.data and self.parameters:
@@ -1502,11 +1520,11 @@ class Shelxfile():
         with suppress(IndexError, ValueError):
             self.num_restraints = int(spline[-2])
 
-    def _get_wr2(self, spline: List[str]) -> None:
+    def _get_wr2(self, spline: list[str]) -> None:
         with suppress(IndexError, ValueError):
             self.wr2 = float(spline[3].split(",")[0])
 
-    def _get_r1(self, spline: List[str]) -> None:
+    def _get_r1(self, spline: list[str]) -> None:
         with suppress(IndexError, ValueError):
             self.R1 = float(spline[3])
         with suppress(IndexError, ValueError):

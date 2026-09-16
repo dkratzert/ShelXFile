@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import re
 from math import cos, radians, sqrt, sin
-from typing import List, Union, TYPE_CHECKING, Optional, Iterator, Tuple, Dict, Generator
+from typing import TYPE_CHECKING, Iterator
 
 from shelxfile.atoms.pairs import AtomPair
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix, Matrix
@@ -9,7 +11,6 @@ from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
-    from shelxfile.atoms.atom import Atom
 """
 SHELXL cards:
 
@@ -99,14 +100,14 @@ ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
 """
 
 
-class Residue():
-    def __init__(self):
-        self.shx: Optional['Shelxfile'] = None
-        self._spline: str = ''
+class Residue:
+    def __init__(self) -> None:
+        self.shx: Shelxfile | None = None
+        self._spline: list[str] = []
         self.residue_class: str = ''  # '' is the default class (with residue number 0)
 
     @property
-    def residue_number(self) -> List[int]:
+    def residue_number(self) -> list[int]:
         if '_' in self._spline[0] and '$' not in self._spline[0]:
             _, suffix = self._spline[0].upper().split('_')
             if suffix.isdigit():
@@ -120,22 +121,22 @@ class Residue():
 
 class Restraint(Residue):
 
-    def __init__(self, shx: 'Shelxfile', spline: list):
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         Base class for parsing restraints.
         TODO: resolve ranges like SADI_CCF3 O1 > F9
         """
         super().__init__()
-        self.shx: 'Shelxfile' = shx
+        self.shx: Shelxfile = shx
         self.textline: str = ' '.join(spline)
-        self.name: Optional[str] = None
-        self.atoms: List[Atom] = []
+        self.name: str | None = None
+        self.atoms: list[str] = []
 
     @property
     def index(self) -> int:
         return self.shx.index_of(self)
 
-    def _parse_line(self, spline: List[str]):
+    def _parse_line(self, spline: list[str]) -> tuple[list[float], list[str]]:
         """
         Residues may be referenced by any instruction that allows atom names; the reference takes
         the form of the character '_' followed by either the residue class or number without intervening
@@ -167,7 +168,7 @@ class Restraint(Residue):
         # else:
         return params, atoms
 
-    def _get_atompairs(self, atoms: List[str]) -> List[AtomPair]:
+    def _get_atompairs(self, atoms: list[str]) -> list[AtomPair]:
         pairs = []
         for p in chunks(atoms, 2):
             pairs.append(AtomPair(*p))
@@ -200,7 +201,7 @@ class Restraint(Residue):
                 self.s = self.shx.defs.ss
                 self.st = self.shx.defs.ss * 2
 
-    def _paircheck(self):
+    def _paircheck(self) -> None:
         if not self.atoms:
             return
         if len(self.atoms) % 2 != 0 and (self.shx.debug or self.shx.verbose):
@@ -230,22 +231,23 @@ class Restraint(Residue):
                f"{' ' if st else ''}{st} " \
                f"{' '.join(self.atoms)}"'''
 
-    def split(self):
+    def split(self) -> list[str]:
         return self.textline.split()
 
 
-class Command():
+class Command:
     """
     A class to parse all general commands except restraints.
     """
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]):
-        self._shx: 'Shelxfile' = shx
-        self._spline: List[str] = spline
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
+        self._shx: Shelxfile = shx
+        self.shx: Shelxfile = shx
+        self._spline: list[str] = spline
         self.residue_class: str = ''
         self._textline: str = ' '.join(spline)
 
-    def _parse_line(self, spline: List[str], intnums: bool = False) -> Tuple[List[Union[int, float]], List[str]]:
+    def _parse_line(self, spline: list[str], intnums: bool = False) -> tuple[list[int | float], list[str]]:
         """
         :param spline: Split shelxl line
         :param intnums: if numerical parameters should be integer
@@ -267,28 +269,28 @@ class Command():
                 words.append(x)
         return numparams, words
 
-    def set(self, value):
+    def set(self, value: str) -> None:
         self.__init__(self._shx, value.split())
 
     @property
-    def index(self):
+    def index(self) -> int:
         return self._shx.index_of(self)
 
     @property
     def position(self) -> int:
         return self.index
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         for x in self.__repr__().split():
             yield x
 
-    def split(self):
+    def split(self) -> list[str]:
         return self._textline.split()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._textline
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self._textline
 
 
@@ -308,7 +310,7 @@ class ABIN(Command):
 
 class ANIS(Command):
 
-    def __init__(self, shx, spline: List):
+    def __init__(self, shx, spline: list):
         """
         ANIS
         ANIS n
@@ -335,7 +337,7 @@ class ANIS(Command):
 
 class MPLA(Command):
 
-    def __init__(self, shx, spline: List):
+    def __init__(self, shx, spline: list):
         """
         MPLA na atomnames
         """
@@ -347,7 +349,7 @@ class MPLA(Command):
 
 class MORE(Command):
 
-    def __init__(self, shx, spline: List):
+    def __init__(self, shx, spline: list):
         """
         MORE m[1]
         """
@@ -359,7 +361,7 @@ class MORE(Command):
 
 class CELL(Command):
 
-    def __init__(self, shx, spline: List):
+    def __init__(self, shx, spline: list):
         """
         CELL λ a b c α β γ
         """
@@ -420,13 +422,13 @@ class CELL(Command):
     def __iter__(self):
         return iter(self._cell_list)
 
-    def __getitem__(self, item: Union[slice, int]) -> Union[List[float], float]:
+    def __getitem__(self, item: slice | int) -> list[float] | float:
         return self._cell_list[item]
 
 
 class ZERR(Command):
 
-    def __init__(self, shx, spline: List):
+    def __init__(self, shx, spline: list):
         """
         ZERR Z esd(a) esd(b) esd(c) esd(α) esd(β) esd(γ)
         """
@@ -473,14 +475,14 @@ class AFIX(Command):
             return False
 
 
-class Residues():
+class Residues:
 
-    def __init__(self, shx):
+    def __init__(self, shx: Shelxfile) -> None:
         self.shx = shx
-        self.all_residues: list = []
-        self.residue_classes: dict = {}  # class: numbers
+        self.all_residues: list[RESI] = []
+        self.residue_classes: dict[str, list[int]] = {}  # class: numbers
 
-    def append(self, resi: 'RESI') -> None:
+    def append(self, resi: RESI) -> None:
         """
         Adds a new residues to the list of residues.
         """
@@ -492,13 +494,13 @@ class Residues():
             self.residue_classes[resi.residue_class] = [resi.residue_number]
 
     @property
-    def residue_numbers(self):
+    def residue_numbers(self) -> dict[int, str]:
         return dict((x.residue_number, x.residue_class) for x in self.shx.residues.all_residues)
 
 
 class RESI(Command):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]):
+    def __init__(self, shx: Shelxfile, spline: list[str]):
         """
         RESI class[ ] number[0] alias
         """
@@ -506,8 +508,8 @@ class RESI(Command):
         self.shx = shx
         self.residue_class = ''
         self.residue_number: int = 0
-        self.alias: Optional[int] = None
-        self.chain_id: Optional[int] = None
+        self.alias: int | None = None
+        self.chain_id: str | None = None
         self._textline: str = ' '.join(spline)
         if len(spline) < 2 and (self.shx.debug or self.shx.verbose):
             print('*** Wrong RESI definition found! Check your RESI instructions ***')
@@ -519,7 +521,7 @@ class RESI(Command):
             if self.shx.debug:
                 raise ParseSyntaxError(debug=self.shx.debug, verbose=self.shx.verbose)
 
-    def _get_resi_definition(self, resi: List[str]) -> Tuple[str, int, str, int]:
+    def _get_resi_definition(self, resi: list[str]) -> tuple[str, int, str | None, int | None]:
         """
         RESI class[ ] number[0] alias
 
@@ -940,42 +942,42 @@ class BLOC(Command):
         self.shx = shx
 
 
-class FVAR():
-    def __init__(self, number: int = 1, value: float = 0.0):
+class FVAR:
+    def __init__(self, number: int = 1, value: float = 0.0) -> None:
         """
         FVAR osf[1] free variables
         """
-        self.fvar_value = value  # value
-        self.number = number  # occurence inside of FVAR instructions
-        self.usage = 1
+        self.fvar_value: float = value  # value
+        self.number: int = number  # occurence inside of FVAR instructions
+        self.usage: int = 1
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(float(self.fvar_value))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(float(self.fvar_value))
 
 
-class FVARs():
-    def __init__(self, shx):
+class FVARs:
+    def __init__(self, shx: Shelxfile) -> None:
         super(FVARs, self).__init__()
-        self.fvars = []  # free variables
+        self.fvars: list[FVAR] = []  # free variables
         self.shx = shx
-        self._fvarline = 0
+        self._fvarline: int = 0
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[FVAR]:
         """
         Must be defined for __repr__() to work.
         """
         for x in self.fvars:
             yield x
 
-    def __getitem__(self, item: int) -> str:
+    def __getitem__(self, item: int) -> float:
         # SHELXL counts fvars from 1 to x:
         item = abs(item) - 1
         return self.fvars[item].fvar_value
 
-    def __setitem__(self, key, fvar_value):
+    def __setitem__(self, key: int, fvar_value: FVAR) -> None:
         self.fvars[key] = fvar_value
 
     def __len__(self) -> int:
@@ -988,14 +990,14 @@ class FVARs():
         fvars = ['FVAR   ' + i for i in fvars]
         return "\n".join(fvars)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str([x for x in self.fvars])
 
     @property
     def position(self) -> int:
-        return self.shx.index_of(self)
+        return self.shx._reslist.index(self)
 
-    def set_free_variables(self, fvar: int, dummy_fvar: float = 0.5):
+    def set_free_variables(self, fvar: int, dummy_fvar: float = 0.5) -> None:
         """
         Inserts additional free variables according to the fvar number.
         """
@@ -1009,7 +1011,7 @@ class FVARs():
                 fv = FVAR(varlen + n, dummy_fvar)
                 self.fvars.append(fv)
 
-    def append(self, fvar) -> None:
+    def append(self, fvar: FVAR) -> None:
         self.fvars.append(fvar)
 
     def set_fvar_usage(self, fvarnum: int, times: int = 1) -> None:
@@ -1024,7 +1026,7 @@ class FVARs():
             if self.shx.debug:
                 raise ParseParamError(debug=self.shx.debug, verbose=self.shx.verbose)
 
-    def get_fvar_usage(self, fvarnum):
+    def get_fvar_usage(self, fvarnum: int) -> int:
         """
         Returns the usage (count) of a certain free variable.
         """
@@ -1034,17 +1036,17 @@ class FVARs():
             return 0
         return usage
 
-    def fvars_used(self):
+    def fvars_used(self) -> dict[int, int]:
         """
         Retruns a dictionary with the usage of all free variables.
         """
-        used = {}
+        used: dict[int, int] = {}
         for num, fv in enumerate(self.fvars):
             used[num + 1] = fv.usage
         return used
 
     @property
-    def as_stringlist(self):
+    def as_stringlist(self) -> list[str]:
         return [str(x.fvar_value) for x in self.fvars]
 
 
@@ -1106,7 +1108,7 @@ class DISP(Command):
         self.element, self.parameter = self._parse_line(spline)
 
 
-class Restraints():
+class Restraints:
     """
     Base class for the list of restraints.
     """
@@ -1114,12 +1116,12 @@ class Restraints():
     def __init__(self) -> None:
         """
         """
-        self._restraints: List[Restraint] = []
+        self._restraints: list[Restraint] = []
 
-    def append(self, restr: Restraint):
+    def append(self, restr: Restraint) -> None:
         self._restraints.append(restr)
 
-    def __iter__(self) -> Generator:
+    def __iter__(self) -> Iterator[Restraint]:
         x: Restraint
         for x in self._restraints:
             yield x
@@ -1191,7 +1193,7 @@ class NCSY(Restraint):
 
 class ISOR(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]):
+    def __init__(self, shx: Shelxfile, spline: list[str]):
         """
         ISOR s[0.1] st[0.2] atomnames
         """
@@ -1243,7 +1245,7 @@ class BUMP(Restraint):
 
 class DFIX(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         DFIX d s[0.02] atom pairs
         """
@@ -1264,7 +1266,7 @@ class DFIX(Restraint):
 
 class DANG(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         DANG d s[0.04] atom pairs
         """
@@ -1284,7 +1286,7 @@ class DANG(Restraint):
 
 class SADI(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         SADI s[0.02] pairs of atoms
         Instructions with only two atoms are ignored by SHELXL: SADI C3 C4
@@ -1301,7 +1303,7 @@ class SADI(Restraint):
 
 class SAME(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         SAME s1[0.02] s2[0.04] atomnames
         """
@@ -1317,7 +1319,7 @@ class SAME(Restraint):
 
 class RIGU(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]):
+    def __init__(self, shx: Shelxfile, spline: list[str]):
         """
         RIGU s1[0.004] s2[0.004] atomnames
         """
@@ -1333,7 +1335,7 @@ class RIGU(Restraint):
 
 class SIMU(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]):
+    def __init__(self, shx: Shelxfile, spline: list[str]):
         """
         SIMU s[0.04] st[0.08] dmax[2.0] atomnames
         """
@@ -1352,7 +1354,7 @@ class SIMU(Restraint):
 
 class DELU(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]):
+    def __init__(self, shx: Shelxfile, spline: list[str]):
         """
         DELU s1[0.01] s2[0.01] atomnames
         """
@@ -1368,7 +1370,7 @@ class DELU(Restraint):
 
 class CHIV(Restraint):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]):
+    def __init__(self, shx: Shelxfile, spline: list[str]):
         """
         CHIV V[0] s[0.1] atomnames
         """
@@ -1387,7 +1389,7 @@ class EADP(Restraint):
     EADP atomnames
     """
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         super(EADP, self).__init__(shx, spline)
         _, self.atoms = self._parse_line(spline)
 
@@ -1425,7 +1427,7 @@ class DAMP(Command):
 
 class HFIX(Command):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         HFIX mn U[#] d[#] atomnames
         """
@@ -1439,7 +1441,7 @@ class HFIX(Command):
 
 class HKLF(Command):
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         HKLF N[0] S[1] r11...r33[1 0 0 0 1 0 0 0 1] sm[1] m[0]
         """
@@ -1478,11 +1480,11 @@ class SUMP(Command):
         self.c = p.pop(0)
         self.sigma = p.pop(0)
         # this is to have integer free variables
-        _fvars: List[int] = [int(x) for x in p[1::2]]
-        _times: List[Union[int, float]] = [x for x in p[0::2]]
-        self.fvars: List[list[Union[int, float]]] = [[x, y] for x, y in zip(_times, _fvars)]
+        _fvars: list[int] = [int(x) for x in p[1::2]]
+        _times: list[int | float] = [x for x in p[0::2]]
+        self.fvars: list[list[int | float]] = [[x, y] for x, y in zip(_times, _fvars)]
 
-    def __getitem__(self, item: int) -> Union[List[int], List[float]]:
+    def __getitem__(self, item: int) -> list[int] | list[float]:
         return self.fvars[item]
 
 
@@ -1492,7 +1494,7 @@ class SWAT(Command):
     Allows two variables g and U to be refined in order to model diffuse solvent
     """
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]):
+    def __init__(self, shx: Shelxfile, spline: list[str]):
         super().__init__(shx, spline)
         p, _ = self._parse_line(spline)
         if len(p) > 1:
@@ -1514,7 +1516,7 @@ class LATT(Command):
 
     lattint_to_str = {1: 'P', 2: 'I', 3: 'R', 4: 'F', 5: 'A', 6: 'B', 7: 'C'}
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         LATT N[1]
         """
@@ -1554,15 +1556,15 @@ class SYMM(Command):
         return self._as_str()
 
 
-class SymmCards():
+class SymmCards:
     """
     Contains the list of SYMM cards
     """
 
-    def __init__(self, shx: 'Shelxfile') -> None:
+    def __init__(self, shx: Shelxfile) -> None:
         self.shx = shx
-        self._symmcards = [SymmetryElement(['X', 'Y', 'Z'])]
-        self.latt_ops = []
+        self._symmcards: list[SymmetryElement] = [SymmetryElement(['X', 'Y', 'Z'])]
+        self.latt_ops: list[SymmetryElement] = []
 
     def _as_str(self) -> str:
         return "\n".join([str(x) for x in self._symmcards])
@@ -1579,25 +1581,28 @@ class SymmCards():
     def __getitem__(self, item: int) -> SymmetryElement:
         return self._symmcards[item]
 
-    def __iter__(self) -> Generator:
+    def __iter__(self) -> Iterator[SymmetryElement]:
         for x in self._symmcards:
             yield x
 
-    def append(self, symm_data: list) -> None:
+    def append(self, symm_data: list[str]) -> None:
         """
         Add the content of a Shelxl SYMM command to generate the appropriate SymmetryElement instance.
         :param symm_data: list of strings. eg.['1/2+X', '1/2+Y', '1/2+Z']
         :return: None
         """
+        latt = self.shx.latt
+        if latt is None:
+            raise AttributeError('latt')
         new_symm = SymmetryElement(symm_data)
         self._symmcards.append(new_symm)
-        for symm in self.shx.latt.latt_ops:
+        for symm in latt.latt_ops:
             latt_symm = new_symm.apply_latt_symm(symm)
             if latt_symm not in self._symmcards:
                 self._symmcards.append(latt_symm)
-        if self.shx.latt.centric:
+        if latt.centric:
             self._symmcards.append(SymmetryElement(symm_data, centric=True))
-            for symm in self.shx.latt.latt_ops:
+            for symm in latt.latt_ops:
                 latt_symm = new_symm.apply_latt_symm(symm)
                 latt_symm.centric = True
                 self._symmcards.append(latt_symm)
@@ -1607,11 +1612,14 @@ class SymmCards():
         Defines the instance as representing a centrosymmetric structure. Generates the appropriate SymmetryElement
         instances automatically if called before adding further SYMM commands via self.addSymm().
         """
-        self.shx.latt.centric = value
+        latt = self.shx.latt
+        if latt is None:
+            raise AttributeError('latt')
+        latt.centric = value
         self._symmcards.append(SymmetryElement(['-X', '-Y', '-Z']))
         self._symmcards[-1].centric = True
 
-    def set_latt_ops(self, lattops: list) -> None:
+    def set_latt_ops(self, lattops: list[SymmetryElement]) -> None:
         """
         Adds lattice operations. If called before adding SYMM commands, the appropriate lattice operations are used
         automatically to generate further SymmetryElements.
@@ -1675,7 +1683,7 @@ class LSCycles(Command):
         """
         return self.__repr__()
 
-    def __iter__(self) -> Generator:
+    def __iter__(self) -> Iterator[str]:
         for x in self.__repr__().split():
             yield x
 
@@ -1687,8 +1695,8 @@ class LSCycles(Command):
         return self._as_str()
 
 
-class SFACTable():
-    def __init__(self, shx: 'Shelxfile') -> None:
+class SFACTable:
+    def __init__(self, shx: Shelxfile) -> None:
         """
         Holds the information of SFAC instructions. Either with default values and only elements
         SFAC elements
@@ -1697,25 +1705,30 @@ class SFACTable():
 
         SFAC elements  or  SFAC E a1 b1 a2 b2 a3 b3 a4 b4 c f' f" mu r wt
         """
-        self.sfac_table: List[Union[Dict[str, str], Dict[str, int]]] = []
+        self.sfac_table: list[dict[str, str | None]] = []
         self.shx = shx
-        self.elements_list = []
+        self.elements_list: list[str] = []
 
-    def __iter__(self) -> Generator:
+    def __iter__(self) -> Iterator[str]:
         for x in self.sfac_table:
-            yield x['element'].capitalize()
+            element = x['element']
+            if element is not None:
+                yield element.capitalize()
 
     def __repr__(self) -> str:
         sftext = ''
-        elements = []
+        elements: list[str] = []
         for sf in self.sfac_table:
-            if not self.is_exp(sf) and sf['element'].capitalize() not in elements:
-                elements.append(sf['element'].capitalize())
+            element = sf['element']
+            if element is None:
+                continue
+            if not self.is_exp(sf) and element.capitalize() not in elements:
+                elements.append(element.capitalize())
             else:
                 if elements:
                     sftext = self._extend_sfac_text(elements, sftext)
                     elements = []
-                values = []
+                values: list[str | None] = []
                 for x in ('element', 'a1', 'b1', 'a2', 'b2', 'a3', 'b3', 'a4', 'b4', 'c',
                           'fprime', 'fdprime', 'mu', 'r', 'wt'):
                     values.append(sf[x])
@@ -1724,7 +1737,7 @@ class SFACTable():
             sftext = self._extend_sfac_text(elements, sftext)
         return sftext[1:]
 
-    def _extend_sfac_text(self, elements: List[str], sftext: str) -> str:
+    def _extend_sfac_text(self, elements: list[str], sftext: str) -> str:
         sftext += f"\nSFAC {'  '.join(elements)}"
         return sftext
 
@@ -1736,15 +1749,18 @@ class SFACTable():
             raise IndexError
         if index < 0:
             index = len(self.sfac_table) + index + 1
-        return self.sfac_table[index - 1]['element'].capitalize()
+        element = self.sfac_table[index - 1]['element']
+        if element is None:
+            raise KeyError('element')
+        return element.capitalize()
 
-    def parse_element_line(self, spline: List[str]) -> None:
+    def parse_element_line(self, spline: list[str]) -> None:
         """
         Adds a new SFAC card to the list of cards.
         """
         if not ''.join(spline[1:]).isalpha():  # joining, because space is not alphabetical
             # Excplicit with all values
-            sfdic = {}
+            sfdic: dict[str, str | None] = {}
             for n, x in enumerate(['element', 'a1', 'b1', 'a2', 'b2', 'a3', 'b3', 'a4', 'b4', 'c',
                                    'fprime', 'fdprime', 'mu', 'r', 'wt']):
                 if n == 0:
@@ -1764,7 +1780,7 @@ class SFACTable():
         return element.upper() in self.elements_list
 
     @staticmethod
-    def is_exp(item: Dict[str, str]) -> bool:
+    def is_exp(item: dict[str, str | None]) -> bool:
         return 'a1' in item
 
     def add_element(self, element: str) -> None:
@@ -1775,24 +1791,24 @@ class SFACTable():
             return
         self.elements_list.append(element.upper())
         self.sfac_table.append({'element': element.upper(), 'line_number': None})
-        self.shx.unit.add_number(1.0)
+        self.shx.unit.add_number(1.0)  # type: ignore
 
-    def remove_element(self, element: str):
+    def remove_element(self, element: str) -> None:
         del self.sfac_table[self.shx.elem2sfac(element.upper()) - 1]
         del self.elements_list[self.elements_list.index(element.upper())]
 
 
 class UNIT(Command):
-    values: List[Union[int, float]]
+    values: list[int | float]
 
-    def __init__(self, shx, spline: List):
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         UNIT n1 n2 ...
         """
         super(UNIT, self).__init__(shx, spline)
         self.values, _ = self._parse_line(spline)
 
-    def add_number(self, number: float):
+    def add_number(self, number: float) -> None:
         self.values.append(number)
 
     def __iter__(self):
@@ -1804,13 +1820,13 @@ class UNIT(Command):
     def __str__(self) -> str:
         return self.__repr__()
 
-    def __setitem__(self, key: int, value: Union[int, float]) -> None:
+    def __setitem__(self, key: int, value: int | float) -> None:
         self.values[key] = value
 
-    def __getitem__(self, item: int) -> Union[int, float]:
+    def __getitem__(self, item: int) -> int | float:
         return self.values[item]
 
-    def __add__(self, other: Union[int, float]) -> None:
+    def __add__(self, other: int | float) -> None:
         self.values.append(other)
 
 
@@ -1819,9 +1835,9 @@ class BASF(Command):
     BASF scale factors
     BASF can occour in multiple lines.
     """
-    scale_factors: List[Union[int, float]]
+    scale_factors: list[int | float]
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         super(BASF, self).__init__(shx, spline)
         self.scale_factors, _ = self._parse_line(spline)
 
@@ -1831,7 +1847,7 @@ class BASF(Command):
 
 class TWIN(Command):
 
-    def __init__(self, shx, spline: List):
+    def __init__(self, shx, spline: list):
         """
         TWIN 3x3 matrix [-1 0 0 0 -1 0 0 0 -1] N[2]
         +N     -N  m = |N|
@@ -1897,13 +1913,17 @@ class WGHT(Command):
             wght += ' {} {} {} {}'.format(self.c, self.d, self.e, self.f)
         return wght
 
-    def difference(self) -> List[float]:
+    def difference(self) -> list[float]:
         """
         Returns a list with the weight differences of the parameters a and b.
         """
         try:
-            adiff = abs(self.shx.wght.a - self.shx.wght_suggested.a)
-            bdiff = abs(self.shx.wght.b - self.shx.wght_suggested.b)
+            wght = self.shx.wght
+            wght_suggested = self.shx.wght_suggested
+            if wght is None or wght_suggested is None:
+                raise AttributeError
+            adiff = abs(wght.a - wght_suggested.a)
+            bdiff = abs(wght.b - wght_suggested.b)
         except AttributeError:
             print("No suggested weighting scheme found. Unable to proceed.")
             return [0.0, 0.0]
@@ -1927,7 +1947,7 @@ class BEDE(Command):
     and ``b2_value`` resolve them against ``shx.fvars``.
     """
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         super(BEDE, self).__init__(shx, spline)
         self.shx = shx
         self.name1: str = spline[1].upper()
@@ -1937,7 +1957,7 @@ class BEDE(Command):
         self.b1: float = float(spline[5])
         self.b2: float = float(spline[6])
         # Optional trailing comment: '!BOND! direction'
-        self.direction: Optional[str] = None
+        self.direction: str | None = None
         if len(spline) > 7:
             rest = spline[7:]
             if rest and rest[0].upper().strip('!') == 'BOND' and len(rest) > 1:
@@ -1980,7 +2000,7 @@ class LONE(Command):
     and ``b2_value`` resolve them against ``shx.fvars``.
     """
 
-    def __init__(self, shx: 'Shelxfile', spline: List[str]) -> None:
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         super(LONE, self).__init__(shx, spline)
         self.shx = shx
         self.name: str = spline[1].upper()
@@ -1989,7 +2009,7 @@ class LONE(Command):
         self.b1: float = float(spline[4])
         self.b2: float = float(spline[5])
         self.d: float = float(spline[6])
-        self.angle: Optional[float] = float(spline[7]) if len(spline) > 7 else None
+        self.angle: float | None = float(spline[7]) if len(spline) > 7 else None
 
     @property
     def a_value(self) -> float:

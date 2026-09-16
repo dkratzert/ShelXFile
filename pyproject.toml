@@ -43,6 +43,7 @@ include = ["shelxfile*"]
 namespaces = false
 
 [tool.setuptools.package-data]
+"shelxfile" = ["py.typed"]
 "shelxfile.cif" = ["*.tmpl"]
 "shelxfile.atoms.atomic_weights" = ["LICENSE", "README.md"]
 

@@ -9,17 +9,17 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
-from __future__ import print_function
+from __future__ import annotations
 
 import os
 import re
 import subprocess
 import sys
-from contextlib import suppress
 from pathlib import Path
 from shutil import which, copyfile
+from typing import TYPE_CHECKING
 
-with suppress(ImportError):
+if TYPE_CHECKING:
     from shelxfile import Shelxfile
 from shelxfile.misc.misc import remove_file, sep_line, find_line
 from shelxfile.shelx.cards import ACTA
@@ -47,7 +47,7 @@ def get_xl_version_string(exe: str) -> str:
         return ''
 
 
-def find_shelxl_exe(shelxpath=None) -> str:
+def find_shelxl_exe(shelxpath: str | None = None) -> str:
     """
     returns the appropriate shelxl executable
     """
@@ -78,13 +78,13 @@ def find_shelxl_exe(shelxpath=None) -> str:
     return exe
 
 
-class ShelxlRefine():
+class ShelxlRefine:
     """
     A class to do a shelxl refinement. It is only for shelxl 2017 and above!
     The resfilename should be without ending.
     """
 
-    def __init__(self, shx: 'Shelxfile', resfile_path: Path, shelxpath: str = None):
+    def __init__(self, shx: Shelxfile, resfile_path: Path, shelxpath: str | None = None) -> None:
         self.shx = shx
         self.shelxpath = shelxpath
         self.resfile_name = resfile_path.stem
@@ -96,7 +96,7 @@ class ShelxlRefine():
             print('\nSHELXL executable not found in system path.\n')
             print('You can download SHELXL at http://shelx.uni-goettingen.de\n')
 
-    def get_b_array(self):
+    def get_b_array(self) -> int:
         """
         Approximates the B array size to ensure refinement.
         """
@@ -107,7 +107,7 @@ class ShelxlRefine():
             barray = 3000
         return barray
 
-    def remove_acta_card(self, acta_card):
+    def remove_acta_card(self, acta_card: ACTA) -> None:
         """
         Removes ACTA x from reslist and stores value in self._acta_card.
         """
@@ -119,7 +119,7 @@ class ShelxlRefine():
         # self.shx.delete_on_write.update([acta_index])
         self.shx.acta = None
 
-    def restore_acta_card(self):
+    def restore_acta_card(self) -> None:
         """
         Place ACTA after UNIT
         """
@@ -129,7 +129,7 @@ class ShelxlRefine():
         self.shx._reslist.insert(self.shx.unit.index + 1, ' ')
         self.shx.acta = self.shx._assign_card(acta, self.shx.unit.index + 1)
 
-    def backup_shx_file(self):
+    def backup_shx_file(self) -> None:
         """
         makes a copy of the res file
         make backup in shxsaves before every fragment fit.
@@ -157,7 +157,7 @@ class ShelxlRefine():
         except IOError:
             print('\n*** Unable to make backup file from {} in shxsaves. ***'.format(resfile))
 
-    def restore_shx_file(self):
+    def restore_shx_file(self) -> None:
         """
         restores filename from backup
         """
@@ -172,7 +172,7 @@ class ShelxlRefine():
         except IOError:
             print('Unable to delete backup file {}.'.format(self.backup_file))
 
-    def pretty_shx_output(self, out: str):
+    def pretty_shx_output(self, out: str) -> None:
         """
         selectively prints the output from shelx
         """
@@ -247,7 +247,7 @@ class ShelxlRefine():
             self.restore_shx_file()
             sys.exit()
 
-    def check_refinement_results(self, list_file):
+    def check_refinement_results(self, list_file: list[str]) -> bool | None:
         """
         Does some checks if the refinement makes sense e.g. if the data to parameter
         ratio is in an acceptable range.

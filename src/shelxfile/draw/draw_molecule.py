@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import annotations
 
 import sys
 import time
@@ -12,84 +12,84 @@ This module is a fork from https://github.com/des4maisons/molecule-viewer
 """
 
 
-class Coordinate2D(object):
-    def __init__(self, x, y):
+class Coordinate2D:
+    def __init__(self, x: float, y: float) -> None:
         self.x = x
         self.y = y
 
-    def __mul__(self, const):
+    def __mul__(self, const: float) -> Coordinate2D:
         return Coordinate2D(self.x * const, self.y * const)
 
-    def __add__(self, coor):
+    def __add__(self, coor: Coordinate2D) -> Coordinate2D:
         return Coordinate2D(self.x + coor.x, self.y + coor.y)
 
-    def __sub__(self, coor):
+    def __sub__(self, coor: Coordinate2D) -> Coordinate2D:
         return self + coor * (-1)
 
-    def __truediv__(self, const):
+    def __truediv__(self, const: float) -> Coordinate2D:
         return self * (1 / const)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "(%.02f, %.02f)" % (self.x, self.y)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
 
-class Atom(object):
-    def __init__(self, x, y, z, symbol, id):
+class Atom:
+    def __init__(self, x: float, y: float, z: float, symbol: str, id: int) -> None:
         self.coordinate = Coordinate(x, y, z)
         self.symbol = symbol
         self.id = int(id)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str((self.symbol, self.id, self.coordinate))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
-    def flatten(self, plane=None):
+    def flatten(self, plane: list[Coordinate] | None = None) -> Coordinate2D:
         return self.coordinate.flatten(plane)
 
     # Ugly! return symbol in a randomish ansi colour
-    def coloured_symbol(self):
+    def coloured_symbol(self) -> str:
         return "\x1b[" + str(31 + (self.id % 7)) + "m" + self.symbol
 
 
-class Coordinate(object):
-    def __init__(self, x, y, z):
+class Coordinate:
+    def __init__(self, x: float, y: float, z: float) -> None:
         self.x, self.y, self.z = [x, y, z]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "(%.02f, %.02f, %.02f)" % (self.x, self.y, self.z)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
-    def __truediv__(self, const):
+    def __truediv__(self, const: float) -> Coordinate:
         return self * (1 / const)
 
-    def __mul__(self, const):
+    def __mul__(self, const: float) -> Coordinate:
         return Coordinate(self.x * const, self.y * const, self.z * const)
 
-    def __add__(self, coor):
+    def __add__(self, coor: Coordinate) -> Coordinate:
         return Coordinate(self.x + coor.x, self.y + coor.y, self.z + coor.z)
 
     # regular dot product
-    def dot(self, vector):
+    def dot(self, vector: Coordinate) -> float:
         return self.x * vector.x + self.y * vector.y + self.z * vector.z
 
-    def length(self):
+    def length(self) -> float:
         return sqrt((self.x ** 2) + (self.y ** 2) + (self.z ** 2))
 
     # project self onto 'onto'
-    def project(self, onto):
+    def project(self, onto: Coordinate) -> Coordinate:
         length = onto.length()
         scale_factor = self.dot(onto) / (length ** 2)
         return onto * scale_factor
 
     # cross product
-    def cross(self, vector):
+    def cross(self, vector: Coordinate) -> Coordinate:
         a1, a2, a3 = [self.x, self.y, self.z]
         b1, b2, b3 = [vector.x, vector.y, vector.z]
         return Coordinate(a2 * b3 - a3 * b2,
@@ -98,7 +98,7 @@ class Coordinate(object):
 
     # flatten takes a 2-element list of coordinates. When interpreted as vectors,
     # these define a plane in 3-dim'l space
-    def flatten(self, plane=None):
+    def flatten(self, plane: list[Coordinate] | None = None) -> Coordinate2D:
         if plane is None:  # defaults to x-y plane
             plane = [Coordinate(1, 0, 0), Coordinate(0, 1, 0)]
         # copy the list
@@ -129,18 +129,18 @@ class Coordinate(object):
         return Coordinate2D(ratio0, ratio1)
 
 
-class Molecule(object):
-    def __init__(self, shx_atoms: Atoms):
-        self.atoms = []
+class Molecule:
+    def __init__(self, shx_atoms: Atoms) -> None:
+        self.atoms: list[Atom] = []
         for at in shx_atoms:
             self.atoms.append(Atom(at.x, at.y, at.z, at.name, at.resinum))
 
-    def parse_atom(self, str):
-        atype, seqnum, elt, one, x, y, z, who, cares = str.split()
+    def parse_atom(self, atom_line: str) -> None:
+        atype, seqnum, elt, one, x, y, z, who, cares = atom_line.split()
         self.atoms.append(Atom(float(x), float(y), float(z), elt, int(seqnum)))
 
     # dimensions is 2-tuple of the number of characters on x and y axis
-    def draw(self, plane=None, dimensions=None):
+    def draw(self, plane: list[Coordinate] | None = None, dimensions: tuple[int, int] | None = None) -> None:
         if dimensions is None:
             dimensions = (80, 29)
         screen = Screen(dimensions)
@@ -164,7 +164,7 @@ class Molecule(object):
 
 
 class Screen(list):
-    def __init__(self, widthheight):
+    def __init__(self, widthheight: tuple[int, int]) -> None:
         list.__init__(self)
         self.width = widthheight[1]
         self.height = widthheight[0]
@@ -173,12 +173,12 @@ class Screen(list):
             for _ in range(self.height):
                 self[i].append(" ")
 
-    def set(self, index, val):
+    def set(self, index: tuple[int, int], val: str) -> None:
         x = index[0]
         y = index[1]
         self[x][y] = val
 
-    def show(self):
+    def show(self) -> None:
         for row in self:
             print("".join(row))
 

@@ -13,14 +13,14 @@ import random
 import string
 from math import sqrt, radians, cos, sin, acos, degrees, floor
 from operator import sub, add
-from typing import List, Union, Optional, Iterable, Tuple, Self
+from typing import Any, Iterator, Self
 
 import numpy as np
 
 from shelxfile.misc.misc import flatten, determinante
 
 
-class Array(object):
+class Array:
     """
     MIT License
 
@@ -38,10 +38,10 @@ class Array(object):
     """
     __slots__ = ['values']
 
-    def __init__(self, values: Union[list, tuple]):
+    def __init__(self, values: list | tuple):
         self.values = values
 
-    def __iter__(self) -> Iterable[Union[int, float]]:
+    def __iter__(self) -> Iterator[int | float]:
         for v in self.values:
             yield v
 
@@ -51,7 +51,7 @@ class Array(object):
     def __hash__(self) -> int:
         return hash(str(self.values))
 
-    def __add__(self, other: Union[list, 'Array']) -> 'Array':
+    def __add__(self, other: list | Array) -> Array:
         """
         This method is optimized for speed.
         """
@@ -95,7 +95,7 @@ class Array(object):
         else:
             raise TypeError('Unsupported operation.')
 
-    def __mul__(self, other: Union['Array', 'Matrix']) -> Union[float, 'Array']:
+    def __mul__(self, other: Array | Matrix) -> float | Array:
         """
         Calculates: a * b = axbx + ayby + azbz
         """
@@ -111,52 +111,52 @@ class Array(object):
         else:
             return self.dot(other)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return 'Array({})'.format(str(self.values))
 
-    def __getitem__(self, val):
+    def __getitem__(self, val: int) -> int | float:
         """
         Get one item from the array.
         """
         return self.values[val]
 
-    def __setitem__(self, pos, val):
+    def __setitem__(self, pos: int, val: int | float) -> None:
         """
         Get one item from the array.
         """
         self.values[pos] = val
 
-    def norm(self):
+    def norm(self) -> float:
         """
         The squared lenght of an array
         """
         return sum([n ** 2 for n in self.values])
 
-    def normalized(self):
+    def normalized(self) -> float:
         """
         Euclidean norm (straight-line distance) of a vector array.
         """
         return sqrt(self.norm())
 
     @staticmethod
-    def zero(m: int) -> 'Array':
+    def zero(m: int) -> Array:
         """
         Create zero Array of dimension m
         """
         return Array([0.0 for _ in range(m)])
 
     @staticmethod
-    def randarray(m: int) -> 'Array':
+    def randarray(m: int) -> Array:
         """
         Create random Array of dimension m
         """
         return Array([random.randint(1, 99) for _ in range(m)])
 
     @property
-    def floor(self):
+    def floor(self) -> Array:
         return Array(list(map(floor, self.values)))
 
-    def dot(self, other: 'Array') -> float:
+    def dot(self, other: Array) -> float:
         """
         Dot product of an array in kartesian space.
         """
@@ -164,7 +164,7 @@ class Array(object):
             raise ValueError('Vector sizes must match')
         return sum([i * j for i, j in zip(self, other)])
 
-    def cross(self, other: 'Array') -> 'Array':
+    def cross(self, other: Array) -> Array:
         """
         Cross product of the Array (currently only for 3D vectors).
         """
@@ -174,14 +174,14 @@ class Array(object):
         b1, b2, b3 = other
         return Array([(a2 * b3 - a3 * b2), (a3 * b1 - a1 * b3), (a1 * b2 - a2 * b1)])
 
-    def angle(self, other: 'Array') -> float:
+    def angle(self, other: Array) -> float:
         """
         Calculates the angle between two vectors.
         """
         return round(degrees(acos(self.dot(other) / (self.normalized() * other.normalized()))), 9)
 
 
-class Matrix(object):
+class Matrix:
     """
     MIT License
 
@@ -201,13 +201,13 @@ class Matrix(object):
     """
     __slots__ = ['values', 'shape', 'rows', 'columns']
 
-    def __init__(self, values):
+    def __init__(self, values: list | tuple):
         self.shape = (len(values[0]), len(values))
         self.rows = len(values[0])
         self.columns = len(values)
         self.values = values
 
-    def __getitem__(self, val):
+    def __getitem__(self, val: int | tuple | list):
         """
         """
         if isinstance(val, (tuple, list)):
@@ -217,13 +217,13 @@ class Matrix(object):
         else:
             return self.values[val]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         rows = ''
         for row in self.values:
             rows += '|' + ' '.join(['{:>7.4f}'.format(float(x)) for x in row]) + '|' + '\n'
         return rows
 
-    def __add__(self, other: 'Matrix') -> 'Matrix':
+    def __add__(self, other: Matrix) -> Matrix:
         """
         Matrix addition
         """
@@ -239,7 +239,7 @@ class Matrix(object):
         else:
             raise TypeError('Cannot add type {} Array to Matrix.'.format(str(type(other))))
 
-    def __mul__(self, other: Union['Matrix', 'Array', int, float]) -> Union['Matrix', 'Array']:
+    def __mul__(self, other: Matrix | Array | int | float) -> Matrix | Array:
         """
         a * b operation
         """
@@ -252,10 +252,10 @@ class Matrix(object):
         else:
             raise TypeError('Cannot add type {} to Matrix.'.format(str(type(other))))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.shape[1]
 
-    def __iter__(self) -> Iterable[List[float]]:
+    def __iter__(self) -> Iterator[list[float]]:
         for n in self.values:
             yield n
 
@@ -265,7 +265,7 @@ class Matrix(object):
         """
         return all([b == x for (b, x) in zip(other.values, self.values)])
 
-    def __sub__(self, other):
+    def __sub__(self, other: Matrix) -> list:
         """
         Substract two matrices.
         """
@@ -277,7 +277,7 @@ class Matrix(object):
             output.append(tmp[:])
         return output[:]
 
-    def __truediv__(self, other: Union['Matrix', float, int]):
+    def __truediv__(self, other: Matrix | float | int) -> Matrix | Array:
         """
         #>>> Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]]) / Matrix([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
         A / B = A * B^-1
@@ -289,23 +289,23 @@ class Matrix(object):
         else:
             raise NotImplementedError
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key, value) -> None:
         # TODO: Implement setitem
         pass
 
     @property
-    def T(self):
+    def T(self) -> Matrix:
         return self.transposed
 
     @property
-    def transposed(self) -> 'Matrix':
+    def transposed(self) -> Matrix:
         """
         transposes a matrix
         """
         return Matrix(list(zip(*self.values)))
 
     @property
-    def transposed_alt(self) -> 'Matrix':
+    def transposed_alt(self) -> Matrix:
         """
         Transposes the current matrix.
         """
@@ -315,24 +315,24 @@ class Matrix(object):
         return Matrix(rows)
 
     @property
-    def trace(self):
+    def trace(self) -> float:
         return self.values[0][0] + self.values[1][1] + self.values[2][2]
 
-    def dot(self, other):
+    def dot(self, other: Matrix | Array) -> Matrix:
         """
         Dot product of two matrices.
         """
         return Matrix([[sum(a * b for a, b in zip(x_row, y_col)) for y_col in zip(*other)] for x_row in self])
 
     @staticmethod
-    def zero(m: int, n: int) -> 'Matrix':
+    def zero(m: int, n: int) -> Matrix:
         """
         Create zero matrix of dimension m,n
         """
         return Matrix([[0.0 for _ in range(n)] for _ in range(m)])
 
     @staticmethod
-    def randmat(m: int, n: int) -> 'Matrix':
+    def randmat(m: int, n: int) -> Matrix:
         """
         Create random matrix of dimension m, n (rows, columns)
 
@@ -346,7 +346,7 @@ class Matrix(object):
         """
         return Matrix([[random.randint(1, 99) for _ in range(n)] for _ in range(m)])
 
-    def cholesky(self) -> 'Matrix':
+    def cholesky(self) -> Matrix:
         """
         """
         L = Matrix.zero(*self.shape)
@@ -357,7 +357,7 @@ class Matrix(object):
         return L
 
     @property
-    def inversed(self) -> 'Matrix':
+    def inversed(self) -> Matrix:
         """
         Inversion of 3 × 3 matrices
         """
@@ -371,17 +371,17 @@ class Matrix(object):
         return inv
 
     @property
-    def det(self):
+    def det(self) -> float:
         """
         Return determinant of 3x3 matrix.
         """
         return determinante(self.values)
 
     @property
-    def norm(self):
+    def norm(self) -> float:
         return self.frobenius_norm()
 
-    def frobenius_norm(self):
+    def frobenius_norm(self) -> float:
         # To store the sum of squares of the
         # elements of the given matrix
         sumSq = 0
@@ -392,7 +392,7 @@ class Matrix(object):
         # the sum of squares
         return sqrt(sumSq)
 
-    def power_iteration(self, num_simulations=10):
+    def power_iteration(self, num_simulations: int = 10) -> Matrix | Array:
         """
         Eigenvalue algorythm from https://en.wikipedia.org/wiki/Power_iteration
 
@@ -412,7 +412,7 @@ class Matrix(object):
         return b_k
 
 
-class SymmetryElement(object):
+class SymmetryElement:
     """
     Class representing a symmetry operation.
 
@@ -423,7 +423,7 @@ class SymmetryElement(object):
     symm_id = 1
     __slots__ = ['centric', 'symms', 'ID', 'matrix', 'trans']
 
-    def __init__(self, symms, centric=False):
+    def __init__(self, symms: list[str], centric: bool = False) -> None:
         """
         Constructor.
         """
@@ -451,10 +451,10 @@ class SymmetryElement(object):
                   f"|{m[2, 0]:2} {m[2, 1]:2} {m[2, 2]:2}|   |{float(self.trans[2]):>4.2}|\n")
         return string
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.to_shelxl()
 
-    def __eq__(self, other: 'SymmetryElement') -> bool:
+    def __eq__(self, other: SymmetryElement) -> bool:
         """
         Check two SymmetryElement instances for equivalence.
         Note that differences in lattice translation are ignored.
@@ -465,7 +465,7 @@ class SymmetryElement(object):
         t = np.array_equal(self.trans % 1, other.trans % 1)
         return m and t
 
-    def __sub__(self, other: 'SymmetryElement') -> Union[np.ndarray, float]:
+    def __sub__(self, other: SymmetryElement) -> np.ndarray | float:
         """
         Computes and returns the translational difference between two SymmetryElements. Returns 999.0 if the elements
         cannot be superimposed via an integer shift of the translational parts.
@@ -476,7 +476,7 @@ class SymmetryElement(object):
             return 999.0
         return self.trans - other.trans
 
-    def apply_latt_symm(self, latt_symm: 'SymmetryElement') -> 'SymmetryElement':
+    def apply_latt_symm(self, latt_symm: SymmetryElement) -> SymmetryElement:
         """
         Copies SymmetryElement instance and returns the copy after applying the translational part of 'lattSymm'.
         :param latt_symm: SymmetryElement.
@@ -518,7 +518,7 @@ class SymmetryElement(object):
         val = val.replace('0.125', '1/6')
         return val
 
-    def _parse_line(self, symm: str) -> Tuple[List[int], float]:
+    def _parse_line(self, symm: str) -> tuple[list[int], float]:
         symm = symm.upper().replace(' ', '')
         chars = ['X', 'Y', 'Z']
         line = []
@@ -539,7 +539,7 @@ class SymmetryElement(object):
                 string = string.replace('/', './') + '.'
                 return eval('{}'.format(string))
 
-    def _partition(self, symm: str, char: str) -> Tuple[int, str]:
+    def _partition(self, symm: str, char: str) -> tuple[int, str]:
         parts = symm.partition(char)
         if parts[1]:
             if parts[0]:
@@ -557,7 +557,7 @@ class SymmetryElement(object):
 # End of work by Jens Lübben #############
 
 
-def my_isnumeric(value: str):
+def my_isnumeric(value: str) -> bool:
     """
     Determines if a string can be converted to a number.
     """
@@ -568,14 +568,14 @@ def my_isnumeric(value: str):
     return True
 
 
-def mean(values):
+def mean(values: list[float]) -> float:
     """
     returns mean value of a list of numbers
     """
     return sum(values) / float(len(values))
 
 
-def median(nums):
+def median(nums: list[float]) -> float:
     """
     calculates the median of a list of numbers
     """
@@ -591,7 +591,7 @@ def median(nums):
         return sum(ls[int(int(n) / 2 - 1):int(int(n) / 2 + 1)]) / 2.0
 
 
-def std_dev(data: List) -> float:
+def std_dev(data: list[float]) -> float:
     """
     returns standard deviation of values rounded to pl decimal places
     S = sqrt( (sum(x-xm)^2) / n-1 )
@@ -614,7 +614,7 @@ def std_dev(data: List) -> float:
     return sqrt(variance)
 
 
-def nalimov_test(data):
+def nalimov_test(data: list[float]) -> list[int]:
     """
     returns a index list of outliers base on the Nalimov test for data.
     Modified implementation of:
@@ -642,7 +642,7 @@ def nalimov_test(data):
     return outliers
 
 
-def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+def id_generator(size: int = 6, chars: str = string.ascii_uppercase + string.digits) -> str:
     """
     returns a random ID like 'L5J74W'
     :param size: length of the string
@@ -653,7 +653,7 @@ def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
 
-def atomic_distance(p1: List, p2: List, cell=None, shortest_dist=False):
+def atomic_distance(p1: list[float], p2: list[float], cell: Any = None, shortest_dist: bool = False) -> float:
     """
     p1 and p2 are x, y , z coordinates as list ['x', 'y', 'z']
     cell are the cell parameters as list: ['a', 'b', 'c', 'alpha', 'beta', 'gamma']
@@ -686,11 +686,8 @@ def atomic_distance(p1: List, p2: List, cell=None, shortest_dist=False):
         return sqrt(dx ** 2 + dy ** 2 + dz ** 2)
 
 
-def dice_coefficient(a, b, case_insens=True):
+def dice_coefficient(a: str, b: str, case_insens: bool = True) -> float:
     """
-    :type a: str
-    :type b: str
-    :type case_insens: bool
     dice coefficient 2nt/na + nb.
     https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Dice%27s_coefficient#Python
     """
@@ -716,11 +713,8 @@ def dice_coefficient(a, b, case_insens=True):
     return round(dice_coeff, 6)
 
 
-def dice_coefficient2(a, b, case_insens=True):
+def dice_coefficient2(a: str, b: str, case_insens: bool = True) -> float:
     """
-    :type a: str
-    :type b: str
-    :type case_insens: bool
     duplicate bigrams in a word should be counted distinctly
     (per discussion), otherwise 'AA' and 'AAAA' would have a
     dice coefficient of 1...
@@ -763,7 +757,7 @@ def dice_coefficient2(a, b, case_insens=True):
     return round(score, 6)
 
 
-def levenshtein(s1, s2):
+def levenshtein(s1: str, s2: str) -> int:
     """
     The levensteins distance of two strings.
     """
@@ -786,7 +780,8 @@ def levenshtein(s1, s2):
     return previous_row[-1]
 
 
-def distance(x1, y1, z1, x2, y2, z2, round_out=False):
+def distance(x1: float, y1: float, z1: float, x2: float, y2: float, z2: float,
+             round_out: int | bool = False) -> float:
     """
     distance between two points in space for orthogonal axes.
     """
@@ -798,7 +793,7 @@ def distance(x1, y1, z1, x2, y2, z2, round_out=False):
         return d
 
 
-def vol_unitcell(a, b, c, al, be, ga):
+def vol_unitcell(a: float, b: float, c: float, al: float, be: float, ga: float) -> float:
     """
     calculates the volume of a unit cell
     """
@@ -807,12 +802,12 @@ def vol_unitcell(a, b, c, al, be, ga):
     return v
 
 
-class OrthogonalMatrix():
+class OrthogonalMatrix:
     """
     Orthogonalization matrix used to convert fractional coordinates to cartesian.
     """
 
-    def __init__(self, a, b, c, alpha, beta, gamma):
+    def __init__(self, a: float, b: float, c: float, alpha: float, beta: float, gamma: float) -> None:
         self.a, self.b, self.c = a, b, c
         self.V = vol_unitcell(a, b, c, alpha, beta, gamma)
         self.alpha = radians(alpha)
@@ -823,7 +818,7 @@ class OrthogonalMatrix():
                           (self.c * (cos(self.alpha) - cos(self.beta) * cos(self.gamma)) / sin(self.gamma))),
                          (0, 0, self.V / (self.a * self.b * sin(self.gamma)))))
         self.metric_matrix = self.transposed.dot(self.m)
-        self._inversed: Optional[Matrix] = None
+        self._inversed: Matrix | None = None
 
     def __mul__(self, other: Array) -> Array:
         """
@@ -832,7 +827,7 @@ class OrthogonalMatrix():
         return self.m * other
 
     @property
-    def inversed(self):
+    def inversed(self) -> Matrix:
         """
         To convert from cartesian to fractional.
         """
@@ -843,20 +838,20 @@ class OrthogonalMatrix():
             return self._inversed
 
     @property
-    def transposed(self):
+    def transposed(self) -> Matrix:
         return self.m.transposed
 
     # noinspection PyPep8Naming
     @property
-    def T(self):
+    def T(self) -> Matrix:
         return self.m.transposed
 
     @property
-    def values(self):
+    def values(self) -> list | tuple:
         return self.m.values
 
 
-def almost_equal(a: Union[int, float], b: Union[int, float], places=3) -> float:
+def almost_equal(a: int | float, b: int | float, places: int = 3) -> bool:
     """
     Returns True or False if the numbers a and b are equal inside the
     decimal places "places".

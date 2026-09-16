@@ -1,18 +1,20 @@
+from __future__ import annotations
+
 import datetime
 from pathlib import Path
 from string import Template
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING
 from shelxfile.version import VERSION
 from shelxfile.atoms.atoms import Atoms
 
 if TYPE_CHECKING:
-    from shelxfile.shelx.shelxfile import Shelxfile
+    from shelxfile import Shelxfile
 
 
-class CifFile():
+class CifFile:
     """Class for writing IUCr CIF-1.1 of DDL1 compliant Version 2.4.5 files."""
 
-    def __init__(self, shelx_file: 'Shelxfile', template: str = None):
+    def __init__(self, shelx_file: Shelxfile, template: str | None = None) -> None:
         if template is not None:
             self.template = template
         else:
@@ -20,10 +22,10 @@ class CifFile():
         self.data = shelx_file
         self._cif = None
 
-    def __str__(self):
+    def __str__(self) -> str | None:
         return self._cif
 
-    def __repr__(self):
+    def __repr__(self) -> str | None:
         return self._cif
 
     def write_cif(self, cif_path: Path) -> None:
@@ -33,7 +35,7 @@ class CifFile():
         sub = cif.substitute(self._cif_dict())
         cif_path.write_text(sub)
 
-    def _cif_dict(self) -> Dict[str, str]:
+    def _cif_dict(self) -> dict[str, str]:
         cif_dict = {}
         cif_dict["data_name"] = self.data.titl.split()[0].lower() or "unknown"
         cif_dict["version"] = VERSION
@@ -47,7 +49,7 @@ class CifFile():
         cif_dict.update(self._misc_dict())
         return cif_dict
 
-    def _cell_data(self) -> Dict[str, float]:
+    def _cell_data(self) -> dict[str, float]:
         cell = self.data.cell
         return {
             "cell_a"     : cell.a,
@@ -68,7 +70,7 @@ class CifFile():
             "symmetry_loop": '\n'.join(symmcards_),
         }
 
-    def _atoms_data(self) -> Dict[str, str]:
+    def _atoms_data(self) -> dict[str, str]:
         atoms: Atoms = self.data.atoms
         lines = []
         loop_header = ("loop_\n"
@@ -91,7 +93,7 @@ class CifFile():
             "atom_loop"       : '\n'.join(lines),
         }
 
-    def _adp_data(self) -> Dict[str, str]:
+    def _adp_data(self) -> dict[str, str]:
         atoms: Atoms = self.data.atoms
         lines = []
         loop_header = (
@@ -113,7 +115,7 @@ class CifFile():
             "aniso_loop"       : '\n'.join(lines),
         }
 
-    def _misc_dict(self) -> Dict[str, str]:
+    def _misc_dict(self) -> dict[str, str]:
         misc_dict = {}
         misc_dict["temperature"] = round(self.data.temp_in_kelvin, 3) or '?'
         misc_dict["crystal_size_max"] = self.data.size.max or '?'

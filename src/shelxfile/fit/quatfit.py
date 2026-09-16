@@ -1,5 +1,5 @@
 # coding=utf-8
-from __future__ import print_function
+from __future__ import annotations
 
 import copy
 from math import fabs
@@ -27,12 +27,10 @@ from math import sqrt
 # David J. Heisterberg, 1990, unpublished results.
 #
 # This program was heavily modified by Daniel Kratzert
-from typing import List, Tuple
-
 from shelxfile.misc.misc import frac_to_cart, cart_to_frac
 
 
-def matrix_minus_vect(m: List[List[float]], v: Tuple[float, float, float]):
+def matrix_minus_vect(m: list[list[float]], v: tuple[float, float, float]) -> list[list[float]]:
     """
     """
     result = []
@@ -41,7 +39,7 @@ def matrix_minus_vect(m: List[List[float]], v: Tuple[float, float, float]):
     return result
 
 
-def matrix_plus_vect(m: List[List[float]], v: Tuple[float, float, float]):
+def matrix_plus_vect(m: list[list[float]], v: tuple[float, float, float]) -> list[list[float]]:
     """
     """
     result = []
@@ -50,14 +48,14 @@ def matrix_plus_vect(m: List[List[float]], v: Tuple[float, float, float]):
     return result
 
 
-def transpose(a):
+def transpose(a: list) -> list[tuple]:
     """
     transposes a matrix
     """
     return list(zip(*a))
 
 
-def rotmol(frag_atoms, rotmat):
+def rotmol(frag_atoms: list[list[float]], rotmat: list[list[float]]) -> list[list[float]]:
     """
     ROTMOL
     rotate a molecule
@@ -76,7 +74,7 @@ def rotmol(frag_atoms, rotmat):
     return frag_atoms
 
 
-def jacobi(matrix, maxsweeps):
+def jacobi(matrix: list[list[float]], maxsweeps: int) -> tuple[list[list[float]], list[float], int]:
     """
     JACOBI
     Jacobi diagonalizer with sorted output. It is only good for 4x4 matrices.
@@ -153,7 +151,7 @@ def jacobi(matrix, maxsweeps):
     return eigenvect, eigenval, maxsweeps
 
 
-def q2mat(quaternion):
+def q2mat(quaternion: list[float]) -> list[list[float]]:
     """
     Q2MAT
     Generate a left rotation matrix from a normalized quaternion
@@ -180,7 +178,8 @@ def q2mat(quaternion):
     return rotmat
 
 
-def qtrfit(source_xyz, target_xyz, maxsweeps):
+def qtrfit(source_xyz: list[list[float]], target_xyz: list[list[float]],
+           maxsweeps: int) -> tuple[list[float], list[tuple], int]:
     """
      QTRFIT
      Find the quaternion, q,[and left rotation matrix, u] that minimizes
@@ -276,7 +275,7 @@ def qtrfit(source_xyz, target_xyz, maxsweeps):
     return quaternion, transpose(rotmat), maxsweeps
 
 
-def centroid(vectors: List[List[float]]) -> Tuple[float, float, float]:
+def centroid(vectors: list[list[float]]) -> tuple[float, float, float]:
     """
     Calculate the centroid from a vectorset X.
 
@@ -305,7 +304,7 @@ def centroid(vectors: List[List[float]]) -> Tuple[float, float, float]:
     return (s[0] / num, s[1] / num, s[2] / num)
 
 
-def rmsd(vect1, vect2):
+def rmsd(vect1: list[list[float]], vect2: list[list[float]]) -> float:
     """
     Calculate Root-mean-square deviation from two sets of vectors V and W.
 
@@ -330,7 +329,7 @@ def rmsd(vect1, vect2):
     return sqrt(rmsd / N)
 
 
-def show_coordinates(atoms, vect):
+def show_coordinates(atoms: list[str], vect: list[list[float]]) -> None:
     """
     Print coordinates V with corresponding atoms to stdout in XYZ format.
 
@@ -346,7 +345,8 @@ def show_coordinates(atoms, vect):
         print("{0:2s}   1 {1:15.8f} {2:15.8f} {3:15.8f}   11.0  0.04".format(atom, *vect[n]))
 
 
-def fit_fragment(fragment_atoms, source_atoms, target_atoms):
+def fit_fragment(fragment_atoms: list[list[float]], source_atoms: list[list[float]],
+                  target_atoms: list[list[float]]) -> tuple[list, float]:
     """
     Takes a list of fragment atoms and fits them to the position of target atoms. source_atoms are a fraction
     of the fragment to be fitted on the target_atoms.
@@ -389,7 +389,7 @@ def fit_fragment(fragment_atoms, source_atoms, target_atoms):
     return list(rotated_fragment), rms
 
 
-def mytest():
+def mytest() -> None:
     """
     >>> mytest() # DOCTEST: +REPORT_NDIFF +NORMALIZE_WHITESPACE +ELLIPSIS
     Kabsch RMSD:    0.339

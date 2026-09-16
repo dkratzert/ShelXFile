@@ -1,18 +1,26 @@
-class AtomPair():
-    def __init__(self, atom1, atom2):
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from shelxfile.atoms.atom import Atom
+
+
+class AtomPair:
+    def __init__(self, atom1: Atom | None, atom2: Atom | None) -> None:
         self.atom1 = atom1
         self.atom2 = atom2
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.atom1 and self.atom2:
             return f'{self.atom1} {self.atom2}'
         else:
             return ''
 
-    def __len__(self):
+    def __len__(self) -> int:
         if self.atom1 and self.atom2:
             return 2
-        elif not self.atom1 or not self.atom2:
+        else:
             return 0
 
 
@@ -27,7 +35,7 @@ class Bond:
         Interatomic distance in Å.
     """
 
-    def __init__(self, atom1, atom2, distance: float) -> None:
+    def __init__(self, atom1: Atom, atom2: Atom, distance: float) -> None:
         self.atom1 = atom1
         self.atom2 = atom2
         self.distance = distance
@@ -77,7 +85,7 @@ class SymBond(Bond):
         (0 = identity).  Always 0 for plain asymmetric-unit bonds.
     """
 
-    def __init__(self, atom1, atom2, distance: float,
+    def __init__(self, atom1: Atom, atom2: Atom, distance: float,
                  symm_label: str = '', symm_number: int = 0) -> None:
         super().__init__(atom1, atom2, distance)
         self.symm_label = symm_label

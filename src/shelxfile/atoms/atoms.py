@@ -1,18 +1,21 @@
+from __future__ import annotations
+
 from fractions import Fraction
 from math import acos, sqrt, degrees
-from typing import Union, List, TYPE_CHECKING, Iterator, Dict
+from typing import TYPE_CHECKING, Iterator
 
 import numpy as np
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
+    from shelxfile.misc.dsrmath import SymmetryElement
 from shelxfile.atoms.atom import Atom
 from shelxfile.atoms.pairs import Bond, SymBond
 from shelxfile.misc.dsrmath import atomic_distance, Array
 from shelxfile.misc.misc import build_conntable
 
 
-def _build_symm_label(symm_element, h: int, k: int, l: int) -> str:
+def _build_symm_label(symm_element: SymmetryElement, h: int, k: int, l: int) -> str:
     """Build a human-readable symmetry label in SHELXL/CIF style.
 
     Combines the rotation/translation from *symm_element* with the extra
@@ -59,17 +62,17 @@ def _build_symm_label(symm_element, h: int, k: int, l: int) -> str:
     return ', '.join(parts)
 
 
-class Atoms():
+class Atoms:
     """
     All atoms from a SHELXL file with their properties.
     """
 
-    def __init__(self, shx: 'Shelxfile'):
+    def __init__(self, shx: Shelxfile) -> None:
         self.shx = shx
-        self.all_atoms: List[Atom] = []
-        self._atomsdict: Dict[str, Atom] = {}
+        self.all_atoms: list[Atom] = []
+        self._atomsdict: dict[str, Atom] = {}
 
-    def append(self, atom: 'Atom') -> None:
+    def append(self, atom: Atom) -> None:
         """
         Adds a new atom to the list of atoms. Using append is essential.
         """
@@ -89,7 +92,7 @@ class Atoms():
     def __iter__(self) -> Iterator:
         return iter(x for x in self.all_atoms)
 
-    def __getitem__(self, item: int) -> 'Atom':
+    def __getitem__(self, item: int) -> Atom | None:
         return self.get_atom_by_id(item)
 
     def __len__(self) -> int:
@@ -111,7 +114,7 @@ class Atoms():
         #    print('Could not delete atom {}'.format(self.get_atom_by_id(key.atomid).fullname))
 
     @property
-    def atomsdict(self):
+    def atomsdict(self) -> dict[str, Atom]:
         if not self._atomsdict:
             self._atomsdict = dict((atom.fullname.upper(), atom) for atom in self.all_atoms)
         return self._atomsdict
@@ -123,13 +126,14 @@ class Atoms():
         """
         return len(self.all_atoms)
 
-    def get_atom_by_id(self, aid: int) -> Union['Atom', None]:
+    def get_atom_by_id(self, aid: int) -> Atom | None:
         """
         Returns the atom objext with atomId id.
         """
         for a in self.all_atoms:
             if aid == a.atomid:
                 return a
+        return None
 
     def has_atom(self, atom_name: str) -> bool:
         """
@@ -142,7 +146,7 @@ class Atoms():
         else:
             return False
 
-    def get_atom_by_name(self, atom_name: str) -> Union['Atom', None]:
+    def get_atom_by_name(self, atom_name: str) -> Atom | None:
         """
         Returns an Atom object using an atom name with residue number like C1, C1_0, F2_4, etc.
         C1 means atom C1 in residue 0.
@@ -156,7 +160,7 @@ class Atoms():
         #    print(f"Atom {atom_name} not found in atom list.")
         return atom
 
-    def get_multi_atnames(self, atom_name, residue_class):
+    def get_multi_atnames(self, atom_name: str, residue_class: str | None) -> list[Atom] | None:
         atoms = []
         if residue_class:
             for num in self.shx.residues.residue_classes[residue_class]:
@@ -175,7 +179,7 @@ class Atoms():
                 return None
         return atoms
 
-    def get_all_atomcoordinates(self) -> dict:
+    def get_all_atomcoordinates(self) -> dict[str, tuple]:
         """
         Returns a dictionary {'C1': ['1.123', '0.7456', '3.245'], 'C2_2': ...}
         """
@@ -187,7 +191,7 @@ class Atoms():
             atdict[at.name.upper() + '_' + str(at.resinum)] = at.frac_coords
         return atdict
 
-    def get_frag_fend_atoms(self) -> list:
+    def get_frag_fend_atoms(self) -> list[list[float]]:
         """
         Returns a list of atoms with cartesian coordinates. Atom names and sfac are ignored. They come from AFIX 17x.
         [[0.5316439256202359, 7.037351406500001, 10.112963255220803],
@@ -200,7 +204,7 @@ class Atoms():
         return atoms
 
     @property
-    def hydrogen_atoms(self) -> List[Atom]:
+    def hydrogen_atoms(self) -> list[Atom]:
         return [x for x in self.shx.atoms.all_atoms if x.is_hydrogen]
 
     @property
@@ -224,18 +228,18 @@ class Atoms():
         return len([x for x in self.hydrogen_atoms if x.uvals[0] < -1.0])
 
     @property
-    def riding_atoms(self) -> List[Atom]:
+    def riding_atoms(self) -> list[Atom]:
         return [x for x in self.hydrogen_atoms if x.afix]
 
     @property
-    def residues(self) -> list:
+    def residues(self) -> list[int]:
         """
         Returns a list of the residue numbers in the shelx file.
         """
         return list(set([x.resinum for x in self.all_atoms]))
 
     @property
-    def q_peaks(self) -> list:
+    def q_peaks(self) -> list[Atom]:
         r"""
         Returns a list of q-peaks in the file.
         """
@@ -252,7 +256,7 @@ class Atoms():
         except AttributeError:
             return 0.0
 
-    def angle(self, at1: 'Atom', at2: 'Atom', at3: 'Atom') -> float:
+    def angle(self, at1: Atom, at2: Atom, at3: Atom) -> float:
         """
         Calculates the angle between three atoms.
         """
@@ -263,7 +267,7 @@ class Atoms():
         vec2 = ac2 - ac3
         return vec1.angle(vec2)
 
-    def torsion_angle(self, at1: 'Atom', at2: 'Atom', at3: 'Atom', at4: 'Atom') -> float:
+    def torsion_angle(self, at1: Atom, at2: Atom, at3: Atom, at4: Atom) -> float:
         """
         Calculates the torsion angle (dieder angle) between four atoms.
 
@@ -318,7 +322,7 @@ class Atoms():
         return build_conntable(coords, types, parts, radii=radii, symmgen=symmgen)
 
     @property
-    def bonds(self) -> List[Bond]:
+    def bonds(self) -> list[Bond]:
         """All covalent bonds in the asymmetric unit as a human-readable list.
 
         Each entry is a :class:`~shelxfile.atoms.pairs.Bond` with ``atom1``,
@@ -345,7 +349,7 @@ class Atoms():
         list of :class:`~shelxfile.atoms.pairs.Bond`
         """
         atoms = self.all_atoms
-        result: List[Bond] = []
+        result: list[Bond] = []
         for i, j in self.conntable:
             a1, a2 = atoms[i], atoms[j]
             dist = float(np.sqrt(
@@ -357,7 +361,7 @@ class Atoms():
         result.sort(key=lambda b: (b.atom1.fullname_short, b.atom2.fullname_short))
         return result
 
-    def full_bond_list(self, with_qpeaks: bool = False) -> List[SymBond]:
+    def full_bond_list(self, with_qpeaks: bool = False) -> list[SymBond]:
         """Bond list covering every atom in the asymmetric unit and all its
         crystallographic neighbors, including symmetry-generated ones.
 
@@ -412,7 +416,7 @@ class Atoms():
         sdm.calc_sdm()
 
         seen_plain: set = set()  # deduplicate intra-asym-unit bonds
-        result: List[SymBond] = []
+        result: list[SymBond] = []
 
         for item in sdm.sdm_list:
             if not item.covalent:
@@ -460,7 +464,7 @@ class Atoms():
         result.sort(key=lambda b: (b.atom1.fullname_short, b.atom2.fullname_short))
         return result
 
-    def atoms_in_class(self, name: str) -> list:
+    def atoms_in_class(self, name: str) -> list[str]:
         """
         Returns a list of atoms in residue class 'name'
         """

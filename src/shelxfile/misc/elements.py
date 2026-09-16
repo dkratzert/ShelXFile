@@ -11,6 +11,7 @@
 #
 
 import re
+from decimal import Decimal
 
 atoms = ['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg',
          'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe',
@@ -31,7 +32,7 @@ sorted_atoms = ['C', 'D', 'H', 'N', 'O', 'Cl', 'Br', 'I', 'F', 'S', 'P', 'Ac', '
                 'V', 'W', 'Xe', 'Y', 'Yb', 'Zn', 'Zr']
 
 
-def weight_from_symbol(symbol):
+def weight_from_symbol(symbol: str) -> Decimal:
     """
     Returns the weight of an atom from the element symbol.
     """
@@ -555,7 +556,7 @@ element2color = {
 }
 
 
-def get_element_color(element: str) -> str:
+def get_element_color(element: str) -> str | None:
     """
     Retruns RGB color code in Hex for the element.
     """

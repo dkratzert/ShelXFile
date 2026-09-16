@@ -12,17 +12,18 @@
 import os
 import re
 import textwrap
+from collections.abc import Iterable, Sequence
 from math import radians, cos, sin, sqrt
 from shutil import get_terminal_size
 
 from time import time, perf_counter
-from typing import List
+from typing import Any
 
 dsr_regex = re.compile(r'^rem\s+DSR\s+(PUT|REPLACE).*', re.IGNORECASE)
 
 
 class ParseOrderError(Exception):
-    def __init__(self, arg=None, debug=False, verbose=False):
+    def __init__(self, arg: str | None = None, debug: bool = False, verbose: bool = False) -> None:
         if debug or verbose:
             if arg:
                 print(arg)
@@ -31,7 +32,7 @@ class ParseOrderError(Exception):
 
 
 class ParseNumError(Exception):
-    def __init__(self, arg=None, debug=False, verbose=False):
+    def __init__(self, arg: str | None = None, debug: bool = False, verbose: bool = False) -> None:
         if debug or verbose:
             if arg:
                 print(arg)
@@ -39,7 +40,7 @@ class ParseNumError(Exception):
 
 
 class ParseParamError(Exception):
-    def __init__(self, arg=None, debug=False, verbose=False):
+    def __init__(self, arg: str | None = None, debug: bool = False, verbose: bool = False) -> None:
         if debug or verbose:
             if arg:
                 print(arg)
@@ -47,7 +48,7 @@ class ParseParamError(Exception):
 
 
 class ParseUnknownParam(Exception):
-    def __init__(self, arg=None, debug=False, verbose=False):
+    def __init__(self, arg: str | None = None, debug: bool = False, verbose: bool = False) -> None:
         if debug or verbose:
             if arg:
                 print(arg)
@@ -55,7 +56,7 @@ class ParseUnknownParam(Exception):
 
 
 class ParseSyntaxError(Exception):
-    def __init__(self, arg=None, debug=False, verbose=False):
+    def __init__(self, arg: str | None = None, debug: bool = False, verbose: bool = False) -> None:
         if debug or verbose:
             print("*** Syntax Error ***")
 
@@ -67,7 +68,7 @@ except():
 sep_line = (width - 1) * '-'
 
 
-def remove_file(filename):
+def remove_file(filename: str) -> bool | None:
     """
     removes the file "filename" from disk
     program exits when exit is true
@@ -79,9 +80,10 @@ def remove_file(filename):
         except(IOError, OSError):
             return False
         return True
+    return None
 
 
-def find_line(inputlist: List[str], regex: str, start: int = None) -> int:
+def find_line(inputlist: list[str], regex: str, start: int | None = None) -> int:
     """
     returns the index number of the line where regex is found in the inputlist
     if stop is true, stop searching with first line found
@@ -101,7 +103,7 @@ def find_line(inputlist: List[str], regex: str, start: int = None) -> int:
     return -1  # returns -1 if no regex found
 
 
-def which(name: str, flags=os.X_OK, exts=None) -> list:
+def which(name: str, flags: int = os.X_OK, exts: list[str] | None = None) -> list[str]:
     """
     Search PATH for executable files with the given name.
 
@@ -126,7 +128,7 @@ def which(name: str, flags=os.X_OK, exts=None) -> list:
     return result
 
 
-def split_fvar_and_parameter(parameter: float) -> tuple:
+def split_fvar_and_parameter(parameter: float) -> tuple[int, float]:
     """
     Returns the free variable and value of a given parameter e.g. 30.5 for the occupancy.
     :return (fvar: int, value: float)
@@ -152,7 +154,7 @@ def split_fvar_and_parameter(parameter: float) -> tuple:
     return fvar, round(value, 8)
 
 
-def resolve_fvar_encoded_value(value: float, shx) -> float:
+def resolve_fvar_encoded_value(value: float, shx: Any) -> float:
     """
     Resolves a SHELXL "occupancy-style" parameter (e.g. BEDE/LONE a, b1, b2
     fields, or an atom's sof) that is encoded as ``10*fvar + factor`` against
@@ -178,7 +180,7 @@ def resolve_fvar_encoded_value(value: float, shx) -> float:
         return factor
 
 
-def flatten(lis):
+def flatten(lis: Iterable) -> list:
     """
     Given a list, possibly nested to any level, return it flattened.
     From: http://code.activestate.com/recipes/578948-flattening-an-arbitrarily-nested-list-in-python/
@@ -195,7 +197,7 @@ def flatten(lis):
     return new_lis
 
 
-def vol_tetrahedron(a, b, c, d, cell=None):
+def vol_tetrahedron(a: list, b: list, c: list, d: list, cell: list | None = None) -> float:
     """
     Returns the volume of a terahedron spanned by four points.
 
@@ -239,7 +241,7 @@ def vol_tetrahedron(a, b, c, d, cell=None):
     return abs((D / 6))
 
 
-def time_this_method(f):
+def time_this_method(f: Any) -> Any:
     """
     Rather promitive way of timing a method. More advanced would be the profilehooks module.
     """
@@ -277,34 +279,34 @@ def multiline_test(line: str) -> bool:
 
 
 class TextLine:
-    def __init__(self, initdata):
+    def __init__(self, initdata: Any) -> None:
         """
         #>>> t = TextLine('foo')
         #>>> t.id
         """
         self.data = initdata
-        self.next = None
+        self.next: TextLine | None = None
         self.id = time()
 
-    def get_data(self):
+    def get_data(self) -> Any:
         return self.data
 
-    def get_next(self):
+    def get_next(self) -> 'TextLine | None':
         return self.next
 
-    def set_data(self, newdata):
+    def set_data(self, newdata: Any) -> None:
         self.data = newdata
 
-    def set_next(self, newnext):
+    def set_next(self, newnext: 'TextLine | None') -> None:
         self.next = newnext
 
 
-class ResList():
+class ResList:
     """
     Contains the lines of the res file as unordered linked list.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         >>> res = ResList()
         >>> res
@@ -323,11 +325,11 @@ class ResList():
         zweiter
         vierter
         """
-        self.head = None
-        self.tail = None
-        self.size = 0
+        self.head: TextLine | None = None
+        self.tail: TextLine | None = None
+        self.size: int = 0
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         current = self.head
         datalist = []
         if not self.head:
@@ -338,16 +340,16 @@ class ResList():
         datalist.append(self.tail.get_data())
         return "\n".join(datalist)
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return self.head is None
 
-    def add(self, item):
+    def add(self, item: Any) -> None:
         temp = TextLine(item)
         temp.set_next(self.head)
         self.head = temp
         self.size += 1
 
-    def search(self, item):
+    def search(self, item: Any) -> bool:
         current = self.head
         found = False
         while current is not None and not found:
@@ -357,7 +359,7 @@ class ResList():
                 current = current.get_next()
         return found
 
-    def remove(self, item):
+    def remove(self, item: Any) -> None:
         current = self.head
         previous = None
         found = False
@@ -373,7 +375,7 @@ class ResList():
             previous.setNext(current.get_next())
         self.size -= 1
 
-    def append(self, item):
+    def append(self, item: Any) -> None:
         temp = TextLine(item)
         if not self.head:
             self.head = temp
@@ -406,7 +408,7 @@ def wrap_line(line: str) -> str:
     return line
 
 
-def range_resolver(atoms_range: list, atom_names: list) -> list:
+def range_resolver(atoms_range: list[str], atom_names: list[str]) -> list[str]:
     """
     Resolves the atom names of ranges like "C1 > C5"
     and works for each restraint line separately.
@@ -440,7 +442,7 @@ def range_resolver(atoms_range: list, atom_names: list) -> list:
     return atoms_range
 
 
-def walkdir(rootdir, include="", exclude=""):
+def walkdir(rootdir: str, include: str | list[str] = "", exclude: str | list[str] = "") -> list[str]:
     """
     Returns a list of files in all subdirectories with full path.
     :param rootdir: base path from which walk should start
@@ -474,7 +476,7 @@ def walkdir(rootdir, include="", exclude=""):
     return results
 
 
-def frac_to_cart(frac_coord: (list, tuple), cell: list) -> list:
+def frac_to_cart(frac_coord: list[float] | tuple[float, float, float], cell: list[float]) -> list[float]:
     """
     Converts fractional coordinates to cartesian coodinates
     :param frac_coord: [float, float, float]
@@ -493,7 +495,7 @@ def frac_to_cart(frac_coord: (list, tuple), cell: list) -> list:
     return [xc, yc, zc]
 
 
-def frac_to_cart_fast(x: float, y: float, z: float, cell) -> tuple:
+def frac_to_cart_fast(x: float, y: float, z: float, cell: Any) -> tuple[float, float, float]:
     """
     Fast fractional→Cartesian conversion using precomputed upper-triangular matrix
     scalars stored on a CELL object (_M00 … _M22).  Avoids all trig calls.
@@ -511,7 +513,7 @@ def frac_to_cart_fast(x: float, y: float, z: float, cell) -> tuple:
     )
 
 
-def cart_to_frac(cart_coord: list, cell: list) -> tuple:
+def cart_to_frac(cart_coord: list[float], cell: list[float]) -> tuple[float, float, float]:
     """
     converts cartesian coordinates to fractional coordinates
     :param cart_coord: [float, float, float]
@@ -530,7 +532,7 @@ def cart_to_frac(cart_coord: list, cell: list) -> tuple:
     return x, y, z
 
 
-def determinante(a):
+def determinante(a: Sequence[Sequence[float]]) -> float:
     """
     return determinant of 3x3 matrix
     """
@@ -539,7 +541,7 @@ def determinante(a):
             + a[2][0] * (a[0][1] * a[1][2] - a[1][1] * a[0][2]))
 
 
-def subtract_vect(a, b):
+def subtract_vect(a: list[float], b: list[float]) -> tuple[float, float, float]:
     """
     subtract vector b from vector a
     Deprecated, use mpmath instead!!!
@@ -551,19 +553,19 @@ def subtract_vect(a, b):
             a[2] - b[2])
 
 
-def matrix_multiply(A, B):
-    result = [[0 for _ in range(len(B[0]))] for _ in range(len(A))]
+def matrix_multiply(A: Sequence[Sequence[float]], B: Sequence[Sequence[float]]) -> list[list[int | float]]:
+    result: list[list[int | float]] = [[0 for _ in range(len(B[0]))] for _ in range(len(A))]
     for i in range(len(A)):
         for j in range(len(B[0])):
             result[i][j] = sum(A[i][k] * B[k][j] for k in range(len(B)))
     return result
 
 
-def transpose_matrix(matrix):
+def transpose_matrix(matrix: list[list[float]]) -> list[tuple]:
     return list(zip(*matrix))
 
 
-def qr_decomposition(matrix):
+def qr_decomposition(matrix: list[list[float]]) -> tuple[list[tuple], list[list[int | float]]]:
     n = len(matrix)
     Q = [[0.0] * n for _ in range(n)]
     R = [[0.0] * n for _ in range(n)]

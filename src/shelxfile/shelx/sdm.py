@@ -9,11 +9,18 @@
 # Daniel Kratzert
 # ----------------------------------------------------------------------------
 #
+from __future__ import annotations
+
 import time
 from math import sqrt, radians, sin, floor
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from shelxfile import Shelxfile
+    from shelxfile.misc.dsrmath import OrthogonalMatrix
 
 try:
     from shelxfile import sdm_cpp
@@ -59,33 +66,33 @@ def _unique_legal_atom_name(element: str, used_names: set) -> str:
     )
 
 
-class SDMItem(object):
+class SDMItem:
     __slots__ = ['dist', 'atom1', 'atom2', 'a1', 'a2', 'symmetry_number', 'covalent', 'dddd']
 
-    def __init__(self):
-        self.dist = 0.0
-        self.atom1 = None
-        self.a1 = 0
-        self.atom2 = None
-        self.a2 = 0
-        self.symmetry_number = 0
-        self.covalent = True
-        self.dddd = 0
+    def __init__(self) -> None:
+        self.dist: float = 0.0
+        self.atom1: Atom | None = None
+        self.a1: int = 0
+        self.atom2: Atom | None = None
+        self.a2: int = 0
+        self.symmetry_number: int = 0
+        self.covalent: bool = True
+        self.dddd: int = 0
 
-    def __lt__(self, a2):
+    def __lt__(self, a2: SDMItem) -> bool:
         return True if self.dist < a2.dist else False
 
-    def __eq__(self, other: 'SDMItem'):
+    def __eq__(self, other: SDMItem) -> bool:
         if other.a1 == self.a2 and other.a2 == self.a1:
             return True
         return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return '{} {} dist: {:.6} coval: {} sn: {}  {}\n'.format(
             self.a1, self.a2, self.dist, self.covalent, self.symmetry_number, self.dddd)
 
 
-class SDM():
+class SDM:
     """
     Calculates the shortest distance matrix and creates a completed (grown) structure
     by crystal symmetry.
@@ -97,7 +104,7 @@ class SDM():
     - numpy is used for U-value transformations.
     """
 
-    def __init__(self, shx: 'Shelxfile'):
+    def __init__(self, shx: Shelxfile) -> None:
         self.shx = shx
         self.cell = (
             shx.cell.a, shx.cell.b, shx.cell.c,
@@ -114,8 +121,8 @@ class SDM():
         self.cstar = (shx.cell.a * shx.cell.b * sin(radians(shx.cell.gamma))) / shx.cell.V
         self.sdm_list: list[SDMItem] = []
         self.maxmol = 1
-        self.sdmtime = 0
-        self.bondlist = []
+        self.sdmtime: float = 0
+        self.bondlist: list = []
         # Pre-computed symmetry matrices (set in _build_symm_arrays, reused everywhere)
         self._symm_m: list[tuple] = []
         self._symm_t: list[tuple] = []
@@ -373,7 +380,7 @@ class SDM():
         A = 2.0 * (x * y * self.aga + x * z * self.bbe + y * z * self.cal)
         return sqrt(x ** 2 * self.asq + y ** 2 * self.bsq + z ** 2 * self.csq + A)
 
-    def packer(self, sdm: 'SDM', need_symm: list, with_qpeaks=False) -> list:
+    def packer(self, sdm: SDM, need_symm: list, with_qpeaks: bool = False) -> list:
         """
         Packs atoms of the asymmetric unit to real molecules.
         """
@@ -646,7 +653,7 @@ class SDM():
                 float(Ucif_new[1, 2]), float(Ucif_new[0, 2]), float(Ucif_new[0, 1]))
 
 
-def ufrac_to_ucart(A, cell: tuple, uvals: list) -> np.ndarray:
+def ufrac_to_ucart(A: OrthogonalMatrix, cell: tuple, uvals: list) -> np.ndarray:
     """
     Converts anisotropic displacement parameters from fractional (CIF) to
     Cartesian coordinates.
