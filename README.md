@@ -658,6 +658,16 @@ No matter if you loaded a `.res` or `.ins` file, `refine()` runs SHELXL on the `
 ```
 
 
+## Development
+
+### Git hooks
+A `pre-push` hook in `githooks/` rejects pushing a version tag (e.g. `v30`) whose numeric
+version is newer than `VERSION` in `src/shelxfile/version.py` at the tagged commit. Enable it
+once per clone with:
+```bash
+git config core.hooksPath githooks
+```
+
 ## References
 [1] http://shelx.uni-goettingen.de/, G. M. Sheldrick, Acta Cryst. (2015). C71, 3-8.
 https://doi.org/10.1107/S2053229614024218
