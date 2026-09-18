@@ -1,10 +1,8 @@
 # Shelxfile
-<a href="https://repology.org/project/python:shelxfile/versions">
-    <img src="https://repology.org/badge/vertical-allrepos/python:shelxfile.svg" alt="Packaging status" align="right">
-</a>
 
 [![Unit tests](https://github.com/dkratzert/ShelXFile/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/dkratzert/ShelXFile/actions/workflows/unit-tests.yml)
 ![Contributions](https://img.shields.io/badge/contributions-welcome-blue)
+[![PyPI version](https://img.shields.io/pypi/v/shelxfile.svg)](https://pypi.org/project/shelxfile/)
 
 This is a full implementation of the SHELXL[[1](#references)] file syntax. Additionally it is able to edit SHELX properties using Python.
 The implementation is Python3-only and supports SHELXL after 2017 (you should not use old versions anyway).
