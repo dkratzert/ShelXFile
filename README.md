@@ -655,6 +655,51 @@ No matter if you loaded a `.res` or `.ins` file, `refine()` runs SHELXL on the `
  SHELXL Version 2018/3
 ```
 
+## GUI Editor (optional)
+
+An optional, embeddable Qt6 widget for viewing and editing SHELX files is
+available in `shelxfile.gui`. It is **not** installed by default and is not
+imported by `shelxfile/__init__.py` — install the `gui` extra plus a Qt
+binding supported by [qtpy](https://github.com/spyder-ide/qtpy) (e.g. PyQt6):
+
+```bash
+pip install shelxfile[gui] PyQt6
+```
+
+```python
+from qtpy.QtWidgets import QApplication
+from shelxfile import Shelxfile
+from shelxfile.gui.editor_widget import ShelxEditorWidget
+
+app = QApplication([])
+shx = Shelxfile()
+shx.read_file('tests/resources/p21c.res')
+
+editor = ShelxEditorWidget(shx)
+editor.show()
+app.exec()
+```
+
+The widget provides a syntax-highlighted text view plus toolbar actions that
+mutate the bound `Shelxfile` model directly (not just the text):
+
+- **Apply** — re-parses the current text into a fresh `Shelxfile`; on success
+  the model is swapped in and `model_changed` is emitted, on failure an
+  inline error is shown and the old model is left untouched.
+- **Add atom…** / **Delete selected atom(s)** — call `shx.add_atom()` /
+  `atom.delete()` and refresh the text from the model.
+- **Add restraint…** / **Delete selected restraint** — call
+  `shx.add_restraint()` / `restraint.delete()` and refresh the text.
+
+It also exposes two hooks meant for embedding in a 3D viewer such as
+[Fastmolwidget](https://github.com/dkratzert/Fastmolwidget), keyed on
+`atom.fullname_short` (e.g. `"C1_1"`) to match Fastmolwidget's own
+`atomClicked(str)` signal:
+
+```python
+mol_widget.atomClicked.connect(editor.jump_to_atom)          # 3D click -> jump in text
+editor.atom_selected.connect(your_atom_highlight_callback)   # cursor in text -> highlight in 3D
+```
 
 ## Development
 

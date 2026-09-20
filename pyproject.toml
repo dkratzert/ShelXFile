@@ -23,11 +23,17 @@ classifiers = [
 ]
 dependencies = ["numpy>=1.21"]
 
+[project.optional-dependencies]
+gui = ["qtpy"]
+
 [dependency-groups]
 dev = [
     "pytest",
     "ruff",
     "ty",
+    "qtpy",
+    "PyQt6",
+    "pytest-qt",
 ]
 
 [project.urls]

@@ -201,6 +201,24 @@ class Shelxfile:
         self.orthogonal_matrix: Array | None = None
         self._reslist: list[ResListEntry] = []
 
+    def dumps(self) -> str:
+        """
+        Returns the current content of the SHELX file as a single string, with
+        every line wrapped after 79 characters as SHELXL requires. This is the
+        single source of truth used by both :meth:`write_shelx_file` and
+        :meth:`__repr__` so the two never drift apart.
+        """
+        resl = []
+        for num, line in enumerate(self._reslist):
+            if num in self.delete_on_write:
+                continue
+            if line == '':  # and self._reslist[num + 1] == '':
+                continue
+            # Prevent wrapping long lines with \n breaks by splitting first:
+            line = "\n".join([wrap_line(x) for x in str(line).split("\n")])
+            resl.append(line)
+        return "\n".join(resl)
+
     def write_shelx_file(self, filename: str | Path | None = None) -> None:
         if not self._reslist:
             print('*** No file was loaded for writing. ***')
@@ -211,17 +229,7 @@ class Shelxfile:
             filename = Path(filename)
         filename = cast(Path, filename)
         with open(filename, 'w') as f:
-            for num, line in enumerate(self._reslist):
-                if num in self.delete_on_write:
-                    if self.debug:
-                        # print('Deleted line {}'.format(num + 1))
-                        pass
-                    continue
-                if line == '':  # and self._reslist[num + 1] == '':
-                    continue
-                # Prevent wrapping long lines with \n breaks by splitting first:
-                line = "\n".join([wrap_line(x) for x in str(line).split("\n")])
-                f.write(str(line) + '\n')
+            f.write(self.dumps() + '\n')
         if self.verbose or self.debug:
             print(f'*** File successfully written to {filename.resolve()} ***')
 
@@ -1049,6 +1057,79 @@ class Shelxfile:
         self.atoms._atomsdict.clear()
         return a
 
+    #: Restraint keywords accepted by :meth:`add_restraint`, mapped to their
+    #: parsing class. Kept in sync with the dispatch in :meth:`_parse_cards`.
+    #: Public so GUI tooling (e.g. a restraint-type combo box) can list the
+    #: supported keywords without reaching into a private attribute.
+    RESTRAINT_CARD_CLASSES: dict[str, type] = {
+        'DEFS': DEFS, 'NCSY': NCSY, 'ISOR': ISOR, 'FLAT': FLAT, 'BUMP': BUMP,
+        'DFIX': DFIX, 'DANG': DANG, 'SADI': SADI, 'SAME': SAME, 'RIGU': RIGU,
+        'SIMU': SIMU, 'DELU': DELU, 'CHIV': CHIV, 'EADP': EADP, 'EXYZ': EXYZ,
+    }
+
+    def _find_restraint_insert_position(self, after: Restraint | None = None) -> int:
+        """
+        Returns the index in ``_reslist`` at which a new restraint should be
+        inserted.
+
+        Priority order:
+        1. Directly after *after* (if given and present in ``_reslist``).
+        2. Directly after the last existing :class:`~shelxfile.shelx.cards.Restraint`
+           in ``_reslist``.
+        3. Directly before the first :class:`~shelxfile.atoms.atom.Atom`.
+        4. One position before the end of ``_reslist`` as a last resort.
+        """
+        if after is not None:
+            try:
+                return self._reslist.index(after) + 1
+            except ValueError:
+                pass
+        last_restraint_pos = None
+        for i, item in enumerate(self._reslist):
+            if isinstance(item, Restraint):
+                last_restraint_pos = i
+        if last_restraint_pos is not None:
+            return last_restraint_pos + 1
+        for i, item in enumerate(self._reslist):
+            if isinstance(item, Atom):
+                return i
+        return max(len(self._reslist) - 1, 0)
+
+    def add_restraint(self, text: str, after: Restraint | None = None) -> Restraint:
+        """
+        Parse a single restraint instruction line and insert it into the
+        structure at the correct position so that ``write_shelx_file``
+        produces a valid file.
+
+        :param text: A single SHELXL restraint instruction, e.g.
+                     ``'SADI 0.02 C1 C2 C1 C3'`` or ``'DFIX 1.54 C1 C2'``.
+                     The residue-class suffix (e.g. ``'SADI_CCF3'``) is
+                     supported. Only restraint keywords are accepted; see
+                     :data:`RESTRAINT_CARD_CLASSES` for the whitelist.
+        :param after: If given, the new restraint is inserted directly after
+                      this :class:`~shelxfile.shelx.cards.Restraint` in the
+                      file. Otherwise it is appended after the last existing
+                      restraint (or before the first atom if there is none).
+        :returns: The new :class:`~shelxfile.shelx.cards.Restraint` instance.
+        :raises ValueError: if *text* is empty or its keyword is not a
+                             supported restraint instruction.
+        """
+        spline = text.split()
+        if not spline:
+            raise ValueError('add_restraint() requires a non-empty instruction line.')
+        keyword = spline[0].upper().split('_', 1)[0]
+        card_cls = self.RESTRAINT_CARD_CLASSES.get(keyword)
+        if card_cls is None:
+            supported = ', '.join(sorted(self.RESTRAINT_CARD_CLASSES))
+            raise ValueError(
+                f"Unsupported restraint keyword {spline[0]!r}. Supported: {supported}"
+            )
+        restraint = card_cls(self, spline)
+        insert_pos = self._find_restraint_insert_position(after=after)
+        self._reslist.insert(insert_pos, restraint)
+        self.restraints.append(restraint)
+        return restraint
+
     def frac_to_cart(self, coordinates: list[float | int]) -> Array:
         """
         fractional to cartesian coordinates by applying the orthogonal matrix.
@@ -1059,19 +1140,7 @@ class Shelxfile:
         """
         Represents the shelxl object.
         """
-        resl = []
-        for num, line in enumerate(self._reslist):
-            if num in self.delete_on_write:
-                continue
-            try:
-                if line == '' and self._reslist[num + 1] == '':
-                    continue
-            except IndexError:
-                pass
-            # Prevent wrapping long lines with \n breaks by splitting first:
-            line = "".join([wrap_line(x) for x in str(line).split("\n")])
-            resl.append(line)
-        return "\n".join(resl)
+        return self.dumps()
 
     def grow(self, with_qpeaks: bool = False) -> list[Atom]:
         """

@@ -136,6 +136,14 @@ class Restraint(Residue):
     def index(self) -> int:
         return self.shx.index_of(self)
 
+    def delete(self) -> None:
+        """
+        Delete this restraint from the file: removes it from
+        ``shx.restraints`` and from ``shx._reslist``.
+        """
+        self.shx.restraints._restraints.remove(self)
+        del self.shx._reslist[self.shx._reslist.index(self)]
+
     def _parse_line(self, spline: list[str]) -> tuple[list[float], list[str]]:
         """
         Residues may be referenced by any instruction that allows atom names; the reference takes
