@@ -129,13 +129,17 @@ class Restraint(Residue):
     def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         Base class for parsing restraints.
-        TODO: resolve ranges like SADI_CCF3 O1 > F9
         """
         super().__init__()
         self.shx: Shelxfile = shx
         self.textline: str = ' '.join(spline)
         self.name: str | None = None
         self.atoms: list[str] = []
+        #: Leading tokens of the source line: the card name (with any
+        #: residue suffix) plus the numeric parameters, kept verbatim.
+        self._prefix_tokens: list[str] = [spline[0]] if spline else []
+        #: Atom tokens as parsed, used to detect later edits.
+        self._original_atoms: tuple[str, ...] = ()
 
     @property
     def index(self) -> int:
@@ -181,10 +185,30 @@ class Restraint(Residue):
                 params.append(float(x))
             else:
                 atoms.append(x)
+        self._remember_source(spline, atoms)
         # if pairs:
         #    return params, self.get_atompairs(atoms)
         # else:
         return params, atoms
+
+    def _remember_source(self, spline: list[str], atoms: list[str]) -> None:
+        """Record what the source line looked like, for :meth:`__str__`.
+
+        The card name and its numeric parameters are kept as the original
+        *strings* rather than re-formatted from the parsed floats.  Two
+        reasons: the user's own number formatting survives, and a default
+        that came from a preceding ``DEFS`` instruction is never frozen
+        into the file (``_set_defs_values`` resolves those into ``self.s``
+        and friends, so re-emitting them would silently decouple the card
+        from its ``DEFS``).
+        """
+        prefix = [spline[0]]
+        for token in spline[1:]:
+            if not my_isnumeric(token):
+                break
+            prefix.append(token)
+        self._prefix_tokens = prefix
+        self._original_atoms = tuple(atoms)
 
     def _get_atompairs(self, atoms: list[str]) -> list[AtomPair]:
         pairs = []
@@ -229,28 +253,36 @@ class Restraint(Residue):
                 raise ParseNumError(debug=self.shx.debug, verbose=self.shx.verbose)
 
     def __iter__(self) -> Iterator[str]:
-        for x in self.textline.split():
+        for x in str(self).split():
             yield x
 
     def __repr__(self) -> str:
-        return self.textline
+        return str(self)
+
+    @property
+    def atoms_were_edited(self) -> bool:
+        """``True`` once :attr:`atoms` differs from what was parsed."""
+        return tuple(self.atoms) != self._original_atoms
 
     def __str__(self) -> str:
-        return self.textline
-        '''# print(self.atoms, self.residue_number)
-        s = self.s if hasattr(self, 's') else ''
-        s1 = self.s1 if hasattr(self, 's1') else ''
-        s2 = self.s2 if hasattr(self, 's2') else ''
-        st = self.st if hasattr(self, 'st') else ''
-        return f"{self.name}" \
-               f"{' ' if s else ''}{s}" \
-               f"{' ' if s1 else ''}{s1}" \
-               f"{' ' if s2 else ''}{s2}" \
-               f"{' ' if st else ''}{st} " \
-               f"{' '.join(self.atoms)}"'''
+        """Render the card, regenerating only when its atoms were edited.
+
+        An untouched card is echoed exactly as it was read, so loading and
+        writing a file never reflows instructions nobody asked about.  Once
+        :attr:`atoms` has been changed the atom list is rebuilt from it,
+        while the original name and numeric parameters are reused verbatim.
+
+        Post-``END`` cards are inert output and are always echoed; see
+        :class:`CardLifetime`.
+        """
+        if self.lifetime is not CardLifetime.INPUT:
+            return self.textline
+        if not self.atoms_were_edited:
+            return self.textline
+        return ' '.join([*self._prefix_tokens, *self.atoms])
 
     def split(self) -> list[str]:
-        return self.textline.split()
+        return str(self).split()
 
 
 class Command:
@@ -804,6 +836,70 @@ class PLAN(Command):
     def __repr__(self):
         return f'PLAN {self.npeaks:,g}{" " if self.d1 else ""}{self.d1 if self.d1 is not None else ""}' \
                f'{" " if self.d2 else ""}{self.d2 if self.d2 is not None else ""}'
+
+
+class EQIV(Command):
+    """``EQIV $n symmetry operation``
+
+    Defines a symmetry operation that other instructions reference by
+    appending ``_$n`` to an atom name, e.g. ``DFIX C1 C2_$2``.
+
+    Two rules from the SHELXL manual shape how this card may be handled:
+
+    * *"Such a symmetry operation must be defined before it is used"* --
+      an ``EQIV`` is position-sensitive and must never be moved below its
+      first reference.
+    * *"The same $n may not appear on two separate EQIV instructions"* --
+      ids are unique, so they may be removed but never renumbered.
+    """
+
+    #: Valid range of the ``$n`` identifier, per the SHELXL manual.
+    MIN_NUMBER = 1
+    MAX_NUMBER = 511
+
+    def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
+        super().__init__(shx, spline)
+        self.number: int | None = None
+        self.symmop: str = ''
+        self._tokens: list[str] = spline[1:]
+        if len(spline) < 2 or not spline[1].startswith('$'):
+            if shx.debug or shx.verbose:
+                print('*** Invalid EQIV instruction: missing $n identifier ***')
+            if shx.debug:
+                raise ParseSyntaxError(debug=shx.debug, verbose=shx.verbose)
+            return
+        try:
+            self.number = int(spline[1][1:])
+        except ValueError:
+            if shx.debug or shx.verbose:
+                print(f'*** Invalid EQIV identifier {spline[1]!r} ***')
+            if shx.debug:
+                raise ParseNumError(debug=shx.debug, verbose=shx.verbose) from None
+            return
+        if not self.MIN_NUMBER <= self.number <= self.MAX_NUMBER:
+            if shx.debug or shx.verbose:
+                print(f'*** EQIV number {self.number} outside '
+                      f'{self.MIN_NUMBER}..{self.MAX_NUMBER} ***')
+            if shx.debug:
+                raise ParseNumError(debug=shx.debug, verbose=shx.verbose)
+        self.symmop = ' '.join(spline[2:])
+
+    @property
+    def id(self) -> str:
+        """The reference token, e.g. ``'$2'``."""
+        return f'${self.number}' if self.number is not None else ''
+
+    def __getitem__(self, item: int) -> str:
+        """Index the raw tokens after the card name.
+
+        :attr:`Shelxfile.eqiv` used to hold plain ``spline[1:]`` lists, and
+        code such as ``entry[0] == '$2'`` relies on that shape.  Keeping it
+        working avoids breaking callers now that entries are real cards.
+        """
+        return self._tokens[item]
+
+    def __len__(self) -> int:
+        return len(self._tokens)
 
 
 class FRAG(Command):

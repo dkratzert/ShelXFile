@@ -40,7 +40,7 @@ from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
     SFACTable, UNIT, BASF, TWIN, WGHT, BLOC, SymmCards, CONN, CONF, BIND, DISP, GRID, HTAB, MERG, FRAG, FREE, FMAP, \
     MOVE, PLAN, PRIG, RTAB, SHEL, SIZE, SPEC, STIR, TWST, WIGL, WPDB, XNPD, ZERR, CELL, LATT, MORE, MPLA, AFIX, PART, \
-    RESI, ABIN, ANIS, Residues, SWAT, Command, Restraint, BEDE, LONE
+    RESI, ABIN, ANIS, Residues, SWAT, Command, Restraint, BEDE, LONE, EQIV
 from shelxfile.shelx.sdm import SDM
 from shelxfile.version import VERSION
 
@@ -151,7 +151,7 @@ class Shelxfile:
         self.rtab: list[RTAB] = []
         self.omit: list[list[str]] = []
         self.free: list[FREE] = []
-        self.eqiv: list[list[str]] = []
+        self.eqiv: list[EQIV] = []
         self.bonds: list[BOND] = []
         self.disp: list[DISP] = []
         self.bind: list[BIND] = []
@@ -370,7 +370,7 @@ class Shelxfile:
         atom_was_found = len(bad_atoms) == bad_atoms_before
         # Only complain about a missing EQIV definition if the underlying atom itself
         # exists; otherwise the 'unknown atom' warning above already covers it.
-        if eqiv_id and atom_was_found and not any(entry and entry[0] == eqiv_id for entry in self.eqiv):
+        if eqiv_id and atom_was_found and not any(entry.id == eqiv_id for entry in self.eqiv):
             missing_eqiv.append(restraint_atom)
 
     def _test_if_file_is_valid(self, resfile: Path) -> None:
@@ -746,9 +746,13 @@ class Shelxfile:
                 self._append_card(self.disp, DISP(self, spline), line_num)
             elif word == 'EQIV':
                 # EQIV $n symmetry operation
-                # TODO: implement EQUIV class
-                if len(spline) > 1 and spline[1].startswith('$'):
-                    self.eqiv.append(spline[1:])
+                eqiv_card = EQIV(self, spline)
+                if eqiv_card.number is not None:
+                    if any(existing.number == eqiv_card.number for existing in self.eqiv):
+                        if self.debug or self.verbose:
+                            print(f'*** Duplicate EQIV {eqiv_card.id}: the same $n may '
+                                  f'not appear on two EQIV instructions ***')
+                    self._append_card(self.eqiv, eqiv_card, line_num)
             elif word == 'EXTI':
                 # EXTI x[0]
                 self.exti = float(spline[1])
@@ -1501,6 +1505,22 @@ class Shelxfile:
         Replaces a single line in the res file with new_line.
         """
         self._reslist[self.index_of(obj)] = new_line
+
+    def eqiv_by_id(self, eqiv_id: str | int) -> EQIV | None:
+        """The ``EQIV`` card with the given ``$n`` id, or ``None``.
+
+        Accepts either ``'$2'`` or ``2``.
+        """
+        if isinstance(eqiv_id, str):
+            number = int(eqiv_id.lstrip('$')) if eqiv_id.lstrip('$').isdigit() else None
+        else:
+            number = eqiv_id
+        if number is None:
+            return None
+        for card in self.eqiv:
+            if card.number == number:
+                return card
+        return None
 
     def index_of(self, obj: ResListEntry) -> int:
         """Position of *obj* in ``_reslist``, matched by **identity**.
