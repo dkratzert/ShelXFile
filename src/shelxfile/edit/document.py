@@ -16,7 +16,7 @@ variant exists but has to be named explicitly:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterable, Union
+from typing import TYPE_CHECKING, Callable, Iterable, NamedTuple, Union
 
 from shelxfile.edit.cascade import CascadeEngine, CascadePlan
 from shelxfile.edit.eqiv_cleanup import EqivCleaner, validate_symmetry_arity
@@ -44,6 +44,33 @@ if TYPE_CHECKING:
 Observer = Callable[['ShelxDocument'], None]
 
 ResListItem = Union['Atom', 'Restraint', 'Command', str]
+
+
+class ParseAttempt(NamedTuple):
+    """Outcome of :meth:`ShelxDocument.try_from_string`.
+
+    :param document: the parsed document, or ``None`` on failure.
+    :param error: the failure message, or ``None`` on success.
+    :param error_line: 0-based line the parser choked on, ``-1`` if
+        unknown.
+    """
+
+    document: ShelxDocument | None
+    error: str | None
+    error_line: int
+
+    def __bool__(self) -> bool:
+        return self.document is not None
+
+
+def restraint_keywords() -> list[str]:
+    """The restraint instructions :meth:`ShelxDocument.add_restraint` accepts.
+
+    Exposed so a view can offer the vocabulary without importing the
+    model's card registry.
+    """
+    from shelxfile import Shelxfile
+    return sorted(Shelxfile.RESTRAINT_CARD_CLASSES)
 
 
 class ShelxDocument:
@@ -87,6 +114,38 @@ class ShelxDocument:
         shx = Shelxfile(**kwargs)
         shx.read_string(text)
         return cls(shx)
+
+    @classmethod
+    def try_from_string(cls, text: str) -> ParseAttempt:
+        """Parse *text*, reporting failure instead of raising.
+
+        Meant for editors, where the user is mid-edit and a broken file is
+        an expected state rather than a programming error.  Parsing runs
+        with ``debug=True`` so SHELXL problems surface as messages instead
+        of being silently tolerated.
+
+        A file without a ``CELL`` is treated as a failure: nothing
+        downstream can work without a unit cell, and accepting it would
+        replace a good model with an unusable one.
+        """
+        from shelxfile import Shelxfile
+        shx = Shelxfile(debug=True)
+        try:
+            shx.read_string(text)
+        except Exception as exc:  # noqa: BLE001 - any parse failure is a UI message
+            message = str(exc) or type(exc).__name__.replace('_', ' ')
+            return ParseAttempt(None, message, shx.error_line_num)
+        if not shx.cell:
+            return ParseAttempt(
+                None,
+                'Could not parse SHELX file (missing CELL instruction?).',
+                shx.error_line_num,
+            )
+        return ParseAttempt(cls(shx), None, -1)
+
+    def unused_atom_name(self, element: str) -> str:
+        """A free atom name for *element*, e.g. ``'C12'``."""
+        return self._shx.unused_atom_name(element)
 
     # --------------------------------------------------------- rendering
 
@@ -478,8 +537,13 @@ class ShelxDocument:
     def remove_card(self, card) -> DeletionReport:
         """Remove an instruction, leaving its atoms alone (**D-9**).
 
+        Accepts any card the document knows how to detach, restraints
+        included, so a caller never has to work out which family it holds.
         An ``EQIV`` left with nothing referencing it is collected too.
         """
+        from shelxfile.shelx.cards import Restraint as RestraintCard
+        if isinstance(card, RestraintCard):
+            return self.remove_restraint(card)
         report = DeletionReport()
         report.add_card(card, RemovalReason.REQUESTED)
         try:

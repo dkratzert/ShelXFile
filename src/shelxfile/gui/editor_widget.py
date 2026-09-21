@@ -1,11 +1,15 @@
 """A reusable Qt6/qtpy widget for viewing and editing SHELX ``.res``/``.ins``
-files, backed by a :class:`~shelxfile.shelx.shelx.Shelxfile` model.
+files, backed by a :class:`~shelxfile.edit.document.ShelxDocument`.
+
+The widget is a **pure view** (plan decision D-8b).  It renders what the
+document gives it, reports what the user pointed at, and asks the document
+to make changes; it never indexes the model's private line list and never
+decides what a SHELXL instruction means.  All such knowledge lives in
+``shelxfile.edit``, which is Qt-free and testable without a display.
 
 Every mutation made through the widget's toolbar actions (add/delete atom,
-add/delete restraint) is applied to the underlying :class:`Shelxfile` model
-first, and the text view is then regenerated from that model — so the model
-is always the single source of truth, exactly as ``shelxfile`` itself
-requires (``AGENTS.md``: "Everything revolves around ``Shelxfile._reslist``").
+add/delete restraint) goes through the document, which then regenerates the
+text — so the model stays the single source of truth.
 
 Free-hand text edits are only applied to the model when the user (or host
 application) explicitly calls :meth:`ShelxEditorWidget.apply`.
@@ -28,7 +32,7 @@ the same structure in 3D. Two hooks make that integration a single
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING
 
 from qtpy.QtCore import Signal
 from qtpy.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
@@ -46,41 +50,19 @@ from qtpy.QtWidgets import (
 )
 
 from shelxfile.atoms.atom import Atom
+from shelxfile.edit import ShelxDocument, restraint_keywords
 from shelxfile.gui.syntax_highlighter import ShelxSyntaxHighlighter
-from shelxfile.misc.misc import wrap_line
 from shelxfile.shelx.cards import Restraint
-from shelxfile.shelx.shelx import Shelxfile
+
+if TYPE_CHECKING:
+    from shelxfile.shelx.shelx import Shelxfile
 
 __all__ = ['ShelxEditorWidget', 'AddAtomDialog', 'AddRestraintDialog', 'main']
 
 
-def _dump_with_line_map(shx: Shelxfile) -> tuple[str, list[int]]:
-    """
-    Regenerate SHELX text from *shx*, exactly as :meth:`Shelxfile.dumps` does,
-    while also recording which ``_reslist`` index produced each text line.
-
-    :returns: ``(text, line_index_map)`` where ``line_index_map[i]`` is the
-              ``_reslist`` index that produced text line *i* (0-based). A
-              single ``_reslist`` entry that gets wrapped across several
-              lines (long instruction lines) maps all of those lines to the
-              same index.
-    """
-    resl: list[str] = []
-    line_index_map: list[int] = []
-    for num, item in enumerate(shx._reslist):
-        if num in shx.delete_on_write:
-            continue
-        if item == '':
-            continue
-        wrapped = "\n".join(wrap_line(x) for x in str(item).split("\n"))
-        resl.append(wrapped)
-        line_index_map.extend([num] * (wrapped.count("\n") + 1))
-    return "\n".join(resl), line_index_map
-
-
 class ShelxEditorWidget(QWidget):
     """
-    A syntax-highlighted SHELX text editor bound to a :class:`Shelxfile` model.
+    A syntax-highlighted SHELX text editor bound to a :class:`ShelxDocument`.
     """
 
     #: Emitted with the (possibly new) :class:`Shelxfile` instance after a
@@ -97,10 +79,10 @@ class ShelxEditorWidget(QWidget):
     #: a feedback loop with a host's 3D viewer.
     atom_selected = Signal(str)
 
-    def __init__(self, shelxfile: Shelxfile | None = None, parent: QWidget | None = None) -> None:
+    def __init__(self, shelxfile: Shelxfile | ShelxDocument | None = None,
+                 parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._shx: Shelxfile | None = None
-        self._line_index_map: list[int] = []
+        self._document: ShelxDocument | None = None
         self._dirty_since_apply: bool = False
         self._updating_text: bool = False
         self._jumping: bool = False
@@ -150,15 +132,30 @@ class ShelxEditorWidget(QWidget):
     # --------------------------------------------------------------- model
 
     @property
-    def shelxfile(self) -> Shelxfile | None:
-        """The :class:`Shelxfile` model currently bound to this widget."""
-        return self._shx
+    def document(self) -> ShelxDocument | None:
+        """The :class:`ShelxDocument` currently bound to this widget."""
+        return self._document
 
-    def set_shelxfile(self, shx: Shelxfile) -> None:
-        """Bind *shx* to this widget and refresh the text view from it."""
-        self._shx = shx
+    @property
+    def shelxfile(self) -> Shelxfile | None:
+        """The :class:`Shelxfile` model behind the bound document."""
+        return None if self._document is None else self._document.shelxfile
+
+    def set_document(self, document: ShelxDocument) -> None:
+        """Bind *document* to this widget and refresh the text view from it."""
+        if self._document is not None:
+            self._document.unsubscribe(self._on_document_changed)
+        self._document = document
+        document.subscribe(self._on_document_changed)
         self._hide_error()
         self._refresh_text_from_model(preserve_cursor=False)
+
+    def set_shelxfile(self, shx: Shelxfile | ShelxDocument) -> None:
+        """Bind a model (or a document) to this widget and refresh the view."""
+        self.set_document(shx if isinstance(shx, ShelxDocument) else ShelxDocument(shx))
+
+    def _on_document_changed(self, _document: ShelxDocument) -> None:
+        self._refresh_text_from_model()
 
     def text(self) -> str:
         """The editor's current (possibly unapplied) text content."""
@@ -172,19 +169,16 @@ class ShelxEditorWidget(QWidget):
     # ------------------------------------------------------ text <-> model
 
     def _refresh_text_from_model(self, *, preserve_cursor: bool = True) -> None:
-        if self._shx is None:
+        if self._document is None:
             return
         cursor = self.editor.textCursor()
         block_no = cursor.blockNumber()
         column = cursor.positionInBlock()
         vscroll = self.editor.verticalScrollBar().value()
 
-        text, index_map = _dump_with_line_map(self._shx)
-        self._line_index_map = index_map
-
         self._updating_text = True
         try:
-            self.editor.setPlainText(text)
+            self.editor.setPlainText(self._document.text)
         finally:
             self._updating_text = False
         self._dirty_since_apply = False
@@ -201,11 +195,6 @@ class ShelxEditorWidget(QWidget):
             self.editor.setTextCursor(new_cursor)
             self.editor.verticalScrollBar().setValue(vscroll)
 
-    def _index_for_block(self, block_number: int) -> int | None:
-        if 0 <= block_number < len(self._line_index_map):
-            return self._line_index_map[block_number]
-        return None
-
     def _selected_blocks(self) -> range:
         cursor = self.editor.textCursor()
         doc = self.editor.document()
@@ -213,18 +202,12 @@ class ShelxEditorWidget(QWidget):
         end = doc.findBlock(cursor.selectionEnd()).blockNumber()
         return range(start, end + 1)
 
-    def _selected_reslist_objects(self) -> list[object]:
-        seen: set[int] = set()
-        objects: list[object] = []
-        for block_no in self._selected_blocks():
-            idx = self._index_for_block(block_no)
-            if idx is None or self._shx is None:
-                continue
-            item = self._shx._reslist[idx]
-            if id(item) not in seen:
-                seen.add(id(item))
-                objects.append(item)
-        return objects
+    def _selected_items(self) -> list[object]:
+        """Whatever the document says sits on the selected lines."""
+        if self._document is None:
+            return []
+        blocks = self._selected_blocks()
+        return self._document.items_in_lines(blocks.start, blocks.stop - 1)
 
     # ------------------------------------------------------------- signals
 
@@ -233,13 +216,9 @@ class ShelxEditorWidget(QWidget):
             self._dirty_since_apply = True
 
     def _on_cursor_position_changed(self) -> None:
-        if self._jumping or self._shx is None:
+        if self._jumping or self._document is None:
             return
-        block_no = self.editor.textCursor().blockNumber()
-        idx = self._index_for_block(block_no)
-        if idx is None:
-            return
-        item = self._shx._reslist[idx]
+        item = self._document.item_at_line(self.editor.textCursor().blockNumber())
         if isinstance(item, Atom):
             self.atom_selected.emit(item.fullname_short)
 
@@ -247,35 +226,23 @@ class ShelxEditorWidget(QWidget):
 
     def apply(self) -> bool:
         """
-        Re-parse the current editor text into a fresh :class:`Shelxfile`
-        model.
+        Re-parse the current editor text into a fresh document.
 
-        On success, the new model replaces the previously bound one, the text
-        is regenerated from it (normalising formatting), and
+        On success, the new document replaces the previously bound one, the
+        text is regenerated from it (normalising formatting), and
         :attr:`model_changed` is emitted. On failure, the text and the old
-        model are left untouched and :attr:`parse_error` is emitted together
-        with an inline error message.
-
-        Uses ``debug=True`` internally so that SHELXL syntax problems raise
-        instead of being silently ignored, letting the user see and fix them.
+        document are left untouched and :attr:`parse_error` is emitted
+        together with an inline error message.
         """
-        if self._shx is None:
+        if self._document is None:
             return False
-        text = self.editor.toPlainText()
-        candidate = Shelxfile(debug=True)
-        try:
-            candidate.read_string(text)
-        except Exception as exc:  # noqa: BLE001 - surfacing any parse failure to the UI
-            message = str(exc) or type(exc).__name__.replace('_', ' ')
-            self._show_error(message, candidate.error_line_num)
+        attempt = ShelxDocument.try_from_string(self.editor.toPlainText())
+        if attempt.document is None:
+            self._show_error(attempt.error or 'Could not parse SHELX file.',
+                             attempt.error_line)
             return False
-        if not candidate.cell:
-            self._show_error('Could not parse SHELX file (missing CELL instruction?).', candidate.error_line_num)
-            return False
-        self._shx = candidate
-        self._hide_error()
-        self._refresh_text_from_model(preserve_cursor=True)
-        self.model_changed.emit(self._shx)
+        self.set_document(attempt.document)
+        self.model_changed.emit(attempt.document.shelxfile)
         return True
 
     def _show_error(self, message: str, line_num: int) -> None:
@@ -299,32 +266,32 @@ class ShelxEditorWidget(QWidget):
     # ---------------------------------------------------------------- atoms
 
     def _on_add_atom_clicked(self) -> None:
-        if self._shx is None or not self._require_applied_model():
+        if self._document is None or not self._require_applied_model():
             return
-        dialog = AddAtomDialog(self._shx, self)
+        dialog = AddAtomDialog(self._document, self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            kwargs = dialog.values()
-            self._shx.add_atom(**kwargs)
-            self._refresh_text_from_model()
-            self.model_changed.emit(self._shx)
+            self._document.add_atom(**dialog.values())
+            self.model_changed.emit(self._document.shelxfile)
 
     def delete_selected_atoms(self) -> bool:
-        """Delete every :class:`Atom` touched by the current text selection."""
-        if self._shx is None or not self._require_applied_model():
+        """Delete every :class:`Atom` touched by the current text selection.
+
+        The document decides what else cannot survive the deletion; the
+        widget only says which atoms the user pointed at.
+        """
+        if self._document is None or not self._require_applied_model():
             return False
-        atoms = [item for item in self._selected_reslist_objects() if isinstance(item, Atom)]
+        atoms = [item for item in self._selected_items() if isinstance(item, Atom)]
         if not atoms:
             return False
-        for atom in atoms:
-            atom.delete()
-        self._refresh_text_from_model()
-        self.model_changed.emit(self._shx)
+        self._document.delete_atoms(atoms)
+        self.model_changed.emit(self._document.shelxfile)
         return True
 
     # ----------------------------------------------------------- restraints
 
     def _on_add_restraint_clicked(self) -> None:
-        if self._shx is None or not self._require_applied_model():
+        if self._document is None or not self._require_applied_model():
             return
         dialog = AddRestraintDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -332,24 +299,25 @@ class ShelxEditorWidget(QWidget):
             if not line:
                 return
             try:
-                self._shx.add_restraint(line)
+                self._document.add_restraint(line)
             except ValueError as exc:
                 self._show_error(str(exc), -1)
                 return
-            self._refresh_text_from_model()
-            self.model_changed.emit(self._shx)
+            self.model_changed.emit(self._document.shelxfile)
 
     def delete_selected_restraint(self) -> bool:
-        """Delete every :class:`Restraint` touched by the current text selection."""
-        if self._shx is None or not self._require_applied_model():
+        """Remove every :class:`Restraint` touched by the current selection.
+
+        Removing a restraint never deletes atoms (plan decision D-9).
+        """
+        if self._document is None or not self._require_applied_model():
             return False
-        restraints = [item for item in self._selected_reslist_objects() if isinstance(item, Restraint)]
+        restraints = [item for item in self._selected_items() if isinstance(item, Restraint)]
         if not restraints:
             return False
         for restraint in restraints:
-            cast(Restraint, restraint).delete()
-        self._refresh_text_from_model()
-        self.model_changed.emit(self._shx)
+            self._document.remove_card(restraint)
+        self.model_changed.emit(self._document.shelxfile)
         return True
 
     # -------------------------------------------- Fastmolwidget integration
@@ -369,18 +337,10 @@ class ShelxEditorWidget(QWidget):
                   ``False`` otherwise (unknown atom, or unapplied hand-edits
                   make the line map unreliable).
         """
-        if self._shx is None or self._dirty_since_apply:
+        if self._document is None or self._dirty_since_apply:
             return False
-        atom = self._shx.atoms.get_atom_by_name(fullname_short)
-        if atom is None:
-            return False
-        try:
-            target_index = self._shx._reslist.index(atom)
-        except ValueError:
-            return False
-        try:
-            block_no = self._line_index_map.index(target_index)
-        except ValueError:
+        block_no = self._document.line_of_atom(fullname_short)
+        if block_no is None:
             return False
 
         self._jumping = True
@@ -409,16 +369,16 @@ class ShelxEditorWidget(QWidget):
 
 
 class AddAtomDialog(QDialog):
-    """Small dialog collecting the parameters for :meth:`Shelxfile.add_atom`."""
+    """Small dialog collecting the parameters for :meth:`ShelxDocument.add_atom`."""
 
-    def __init__(self, shx: Shelxfile, parent: QWidget | None = None) -> None:
+    def __init__(self, document: ShelxDocument, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle('Add atom')
-        self._shx = shx
+        self._document = document
 
         from qtpy.QtWidgets import QDoubleSpinBox, QLineEdit, QSpinBox
 
-        self.name_edit = QLineEdit(shx.unused_atom_name('C'))
+        self.name_edit = QLineEdit(document.unused_atom_name('C'))
         self.element_edit = QLineEdit('C')
         self.x_edit = QDoubleSpinBox()
         self.y_edit = QDoubleSpinBox()
@@ -453,7 +413,7 @@ class AddAtomDialog(QDialog):
         layout.addWidget(buttons)
 
     def values(self) -> dict:
-        """The dialog's contents as ``shx.add_atom(**values())`` keyword arguments."""
+        """The dialog's contents as ``document.add_atom(**values())`` keyword arguments."""
         return {
             'name': self.name_edit.text().strip(),
             'coordinates': [self.x_edit.value(), self.y_edit.value(), self.z_edit.value()],
@@ -474,7 +434,7 @@ class AddRestraintDialog(QDialog):
         from qtpy.QtWidgets import QComboBox, QLineEdit
 
         self.keyword_combo = QComboBox()
-        self.keyword_combo.addItems(sorted(Shelxfile.RESTRAINT_CARD_CLASSES))
+        self.keyword_combo.addItems(restraint_keywords())
         self.params_edit = QLineEdit()
         self.params_edit.setPlaceholderText('e.g. 0.02 C1 C2 C1 C3')
 
@@ -528,10 +488,9 @@ def main(argv: list[str] | None = None) -> int:
 
     app = QApplication(sys.argv[:1])
 
-    shx = Shelxfile(verbose=True)
-    shx.read_file(resfile)
+    document = ShelxDocument.from_file(resfile, verbose=True)
 
-    editor = ShelxEditorWidget(shx)
+    editor = ShelxEditorWidget(document)
     editor.model_changed.connect(lambda model: print(f'*** Model updated ({len(model.atoms)} atoms) ***'))
     editor.parse_error.connect(lambda message, line: print(f'*** Parse error: {message} ***'))
     editor.atom_selected.connect(lambda name: print(f'Selected atom: {name}'))

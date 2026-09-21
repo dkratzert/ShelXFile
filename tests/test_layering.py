@@ -89,11 +89,6 @@ def test_edit_layer_does_not_import_gui() -> None:
     )
 
 
-@pytest.mark.xfail(
-    reason='D-8b not implemented yet: editor_widget.py still reaches into '
-           '_reslist. Remove this xfail as part of the widget-slimming task.',
-    strict=False,
-)
 def test_gui_does_not_touch_reslist() -> None:
     """D-8b: the widget is a pure view and must not index ``_reslist``.
 
@@ -115,23 +110,63 @@ def test_gui_does_not_touch_reslist() -> None:
     )
 
 
-@pytest.mark.xfail(
-    reason='D-8b not implemented yet: editor_widget.py still parses and '
-           'dispatches SHELXL instructions. Remove with widget-slimming.',
-    strict=False,
+#: Things only a parser should do.  Handing a user-typed line to
+#: ``ShelxDocument.add_restraint`` is fine — that *is* delegation; splitting
+#: it into tokens in the widget, or reading the model's card registry, is
+#: not.
+PARSING_MARKERS = (
+    'RESTRAINT_CARD_CLASSES',  # the model's card registry
+    '.split()',                # tokenising an instruction line
+    'Shelxfile(',              # constructing/parsing a model directly
+    '.dumps()',                # rendering without a line map
 )
+
+
 def test_gui_does_not_make_parsing_decisions() -> None:
     """D-8b: card semantics belong to the edit layer, not the widget."""
-    markers = ('RESTRAINT_CARD_CLASSES', '.split()', 'add_restraint(')
     offenders: dict[str, list[str]] = {}
     for path in _python_files(GUI_DIR):
         if path.name in GUI_PARSING_EXEMPT:
             continue
         text = path.read_text(encoding='utf-8')
-        hits = [m for m in markers if m in text]
+        hits = [m for m in PARSING_MARKERS if m in text]
         if hits:
             offenders[str(path.relative_to(SRC))] = hits
     assert not offenders, (
         'The GUI layer must not parse or dispatch SHELXL instructions '
+        f'(D-8b): {offenders}'
+    )
+
+
+def test_gui_mutates_only_through_the_document() -> None:
+    """D-8b: the widget asks ``ShelxDocument``; it never mutates the model.
+
+    Checked structurally: any call of a known mutating name must have
+    ``document`` in its receiver chain, never ``shx``/``shelxfile``.
+    """
+    mutators = frozenset({
+        'add_atom', 'add_restraint', 'delete', 'delete_atoms', 'remove_card',
+        'rename_atom', 'add_bind', 'add_free', 'add_htab', 'read_file',
+        'read_string', 'write_shelx_file',
+    })
+    offenders: list[str] = []
+    for path in _python_files(GUI_DIR):
+        if path.name in GUI_PARSING_EXEMPT:
+            continue
+        tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not isinstance(func, ast.Attribute) or func.attr not in mutators:
+                continue
+            receiver = ast.unparse(func.value)
+            if 'document' not in receiver.lower():
+                offenders.append(
+                    f'{path.relative_to(SRC)}:{func.lineno} '
+                    f'{receiver}.{func.attr}()'
+                )
+    assert not offenders, (
+        'The GUI layer must route every mutation through ShelxDocument '
         f'(D-8b): {offenders}'
     )
