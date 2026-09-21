@@ -2143,6 +2143,11 @@ class LSCycles(Command):
 
 
 class SFACTable:
+    #: Field order of the explicit form: *"SFAC E a1 b1 a2 b2 a3 b3 a4 b4
+    #: c f' f" mu r wt"*.
+    FULL_FIELDS = ('element', 'a1', 'b1', 'a2', 'b2', 'a3', 'b3', 'a4', 'b4',
+                   'c', 'fprime', 'fdprime', 'mu', 'r', 'wt')
+
     def __init__(self, shx: Shelxfile) -> None:
         """
         Holds the information of SFAC instructions. Either with default values and only elements
@@ -2163,30 +2168,38 @@ class SFACTable:
                 yield element.capitalize()
 
     def __repr__(self) -> str:
-        sftext = ''
-        elements: list[str] = []
+        """Regenerate the ``SFAC`` instruction(s).
+
+        Every entry is emitted, duplicates included: ``SFAC ... Cl CL``
+        defines *two* scattering-factor slots, and the ``UNIT`` numbers
+        and every atom's sfac index are positional.  Collapsing them
+        would silently renumber the whole atom list.
+
+        Entries given in the explicit form -- *"SFAC E a1 b1 a2 b2 a3 b3
+        a4 b4 c f' f" mu r wt"* -- get a line of their own, since they
+        cannot share one with plain element symbols.
+        """
+        lines: list[str] = []
+        plain: list[str] = []
         for sf in self.sfac_table:
             element = sf['element']
             if element is None:
                 continue
-            if not self.is_exp(sf) and element.capitalize() not in elements:
-                elements.append(element.capitalize())
-            else:
-                if elements:
-                    sftext = self._extend_sfac_text(elements, sftext)
-                    elements = []
-                values: list[str | None] = []
-                for x in ('element', 'a1', 'b1', 'a2', 'b2', 'a3', 'b3', 'a4', 'b4', 'c',
-                          'fprime', 'fdprime', 'mu', 'r', 'wt'):
-                    values.append(sf[x])
-                sftext = self._extend_sfac_text(elements, sftext)
-        if elements:
-            sftext = self._extend_sfac_text(elements, sftext)
-        return sftext[1:]
+            if not self.is_exp(sf):
+                plain.append(element.capitalize())
+                continue
+            if plain:
+                lines.append(self._plain_sfac_line(plain))
+                plain = []
+            values = [sf.get(key) for key in self.FULL_FIELDS]
+            lines.append('SFAC ' + ' '.join(str(v) for v in values if v is not None))
+        if plain:
+            lines.append(self._plain_sfac_line(plain))
+        return '\n'.join(lines)
 
-    def _extend_sfac_text(self, elements: list[str], sftext: str) -> str:
-        sftext += f"\nSFAC {'  '.join(elements)}"
-        return sftext
+    @staticmethod
+    def _plain_sfac_line(elements: list[str]) -> str:
+        return f"SFAC {'  '.join(elements)}"
 
     def __getitem__(self, index: int) -> str:
         """
@@ -2208,8 +2221,7 @@ class SFACTable:
         if not ''.join(spline[1:]).isalpha():  # joining, because space is not alphabetical
             # Excplicit with all values
             sfdic: dict[str, str | None] = {}
-            for n, x in enumerate(['element', 'a1', 'b1', 'a2', 'b2', 'a3', 'b3', 'a4', 'b4', 'c',
-                                   'fprime', 'fdprime', 'mu', 'r', 'wt']):
+            for n, x in enumerate(self.FULL_FIELDS):
                 if n == 0:
                     self.elements_list.append(spline[n + 1].upper())
                 try:

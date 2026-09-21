@@ -266,16 +266,26 @@ def chunks(l: list, n: int) -> list:  # noqa: E741
 
 def multiline_test(line: str) -> bool:
     """
-    test if the current line is a multiline with "=" at the end
+    Test whether *line* is continued on the next line.
+
+    *"Continuation lines are flagged by '=' at the end of a line, the
+    instruction being continued on the next line which must start with
+    one or more spaces."*  Only a **trailing** ``=`` continues a line; one
+    in the middle means something else entirely, since *"all characters
+    following '!' or '=' in an instruction line are ignored"*.
+
+    Testing for ``=`` anywhere would make an ordinary title such as
+    ``TITL foo  R = 0.40`` glue the following line onto itself and lose
+    it.
+
     :param line: 'O1 3 -0.01453 1.66590 0.10966 11.00 0.05 ='
     """
-    if line.rfind('=') > -1:
-        # A '=' character in a rem line is not a line break!
-        if line.startswith("REM") and not dsr_regex.match(line):
-            return False
-        return True
-    else:
+    if not line.rstrip().endswith('='):
         return False
+    # A '=' character in a rem line is not a line break!
+    if line.startswith("REM") and not dsr_regex.match(line):
+        return False
+    return True
 
 
 class TextLine:
@@ -393,19 +403,33 @@ def wrap_line(line: str) -> str:
     """
     maxlen = 79
     if len(line) < maxlen:
-        line = ''.join(line)
         return line
-    line = textwrap.wrap(line, maxlen, subsequent_indent='  ', drop_whitespace=False, replace_whitespace=False)
-    if len(line) > 1:
-        newline = []
-        for n, ln in enumerate(line):
-            if n < len(line) - 1:
-                ln += ' =\n'
-            newline.append(ln)
-        line = ' '.join(newline)
-    else:
-        line = ''.join(line)
-    return line
+    if not line.strip(' \t\r\n\x00'):
+        # Nothing to wrap. Blank lines are legal comments ("blank lines may
+        # be added to improve readability"), and wrapping one would append a
+        # continuation '=' that makes SHELXL glue the *next* line onto this
+        # empty one. Returned unchanged so the padding survives verbatim.
+        return line
+    # Trailing whitespace carries no meaning, but files padded to a fixed
+    # column width are common; counting the padding would wrap a short
+    # instruction and leave the remainder as a whitespace continuation.
+    line = line.rstrip()
+    if len(line) < maxlen:
+        return line
+    chunks = textwrap.wrap(line, maxlen, subsequent_indent='  ',
+                           drop_whitespace=False, replace_whitespace=False)
+    if len(chunks) < 2:
+        return ''.join(chunks)
+    wrapped = []
+    for n, chunk in enumerate(chunks):
+        if n < len(chunks) - 1:
+            # rstrip first: ``drop_whitespace=False`` can leave the chunk
+            # ending in a space, and appending ' =' to that would emit
+            # '  ='. Re-reading collapses the run, so the file would
+            # change on every round-trip without anything being edited.
+            chunk = chunk.rstrip() + ' =\n'
+        wrapped.append(chunk)
+    return ' '.join(wrapped)
 
 
 def range_resolver(atoms_range: list[str], atom_names: list[str]) -> list[str]:

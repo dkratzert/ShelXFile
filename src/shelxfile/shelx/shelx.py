@@ -34,7 +34,8 @@ from shelxfile.misc.dsrmath import Array
 from shelxfile.misc.elements import weight_from_symbol
 # noinspection PyUnresolvedReferences
 from shelxfile.misc.misc import ParseOrderError, ParseNumError, ParseUnknownParam, \
-    multiline_test, dsr_regex, wrap_line, ParseSyntaxError, cart_to_frac
+    multiline_test, dsr_regex, wrap_line, ParseSyntaxError, cart_to_frac, \
+    split_fvar_and_parameter
 from shelxfile.refine.refine import ShelxlRefine
 from shelxfile.shelx.cards import ACTA, FVAR, FVARs, REM, BOND, Restraints, DEFS, NCSY, ISOR, FLAT, \
     BUMP, DFIX, DANG, SADI, SAME, RIGU, SIMU, DELU, CHIV, EADP, EXYZ, DAMP, HFIX, HKLF, SUMP, SYMM, LSCycles, \
@@ -47,6 +48,46 @@ from shelxfile.version import VERSION
 __version__ = VERSION
 
 ResListEntry = str | Command | Restraint | SFACTable | FVARs | Atom | SYMM | BedeLoneResultAtom
+
+#: Fractional coordinates are small numbers, so a much larger value on an
+#: atom line usually means the line is not an atom at all.
+MAX_PLAIN_COORDINATE = 4.0
+
+#: How large a *decoded* ``10*m + p`` coordinate may be. A fractional
+#: coordinate lies in ``[0, 1]``, well inside the ``abs(p) < 5`` the
+#: manual allows for the encoding in general.
+MAX_DECODED_COORDINATE = 1.0
+
+
+def _decodes_to_a_coordinate(value: float) -> bool:
+    """Whether *value* is a coordinate written in SHELXL's ``10*m + p`` form.
+
+    *"To fix any atom parameter, add 10"*, and more generally *"if any
+    atom parameter is given as (10*m + p), where abs(p) is less than 5
+    and m is an integer, it is interpreted as p*fvm"*.  A coordinate
+    fixed at 0.6666 is therefore written ``10.666600``, and one tied to
+    free variable 2 is written ``21.000000`` -- both far outside the
+    plain fractional range, both perfectly ordinary atoms.
+
+    The one code deliberately refused is ``m = 1`` with ``abs(p) >= 1``,
+    of which ``11.00000`` is the only common case: as a coordinate it
+    would mean a site fixed exactly on the cell edge, but it is the
+    standard way to write a fixed full occupancy, so on an atom line it
+    almost always means a coordinate is missing and the sof has slid
+    into its column.  ``m >= 2`` carries no such ambiguity -- there is no
+    free variable 1 -- so ``21.000000`` is read as ``1.0 * fv2``.
+
+    :class:`~shelxfile.atoms.atom.Atom` already decodes these; without
+    this check :meth:`Shelxfile.is_atom` would reject the line first and
+    the atom would be silently kept as raw text -- and its continuation
+    line would then be swallowed by the ``=`` of the line above.
+    """
+    fvar, decoded = split_fvar_and_parameter(value)
+    if abs(decoded) > MAX_DECODED_COORDINATE:
+        return False
+    if abs(decoded) >= MAX_DECODED_COORDINATE and abs(fvar) < 2:
+        return False
+    return True
 
 """
 TODO:
@@ -203,6 +244,9 @@ class Shelxfile:
         self.list: int = 0
         self.theta_full: float = 0.0
         self.error_line_num: int = -1  # Only used to tell the line number during an exception.
+        #: Codec the file was decoded with, reused when writing so that an
+        #: unedited file comes back byte for byte. See :meth:`_read_text`.
+        self.encoding: str = 'utf-8'
         self.resfile: Path | None = None
         self.orthogonal_matrix: Array | None = None
         self._reslist: list[ResListEntry] = []
@@ -252,7 +296,7 @@ class Shelxfile:
         if isinstance(filename, str):
             filename = Path(filename)
         filename = cast(Path, filename)
-        with open(filename, 'w') as f:
+        with open(filename, 'w', encoding=self.encoding) as f:
             f.write(self.dumps() + '\n')
         if self.verbose or self.debug:
             print(f'*** File successfully written to {filename.resolve()} ***')
@@ -268,7 +312,8 @@ class Shelxfile:
         if self.debug:
             print(f'Resfile is: {resfile}')
         try:
-            self._reslist = cast(list[ResListEntry], resfile.read_text().splitlines(keepends=False))
+            text = self._read_text(resfile)
+            self._reslist = cast(list[ResListEntry], text.splitlines(keepends=False))
             self._test_if_file_is_valid(resfile)
         except UnicodeDecodeError:
             if self.debug or self.verbose:
@@ -276,6 +321,28 @@ class Shelxfile:
             return
         self._find_included_files()
         self.parse_cards()
+
+    def _read_text(self, resfile: Path) -> str:
+        """Decode *resfile*, remembering which encoding worked.
+
+        SHELX files predate Unicode, and non-ASCII bytes turn up in ``REM``
+        comments and titles.  Relying on the platform default makes the
+        same file decode differently on Windows and Linux, so the encoding
+        is pinned here and reused when writing: a file read and written
+        unchanged must come back byte for byte.
+
+        ``latin-1`` is the fallback because it maps every byte, so a file
+        in some other 8-bit codepage still round-trips exactly even though
+        the characters may display oddly.
+        """
+        for encoding in ('utf-8', 'latin-1'):
+            try:
+                text = resfile.read_text(encoding=encoding)
+            except UnicodeDecodeError:
+                continue
+            self.encoding = encoding
+            return text
+        raise UnicodeDecodeError('utf-8', b'', 0, 1, 'undecodable file')
 
     def read_string(self, resfile_string: str) -> None:
         """
@@ -1556,10 +1623,13 @@ class Shelxfile:
             return False
         if '.' in spline[1]:
             return False
-        # Inline coordinate-realism check (avoids genexpr + slice + function call):
+        # Inline coordinate-realism check (avoids genexpr + slice + function call
+        # for the overwhelmingly common case of plain fractional coordinates):
         try:
-            if float(spline[2]) > 4.0 or float(spline[3]) > 4.0 or float(spline[4]) > 4.0:
-                return False
+            for token in (spline[2], spline[3], spline[4]):
+                value = float(token)
+                if value > MAX_PLAIN_COORDINATE and not _decodes_to_a_coordinate(value):
+                    return False
         except ValueError:
             return False
         if len(spline) > 5 and spline[5] == '!':
@@ -1568,7 +1638,9 @@ class Shelxfile:
 
     @staticmethod
     def _coordinates_are_unrealistic(spline: list[str]) -> bool:
-        return any(float(y) > 4.0 for y in spline[2:5])
+        return any(float(y) > MAX_PLAIN_COORDINATE
+                   and not _decodes_to_a_coordinate(float(y))
+                   for y in spline[2:5])
 
     @staticmethod
     def _is_bede_lone_result(raw_line: str, spline: list[str]) -> bool:

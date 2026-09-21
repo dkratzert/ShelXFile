@@ -3,19 +3,21 @@
     "Ratchet expectations for the opt-in corpus sweep (plan invariants I1/I2).",
     "These are AGGREGATE budgets only - no file names, no structural data - so",
     "they are safe to commit while the corpus itself stays private.",
-    "Counts may only ever go DOWN. Lower them as the idempotence-fixes task",
-    "lands; never raise them to make a failing run pass.",
-    "Measured 2026-09-21 against a 6022-file corpus."
+    "Counts may only ever go DOWN. Lower them as fixes land; never raise them",
+    "to make a failing run pass.",
+    "Measured 2026-09-21 against a 6022-file corpus: 6022/6022 idempotent,",
+    "0 parse errors."
   ],
   "reference_corpus_size": 6022,
   "max_parse_error_ratio": 0.0005,
-  "max_non_idempotent_ratio": 0.0153,
-  "known_failure_categories": {
-    "line_wrap_instability": "wrap_line() emits a different continuation on the second pass (trailing space before '='). Dominant cause.",
-    "afix_code_drift": "AFIX 13 is re-emitted as AFIX 43 - a semantic change, not formatting.",
-    "rem_trailing_whitespace": "REM continuation lines gain/lose a trailing space before '='.",
-    "sfac_spacing": "SFAC element columns re-pad on reparse, e.g. 'Mg  O Si' -> 'Mg  O  Si'.",
-    "sadi_trailing_space": "Long SADI lines gain a trailing space before the continuation marker.",
-    "sfac_full_form_keyerror": "SFAC given in the full exponential-series form raises KeyError('a1')."
+  "max_non_idempotent_ratio": 0.0,
+  "fixed_failure_categories": {
+    "encoded_coordinates": "An atom whose coordinates use the '10*m + p' form (fixed, or tied to a free variable) failed is_atom()'s plain-coordinate check, so it stayed raw text and its '=' swallowed the following line. Fixed by decoding before judging.",
+    "mid_line_equals": "multiline_test() treated '=' anywhere as a continuation marker, so 'TITL foo R = 0.40' glued the next line onto itself. Only a trailing '=' continues a line.",
+    "sfac_full_form_keyerror": "SFACTable.__repr__ raised KeyError('a1') on a repeated element, and discarded the values of the full exponential form. Both forms are now emitted, duplicates included.",
+    "line_wrap_instability": "wrap_line() appended ' =' to a chunk that already ended in a space, emitting '  ='; the run collapsed on the next read.",
+    "afix_code_drift": "A knock-on effect of encoded_coordinates: the unparsed atom's '=' swallowed the following AFIX instruction.",
+    "blank_line_wrapping": "A whitespace-only line longer than the limit was wrapped, inventing a continuation marker on an empty comment line.",
+    "column_padding": "Lines padded to a fixed column width counted their padding toward the wrap limit, splitting a short instruction and leaving whitespace as its continuation."
   }
 }

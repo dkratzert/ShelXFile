@@ -18,6 +18,9 @@ RIDING_U_MAX = 5.0
 #: An atom parameter written as ``10*m + p`` with ``abs(p) < 5`` references the
 #: m-th free variable.
 FVAR_CODE_LIMIT = 5.0
+#: Above this, a coordinate is assumed to carry a ``10*m + p`` code rather
+#: than being a plain fractional value.
+MAX_PLAIN_COORDINATE = 4.0
 
 
 class Atom:
@@ -54,6 +57,9 @@ class Atom:
         self.yc: float = 0.0
         self.zc: float = 0.0
         self.qpeak: bool = False
+        #: Free-variable / fixing code per coordinate, from the ``10*m + p``
+        #: form. ``0`` means the coordinate was written plainly.
+        self._coord_codes: tuple[int, int, int] = (0, 0, 0)
         #: Where this atom came from, when it is a symmetry image made by
         #: :meth:`Shelxfile.grow` or :meth:`~Shelxfile.pack`. ``None`` for
         #: atoms that are real lines in the file.
@@ -385,6 +391,14 @@ class Atom:
             self.sof = float(atline[5])
 
     def _get_atom_coordinates(self, atline: list[str]) -> tuple[float, float, float]:
+        """Decode the three coordinates, remembering any ``10*m + p`` code.
+
+        A coordinate written as ``10.666600`` means 0.6666 held fixed
+        (*"To fix any atom parameter, add 10"*).  The decoded value is
+        what every geometric calculation needs, but the code has to
+        survive a write: dropping it would silently release a constraint
+        the crystallographer put there on purpose.
+        """
         try:
             x, y, z = [float(x) for x in atline[2:5]]
         except ValueError as e:
@@ -393,16 +407,31 @@ class Atom:
                 raise ParseUnknownParam(debug=self.shx.debug, verbose=self.shx.verbose)
             else:
                 x, y, z = 0.1, 0.1, 0.1
-        if abs(x) > 4:
-            fvar, x = split_fvar_and_parameter(x)
-            self.shx.fvars.set_fvar_usage(fvar)
-        if abs(y) > 4:
-            fvar, y = split_fvar_and_parameter(y)
-            self.shx.fvars.set_fvar_usage(fvar)
-        if abs(z) > 4:
-            fvar, z = split_fvar_and_parameter(z)
-            self.shx.fvars.set_fvar_usage(fvar)
-        return x, y, z
+        decoded = []
+        codes = []
+        for value in (x, y, z):
+            if abs(value) > MAX_PLAIN_COORDINATE:
+                fvar, value = split_fvar_and_parameter(value)
+                self.shx.fvars.set_fvar_usage(fvar)
+                codes.append(fvar)
+            else:
+                codes.append(0)
+            decoded.append(value)
+        self._coord_codes = (codes[0], codes[1], codes[2])
+        return decoded[0], decoded[1], decoded[2]
+
+    @property
+    def coordinates_as_written(self) -> tuple[float, float, float]:
+        """The coordinates re-encoded with whatever ``10*m + p`` codes they had.
+
+        Re-encoding rather than echoing the source keeps a refined or
+        edited coordinate and its constraint together: the value moves,
+        the ``m`` that fixes it or ties it to a free variable does not.
+        """
+        return tuple(
+            10 * code + value if code else value
+            for code, value in zip(self._coord_codes, (self.x, self.y, self.z))
+        )
 
     @property
     def is_anisotropic(self) -> bool:
@@ -531,23 +560,24 @@ class Atom:
             # An atom from a FRAG/FEND instruction
             return Atom._fragatomstr.format(self.name, self.x, self.y, self.z)
         else:
+            x, y, z = self.coordinates_as_written
             if self.is_anisotropic:
                 # anisotropic atom
                 try:
-                    return Atom._anisatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof,
+                    return Atom._anisatomstr.format(self.name, self.sfac_num, x, y, z, self.sof,
                                                     *self.uvals)
                 except IndexError:
                     return 'REM Error in U values.'
             else:
                 # isotropic atom:
                 if self.qpeak:
-                    return Atom._qpeakstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04,
+                    return Atom._qpeakstr.format(self.name, self.sfac_num, x, y, z, self.sof, 0.04,
                                                  self.peak_height)
                 try:
-                    return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof,
+                    return Atom._isoatomstr.format(self.name, self.sfac_num, x, y, z, self.sof,
                                                    *self.uvals)
                 except IndexError:
-                    return Atom._isoatomstr.format(self.name, self.sfac_num, self.x, self.y, self.z, self.sof, 0.04)
+                    return Atom._isoatomstr.format(self.name, self.sfac_num, x, y, z, self.sof, 0.04)
 
     @property
     def index(self) -> int:

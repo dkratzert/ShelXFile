@@ -49,7 +49,10 @@ def sweep(corpus_files: list[Path]) -> dict:
     with tempfile.TemporaryDirectory() as tmpdir:
         scratch = Path(tmpdir)
         for path in corpus_files:
-            key = path.name
+            # Full path, not just the name: the corpus has duplicate file
+            # names across folders, and a bare name sends you to the wrong
+            # structure when diagnosing a failure.
+            key = str(path)
             try:
                 first = Shelxfile()
                 first.read_file(str(path))
