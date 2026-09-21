@@ -7,7 +7,12 @@ edit layer, never the other way round.
 See ``tests/test_layering.py`` for the guards that enforce this.
 """
 
-from shelxfile.edit.card_meta import CardLifetime
+from shelxfile.edit.card_meta import (
+    AfixDependency,
+    AtomGrouping,
+    AtomListSemantics,
+    CardLifetime,
+)
 from shelxfile.edit.document import ShelxDocument
 from shelxfile.edit.line_map import RenderedFile, render
 from shelxfile.edit.reports import (
@@ -23,6 +28,9 @@ from shelxfile.edit.token_resolver import (
 )
 
 __all__ = [
+    'AfixDependency',
+    'AtomGrouping',
+    'AtomListSemantics',
     'AtomReference',
     'AtomTokenResolver',
     'CardLifetime',

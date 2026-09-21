@@ -5,7 +5,12 @@ from math import cos, radians, sqrt, sin
 from typing import TYPE_CHECKING, Iterator
 
 from shelxfile.atoms.pairs import AtomPair
-from shelxfile.edit.card_meta import CardLifetime
+from shelxfile.edit.card_meta import (
+    AfixDependency,
+    AtomGrouping,
+    AtomListSemantics,
+    CardLifetime,
+)
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix, Matrix
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, ParseSyntaxError, resolve_fvar_encoded_value
@@ -125,6 +130,20 @@ class Restraint(Residue):
     #: Live input by default; :meth:`Shelxfile._append_card` re-tags cards
     #: parsed after ``END`` as inert output. See :class:`CardLifetime`.
     lifetime: CardLifetime = CardLifetime.INPUT
+
+    #: How this card's flat ``atoms`` list is structured. See
+    #: :class:`AtomGrouping`.
+    ATOM_GROUPING: AtomGrouping = AtomGrouping.FLAT
+
+    #: Fewest atoms the card still means something with. Only consulted
+    #: when :attr:`atom_semantics` is ``EXPLICIT``: a card authored with
+    #: no atoms is valid and must not be judged against this.
+    MIN_ATOMS: int = 2
+
+    #: What an empty atom list means for this card *class*. Instances
+    #: authored without atoms get the class value; instances that name
+    #: atoms are ``EXPLICIT``.
+    EMPTY_MEANS: AtomListSemantics = AtomListSemantics.EXPLICIT
 
     def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
@@ -263,6 +282,37 @@ class Restraint(Residue):
     def atoms_were_edited(self) -> bool:
         """``True`` once :attr:`atoms` differs from what was parsed."""
         return tuple(self.atoms) != self._original_atoms
+
+    @property
+    def atom_grouping(self) -> AtomGrouping:
+        """How to interpret :attr:`atoms` for this instance.
+
+        Defaults to the class value; ``SAME`` overrides it because the
+        residue suffix changes the card's meaning.
+        """
+        return self.ATOM_GROUPING
+
+    @property
+    def atom_semantics(self) -> AtomListSemantics:
+        """What this *instance*'s atom list means.
+
+        A card that named atoms is ``EXPLICIT`` regardless of its class.
+        Only one authored without names takes on the class meaning, which
+        for several instructions is "apply to everything".
+        """
+        if self._original_atoms:
+            return AtomListSemantics.EXPLICIT
+        return self.EMPTY_MEANS
+
+    @property
+    def is_atom_linked(self) -> bool:
+        """Whether this card should participate in atom bookkeeping.
+
+        Excludes inert post-``END`` output, cards that reference no atoms
+        by design, and bare directives.
+        """
+        return (self.lifetime is CardLifetime.INPUT
+                and self.atom_semantics is AtomListSemantics.EXPLICIT)
 
     def __str__(self) -> str:
         """Render the card, regenerating only when its atoms were edited.
@@ -527,6 +577,11 @@ class AFIX(Command):
             return True
         else:
             return False
+
+    @property
+    def dependency(self) -> AfixDependency:
+        """What kind of positional dependency this group's ``n`` digit sets up."""
+        return AfixDependency.from_code(self.mn)
 
 
 class Residues:
@@ -1337,6 +1392,10 @@ class NCSY(Restraint):
     NCSY DN sd[0.1] su[0.05] atoms
     """
 
+    #: Restraints are generated per atom pair found via the connectivity
+    #: table, so a single named atom is already meaningful.
+    MIN_ATOMS = 1
+
     def __init__(self, shx, spline: list):
         super(NCSY, self).__init__(shx, spline)
         self.sd = 0.1
@@ -1354,6 +1413,8 @@ class NCSY(Restraint):
 
 
 class ISOR(Restraint):
+
+    EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
 
     def __init__(self, shx: Shelxfile, spline: list[str]):
         """
@@ -1373,6 +1434,10 @@ class FLAT(Restraint):
     """
     FLAT s[0.1] four or more atoms
     """
+
+    #: The manual requires "four or more atoms": the restraint works by
+    #: forcing tetrahedra through them to have zero volume.
+    MIN_ATOMS = 4
 
     def __init__(self, shx, spline: list):
         super(FLAT, self).__init__(shx, spline)
@@ -1407,6 +1472,8 @@ class BUMP(Restraint):
 
 class DFIX(Restraint):
 
+    ATOM_GROUPING = AtomGrouping.PAIRS
+
     def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         DFIX d s[0.02] atom pairs
@@ -1428,6 +1495,8 @@ class DFIX(Restraint):
 
 class DANG(Restraint):
 
+    ATOM_GROUPING = AtomGrouping.PAIRS
+
     def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         DANG d s[0.04] atom pairs
@@ -1448,6 +1517,11 @@ class DANG(Restraint):
 
 class SADI(Restraint):
 
+    ATOM_GROUPING = AtomGrouping.PAIRS
+    # A bare SADI asks SHELXL to write the SAME-derived restraints
+    # after END; it is not a restraint on 'all atoms'.
+    EMPTY_MEANS = AtomListSemantics.DIRECTIVE_WHEN_EMPTY
+
     def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         SADI s[0.02] pairs of atoms
@@ -1465,6 +1539,10 @@ class SADI(Restraint):
 
 class SAME(Restraint):
 
+    #: ``SAME_<class>`` behaves differently from plain ``SAME``; the
+    #: instance property below picks the right one.
+    ATOM_GROUPING = AtomGrouping.SAME_FOLLOWING_ATOMS
+
     def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         SAME s1[0.02] s2[0.04] atomnames
@@ -1478,8 +1556,23 @@ class SAME(Restraint):
         if len(p) > 1:
             self.s2 = p[1]
 
+    @property
+    def atom_grouping(self) -> AtomGrouping:
+        """Which of the two ``SAME`` modes this instance uses.
+
+        ``SAME_<class>`` "no longer uses the following atoms but is
+        applied to all residues with the name XYZ", whereas plain ``SAME``
+        and ``SAME_<n>`` are matched against the atoms that follow the
+        instruction in the file.
+        """
+        if self.residue_class:
+            return AtomGrouping.SAME_RESIDUE_CLASS
+        return AtomGrouping.SAME_FOLLOWING_ATOMS
+
 
 class RIGU(Restraint):
+
+    EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
 
     def __init__(self, shx: Shelxfile, spline: list[str]):
         """
@@ -1496,6 +1589,8 @@ class RIGU(Restraint):
 
 
 class SIMU(Restraint):
+
+    EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
 
     def __init__(self, shx: Shelxfile, spline: list[str]):
         """
@@ -1516,6 +1611,8 @@ class SIMU(Restraint):
 
 class DELU(Restraint):
 
+    EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
+
     def __init__(self, shx: Shelxfile, spline: list[str]):
         """
         DELU s1[0.01] s2[0.01] atomnames
@@ -1531,6 +1628,9 @@ class DELU(Restraint):
 
 
 class CHIV(Restraint):
+
+    # Each named atom gets its own chiral-volume restraint.
+    MIN_ATOMS = 1
 
     def __init__(self, shx: Shelxfile, spline: list[str]):
         """
