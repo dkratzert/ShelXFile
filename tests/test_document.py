@@ -158,6 +158,119 @@ def test_empty_deletion_does_not_notify(doc: ShelxDocument) -> None:
     assert seen == []
 
 
+# ----------------------------------------- D-2/D-4: AFIX group cascades
+
+HEADER = (
+    'TITL t\n'
+    'CELL 0.71073 10 10 10 90 90 90\n'
+    'ZERR 4 0 0 0 0 0 0\n'
+    'LATT 1\n'
+    'SFAC C H\n'
+    'UNIT 8 8\n'
+)
+FOOTER = 'HKLF 4\nEND\n'
+
+
+def _atom_line(name: str, index: int, sfac: int = 1) -> str:
+    return (f'{name:<5} {sfac}     0.{index:02d}0  0.{index:02d}5  '
+            f'0.{index:02d}9  11.00000  0.05\n')
+
+
+def _hexagon_doc() -> ShelxDocument:
+    body = _atom_line('C1', 1) + 'AFIX 66\n' + ''.join(
+        _atom_line(f'C{i}', i) for i in range(2, 8)
+    ) + 'AFIX 0\n'
+    return ShelxDocument.from_string(HEADER + body + FOOTER)
+
+
+def _riding_doc() -> ShelxDocument:
+    body = _atom_line('C1', 1) + 'AFIX 43\n' + _atom_line('H1', 2, 2) + 'AFIX 0\n'
+    return ShelxDocument.from_string(HEADER + body + FOOTER)
+
+
+def test_under_populated_afix_takes_its_members_with_it() -> None:
+    """D-2: five atoms cannot be fitted to a six-atom ring."""
+    doc = _hexagon_doc()
+    doc.delete_atom(doc.shelxfile.atoms.get_atom_by_name('C4_0'))
+    assert [a.name for a in doc.shelxfile.atoms] == ['C1'], (
+        'the whole rigid group should be gone, leaving only the pivot atom'
+    )
+
+
+def test_under_populated_afix_removes_its_cards() -> None:
+    doc = _hexagon_doc()
+    report = doc.delete_atom(doc.shelxfile.atoms.get_atom_by_name('C4_0'))
+    reasons = {c.reason for c in report.cards}
+    assert reasons == {RemovalReason.AFIX_UNDER_POPULATED}
+    assert 'AFIX 66' not in doc.text
+
+
+def test_cascade_attributes_every_removal() -> None:
+    doc = _hexagon_doc()
+    report = doc.delete_atom(doc.shelxfile.atoms.get_atom_by_name('C4_0'))
+    requested = [a for a in report.atoms if a.reason is RemovalReason.REQUESTED]
+    collateral = [a for a in report.atoms
+                  if a.reason is RemovalReason.AFIX_UNDER_POPULATED]
+    assert len(requested) == 1
+    assert len(collateral) == 5
+
+
+def test_removing_an_atom_from_a_full_group_keeps_it_when_allowed() -> None:
+    """A group with spare members is not invalidated."""
+    body = _atom_line('C1', 1) + 'AFIX 43\n' + _atom_line('H1', 2, 2) \
+        + _atom_line('H2', 3, 2) + 'AFIX 0\n'
+    doc = ShelxDocument.from_string(HEADER + body + FOOTER)
+    doc.delete_atom(doc.shelxfile.atoms.get_atom_by_name('H1_0'))
+    assert 'AFIX 43' in doc.text
+    assert [a.name for a in doc.shelxfile.atoms] == ['C1', 'H2']
+
+
+def test_deleting_a_pivot_removes_its_riding_group() -> None:
+    """D-4: the pivot sits outside the bracket, so the group is orphaned."""
+    doc = _riding_doc()
+    doc.delete_atom(doc.shelxfile.atoms.get_atom_by_name('C1_0'))
+    assert [a.name for a in doc.shelxfile.atoms] == []
+    assert 'AFIX 43' not in doc.text
+
+
+def test_deleting_a_carbon_removes_its_hydrogens() -> None:
+    """The behaviour a user expects, stated plainly."""
+    doc = _riding_doc()
+    report = doc.delete_atom(doc.shelxfile.atoms.get_atom_by_name('C1_0'))
+    removed = {a.item.name for a in report.atoms}
+    assert removed == {'C1', 'H1'}
+    assert any(a.reason is RemovalReason.AFIX_PIVOT_DELETED for a in report.atoms)
+
+
+def test_cascade_terminates(doc: ShelxDocument) -> None:
+    """A chain of dependent groups must settle, not loop."""
+    body = (
+        _atom_line('C1', 1)
+        + 'AFIX 43\n' + _atom_line('H1', 2, 2) + 'AFIX 0\n'
+        + _atom_line('C2', 3)
+        + 'AFIX 43\n' + _atom_line('H2', 4, 2) + 'AFIX 0\n'
+    )
+    chained = ShelxDocument.from_string(HEADER + body + FOOTER)
+    report = chained.delete_atom(chained.shelxfile.atoms.get_atom_by_name('C1_0'))
+    assert {a.item.name for a in report.atoms} == {'C1', 'H1'}
+    assert [a.name for a in chained.shelxfile.atoms] == ['C2', 'H2']
+
+
+def test_no_atom_is_reported_twice() -> None:
+    doc = _hexagon_doc()
+    report = doc.delete_atom(doc.shelxfile.atoms.get_atom_by_name('C4_0'))
+    names = [a.item.name for a in report.atoms]
+    assert len(names) == len(set(names))
+
+
+def test_resets_are_not_treated_as_groups() -> None:
+    """``AFIX 0`` on its own must never trigger a cascade."""
+    body = _atom_line('C1', 1) + 'AFIX 0\n' + _atom_line('C2', 2)
+    doc = ShelxDocument.from_string(HEADER + body + FOOTER)
+    doc.delete_atom(doc.shelxfile.atoms.get_atom_by_name('C2_0'))
+    assert [a.name for a in doc.shelxfile.atoms] == ['C1']
+
+
 # ------------------------------------------------------ D-9: card removal
 
 def _restraint_with_atoms(doc: ShelxDocument) -> Restraint:
