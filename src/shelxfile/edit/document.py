@@ -18,7 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable, Union
 
-from shelxfile.edit.brackets import BracketResolver
+from shelxfile.edit.cascade import CascadeEngine, CascadePlan
 from shelxfile.edit.eqiv_cleanup import EqivCleaner
 from shelxfile.edit.graph import AtomRestraintGraph
 from shelxfile.edit.line_map import RenderedFile, render
@@ -161,40 +161,33 @@ class ShelxDocument:
     # ---------------------------------------------------------- deletion
 
     def delete_atoms(self, atoms: Iterable[Atom]) -> DeletionReport:
-        """Delete *atoms*, reporting everything that went with them.
+        """Delete *atoms* and everything that cannot survive without them.
 
-        Deleting an atom can invalidate an ``AFIX`` group, which is a
-        constraint with a required member count rather than a restraint
-        that merely weakens.  Such a group is removed whole, and the atoms
-        it held are themselves deleted, so the operation cascades until it
-        settles.
+        The consequences are worked out in full before anything is
+        touched, so a cascade is never half-applied.  Restraints that lose
+        an atom are trimmed, or removed when too little is left to mean
+        anything; ``AFIX`` groups that fall below their required member
+        count go whole, taking their atoms with them.
 
         Symmetry-generated atoms are skipped: they are products of
         :meth:`Shelxfile.grow`/:meth:`~Shelxfile.pack`, not lines in the
         file.
         """
-        report = DeletionReport()
-        queue = [a for a in atoms if not a.symmgen]
-        seen: set[int] = set()
-        reasons: dict[int, RemovalReason] = {
-            id(a): RemovalReason.REQUESTED for a in queue
-        }
-        while queue:
-            atom = queue.pop(0)
-            if id(atom) in seen or atom.symmgen:
-                continue
-            seen.add(id(atom))
-            follow_up = self._afix_fallout(atom, report, seen)
-            report.add_atom(atom, reasons.get(id(atom), RemovalReason.REQUESTED))
-            atom.delete()
-            for extra, reason in follow_up:
-                if id(extra) not in seen:
-                    reasons.setdefault(id(extra), reason)
-                    queue.append(extra)
-        if not report.is_empty:
-            self._collect_orphaned_eqivs(report)
-            self._notify()
+        engine = CascadeEngine(self._shx, self.graph)
+        plan = engine.plan(atoms)
+        if plan.is_empty:
+            return DeletionReport()
+        report = engine.apply(plan)
+        self._collect_orphaned_eqivs(report)
+        self._notify()
         return report
+
+    def plan_deletion(self, atoms: Iterable[Atom]) -> CascadePlan:
+        """Work out what deleting *atoms* would do, without doing it.
+
+        Useful for confirming a destructive edit before it happens.
+        """
+        return CascadeEngine(self._shx, self.graph).plan(atoms)
 
     def _collect_orphaned_eqivs(self, report: DeletionReport) -> None:
         """Drop ``EQIV`` cards left with nothing referencing them.
@@ -204,60 +197,6 @@ class ShelxDocument:
         """
         self.graph.rebuild()
         EqivCleaner(self._shx, self.graph).remove_orphans(report)
-
-    def _afix_fallout(
-        self,
-        atom: Atom,
-        report: DeletionReport,
-        seen: set[int],
-    ) -> list[tuple[Atom, RemovalReason]]:
-        """Groups invalidated by losing *atom*, and the atoms they hold.
-
-        Two distinct cases, both of which leave an instruction SHELXL
-        cannot carry out:
-
-        * the atom is a member, and the group drops below the member count
-          its geometry requires (``AFIX 66`` with five atoms);
-        * the atom is the pivot a riding or rotating group hangs from,
-          which sits outside the bracket, leaving the group orphaned.
-        """
-        resolver = BracketResolver(self._shx)
-        doomed: list[tuple[Atom, RemovalReason]] = []
-        for scope in resolver.afix_scopes():
-            if scope.is_reset:
-                continue
-            is_member = any(m is atom for m in scope.members)
-            if is_member:
-                if scope.expected_count is None:
-                    continue
-                if len(scope.members) - 1 >= scope.expected_count:
-                    continue
-                reason = RemovalReason.AFIX_UNDER_POPULATED
-            elif resolver.pivot_of(scope) is atom:
-                reason = RemovalReason.AFIX_PIVOT_DELETED
-            else:
-                continue
-            self._remove_bracket(scope, report, reason)
-            for member in scope.members:
-                if member is not atom and id(member) not in seen:
-                    doomed.append((member, reason))
-        return doomed
-
-    def _remove_bracket(
-        self,
-        scope,
-        report: DeletionReport,
-        reason: RemovalReason,
-    ) -> None:
-        """Drop a bracket card and its closer, never a reset on its own."""
-        for card in (scope.card, scope.closer):
-            if card is None:
-                continue
-            try:
-                self._shx.remove_from_reslist(card)
-            except ValueError:
-                continue
-            report.add_card(card, reason)
 
     def delete_atom(self, atom: Atom) -> DeletionReport:
         return self.delete_atoms([atom])

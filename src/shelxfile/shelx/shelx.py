@@ -385,17 +385,32 @@ class Shelxfile:
                 has_own_residue = '_' in base_name
                 if (restraint.residue_class or sum(restraint.residue_number) > 0) and not has_own_residue:
                     populated_nums = populated_resi_nums_by_class.get(restraint.residue_class, set())
+                    # A class-scoped instruction is applied once per residue,
+                    # and "if some or all of the named atoms cannot be found
+                    # for a particular residue, the instruction is simply
+                    # ignored for that residue". So a name missing from one
+                    # residue is normal; only a name missing from *every*
+                    # residue is worth reporting.
+                    per_residue: list[str] = []
+                    found_somewhere = False
                     for num in restraint.residue_number:
                         # Skip residue numbers of this class that have no atoms at all.
                         # SHELXL silently ignores empty residues for restraints too.
                         if restraint.residue_class and num not in populated_nums:
                             continue
+                        probe: list[str] = []
                         if eqiv_match:
-                            self.does_atom_exist(restraint_atom, bad_atoms, restraint_atom,
+                            self.does_atom_exist(restraint_atom, probe, restraint_atom,
                                                  missing_eqiv, residue_scope=num)
                         else:
-                            self.does_atom_exist(f'{restraint_atom}_{num}', bad_atoms, f'{restraint_atom}_{num}',
+                            self.does_atom_exist(f'{restraint_atom}_{num}', probe, f'{restraint_atom}_{num}',
                                                  missing_eqiv)
+                        if probe:
+                            per_residue.extend(probe)
+                        else:
+                            found_somewhere = True
+                    if not found_somewhere:
+                        bad_atoms.extend(per_residue)
                 elif '_' in restraint_atom:
                     self.does_atom_exist(f'{restraint_atom}', bad_atoms, restraint_atom, missing_eqiv)
                 else:

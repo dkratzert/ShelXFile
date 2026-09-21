@@ -11,8 +11,10 @@ from shelxfile.edit.card_meta import (
     AfixDependency,
     AtomGrouping,
     AtomListSemantics,
+    AtomReferencingCard,
     CardLifetime,
 )
+from shelxfile.edit.cascade import CascadeEngine, CascadePlan
 from shelxfile.edit.document import ShelxDocument
 from shelxfile.edit.eqiv_cleanup import EqivCleaner, validate_symmetry_arity
 from shelxfile.edit.graph import AtomRestraintGraph
@@ -35,9 +37,12 @@ __all__ = [
     'AtomGrouping',
     'AtomListSemantics',
     'AtomReference',
+    'AtomReferencingCard',
     'AtomRestraintGraph',
     'AtomTokenResolver',
     'CardLifetime',
+    'CascadeEngine',
+    'CascadePlan',
     'DeletionReport',
     'EditReport',
     'EqivCleaner',

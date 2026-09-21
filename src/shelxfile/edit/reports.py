@@ -55,6 +55,17 @@ class RemovedItem:
 
 
 @dataclass
+class EditedCard:
+    """A card that survived, with its atom list trimmed."""
+
+    card: object
+    before: str
+
+    def __str__(self) -> str:
+        return f'{self.before} -> {self.card}'
+
+
+@dataclass
 class DeletionReport:
     """Everything a deletion removed, transitively.
 
@@ -64,6 +75,8 @@ class DeletionReport:
 
     atoms: list[RemovedItem] = field(default_factory=list)
     cards: list[RemovedItem] = field(default_factory=list)
+    #: Cards kept but rewritten, e.g. a restraint that lost one atom.
+    edited: list[EditedCard] = field(default_factory=list)
 
     def add_atom(self, atom: Atom, reason: RemovalReason) -> None:
         self.atoms.append(RemovedItem(atom, reason, str(atom)))
@@ -71,16 +84,20 @@ class DeletionReport:
     def add_card(self, card: Restraint | Command, reason: RemovalReason) -> None:
         self.cards.append(RemovedItem(card, reason, str(card)))
 
+    def add_edit(self, card: Restraint | Command, before: str) -> None:
+        self.edited.append(EditedCard(card, before))
+
     def extend(self, other: DeletionReport) -> None:
         self.atoms.extend(other.atoms)
         self.cards.extend(other.cards)
+        self.edited.extend(other.edited)
 
     @property
     def is_empty(self) -> bool:
-        return not self.atoms and not self.cards
+        return not self.atoms and not self.cards and not self.edited
 
     def __len__(self) -> int:
-        return len(self.atoms) + len(self.cards)
+        return len(self.atoms) + len(self.cards) + len(self.edited)
 
     def summary(self) -> str:
         if self.is_empty:
@@ -90,7 +107,11 @@ class DeletionReport:
             parts.append(f'{len(self.atoms)} atom(s)')
         if self.cards:
             parts.append(f'{len(self.cards)} card(s)')
-        return 'removed ' + ' and '.join(parts)
+        text = 'removed ' + ' and '.join(parts) if parts else ''
+        if self.edited:
+            trimmed = f'{len(self.edited)} card(s) trimmed'
+            text = f'{text}, {trimmed}' if text else trimmed
+        return text
 
 
 @dataclass
