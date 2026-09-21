@@ -18,6 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable, Union
 
+from shelxfile.edit.graph import AtomRestraintGraph
 from shelxfile.edit.line_map import RenderedFile, render
 from shelxfile.edit.reports import DeletionReport, EditReport, RemovalReason
 
@@ -43,8 +44,17 @@ class ShelxDocument:
         self._shx = shx
         self._observers: list[Observer] = []
         self._rendered: RenderedFile | None = None
+        self._graph: AtomRestraintGraph | None = None
 
     # ------------------------------------------------------------- model
+
+    @property
+    def graph(self) -> AtomRestraintGraph:
+        """Atom/card links, rebuilt on demand when the model changes."""
+        if self._graph is None:
+            self._graph = AtomRestraintGraph(self._shx)
+        self._graph.ensure_current()
+        return self._graph
 
     @property
     def shelxfile(self) -> Shelxfile:

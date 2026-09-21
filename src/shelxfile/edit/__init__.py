@@ -14,6 +14,7 @@ from shelxfile.edit.card_meta import (
     CardLifetime,
 )
 from shelxfile.edit.document import ShelxDocument
+from shelxfile.edit.graph import AtomRestraintGraph
 from shelxfile.edit.line_map import RenderedFile, render
 from shelxfile.edit.reports import (
     DeletionReport,
@@ -33,6 +34,7 @@ __all__ = [
     'AtomGrouping',
     'AtomListSemantics',
     'AtomReference',
+    'AtomRestraintGraph',
     'AtomTokenResolver',
     'CardLifetime',
     'DeletionReport',

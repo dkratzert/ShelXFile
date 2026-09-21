@@ -78,6 +78,7 @@ class Atoms:
         """
         self.all_atoms.append(atom)
         self._atomsdict.clear()
+        self.shx.touch()
 
     @property
     def nameslist(self) -> tuple[str, ...]:

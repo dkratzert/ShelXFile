@@ -201,10 +201,17 @@ class Shelxfile:
         self.resfile: Path | None = None
         self.orthogonal_matrix: Array | None = None
         self._reslist: list[ResListEntry] = []
+        #: Bumped on every structural change. Lets the edit layer notice a
+        #: stale cache without the model having to know about it.
+        self.model_version: int = 0
         #: Source line of the card currently being parsed, with '='
         #: continuations glued on. Parse-time scratch used by
         #: :meth:`_tag_lifetime`.
         self._current_raw_line: str = ''
+
+    def touch(self) -> None:
+        """Record that the structure changed."""
+        self.model_version += 1
 
     def dumps(self) -> str:
         """
@@ -1573,6 +1580,7 @@ class Shelxfile:
         index = self.index_of(obj)
         del self._reslist[index]
         self._shift_delete_on_write(index)
+        self.touch()
         return index
 
     def _shift_delete_on_write(self, removed_index: int) -> None:

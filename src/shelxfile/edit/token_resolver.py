@@ -155,11 +155,19 @@ class AtomTokenResolver:
         return result
 
     def resolve_for(self, card) -> ResolvedAtoms:
-        """Expand the atom list of *card*, honouring its residue scope."""
+        """Expand the atom list of *card*, honouring its residue scope.
+
+        Uses ``referenced_atoms`` so cards that keep their operands in
+        named fields (``FREE``, ``HTAB``) work the same as those with a
+        flat list.
+        """
         numbers = getattr(card, 'residue_number', None)
         if isinstance(numbers, int):
             numbers = [numbers]
-        return self.resolve(list(card.atoms), numbers)
+        tokens = getattr(card, 'referenced_atoms', None)
+        if tokens is None:
+            tokens = list(getattr(card, 'atoms', []))
+        return self.resolve(list(tokens), numbers)
 
     # ----------------------------------------------------------- helpers
 
