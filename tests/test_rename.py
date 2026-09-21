@@ -145,6 +145,41 @@ def test_the_untouched_reference_is_reported() -> None:
     assert 'left unchanged' in report.summary()
 
 
+def test_an_element_reference_needs_no_change() -> None:
+    """``$H`` names every hydrogen, so it follows a rename by itself.
+
+    Crucially this holds even when only one hydrogen exists: a token that
+    happens to match one atom today is still a class reference, and
+    rewriting ``BOND $H`` to ``BOND H9`` would change the instruction.
+    """
+    doc = ShelxDocument.from_string(
+        HEADER
+        + 'BOND $H\n'
+          'C1    1     0.10  0.20  0.30  11.00000  0.05\n'
+          'H1    2     0.15  0.25  0.35  11.00000  0.05\n'
+        + FOOTER
+    )
+    report = doc.rename_atom(doc.shelxfile.atoms.get_atom_by_name('H1_0'), 'H9')
+    assert report.ok
+    assert report.skipped == [], 'an element reference still covers the atom'
+    assert report.updated == []
+    assert 'BOND $H' in doc.text
+
+
+def test_a_wildcard_reference_is_never_rewritten() -> None:
+    """``C1_*`` means that name in every residue."""
+    doc = ShelxDocument.from_string(
+        HEADER
+        + 'SIMU C1_*\n'
+          'RESI 1 TOL\n'
+          'C1    1     0.10  0.20  0.30  11.00000  0.05\n'
+          'RESI 0\n'
+        + FOOTER
+    )
+    doc.rename_atom(doc.shelxfile.atoms.get_atom_by_name('C1_1'), 'CX')
+    assert 'SIMU C1_*' in doc.text
+
+
 def test_the_other_residue_keeps_working() -> None:
     doc = _doc('SADI_TOL C1 C2\n', atoms=RESIDUES)
     doc.rename_atom(doc.shelxfile.atoms.get_atom_by_name('C1_2'), 'CX')
@@ -206,6 +241,70 @@ def test_symmetry_generated_atoms_cannot_be_renamed() -> None:
     assert packed
     report = doc.rename_atom(packed[0], 'CX')
     assert not report.ok
+
+
+# ------------------------------------------- files that never use residues
+
+#: 3826 of the 6022 reference-corpus files contain no ``RESI`` at all, so
+#: this is the common case rather than an edge case.
+
+def test_plain_file_without_any_resi_renames_and_updates() -> None:
+    doc = _doc('SADI C1 C2 C3 C4\nDFIX 1.5 C1 C2\nSIMU C1 C2 C3\n')
+    assert doc.shelxfile.residues.all_residues == [], 'fixture has no RESI'
+
+    report = doc.rename_atom(doc.shelxfile.atoms.get_atom_by_name('C1_0'), 'CX')
+
+    assert report.ok
+    assert len(report.updated) == 3
+    assert report.skipped == [], 'nothing is shared when there are no residues'
+    assert 'SADI CX C2 C3 C4' in doc.text
+    assert 'DFIX 1.5 CX C2' in doc.text
+    assert 'SIMU CX C2 C3' in doc.text
+
+
+def test_without_residues_every_token_is_exclusive() -> None:
+    """With one residue there is nothing for a token to be shared with."""
+    doc = _doc('SADI C1 C2\n')
+    report = doc.rename_atom(doc.shelxfile.atoms.get_atom_by_name('C2_0'), 'CZ')
+    assert report.skipped == []
+    assert 'SADI C1 CZ' in doc.text
+
+
+def test_repeated_renames_without_residues() -> None:
+    doc = _doc('SADI C1 C2 C3 C4\n')
+    for old, new in (('C1_0', 'CA'), ('C2_0', 'CB'), ('C3_0', 'CC')):
+        assert doc.rename_atom(doc.shelxfile.atoms.get_atom_by_name(old), new).ok
+    assert 'SADI CA CB CC C4' in doc.text
+
+
+def test_without_residues_a_rename_leaves_no_warnings() -> None:
+    doc = _doc('SADI C1 C2 C3 C4\nDFIX 1.5 C1 C2\n')
+    doc.rename_atom(doc.shelxfile.atoms.get_atom_by_name('C1_0'), 'CX')
+    reparsed = Shelxfile()
+    reparsed.read_string(doc.text)
+    assert reparsed.restraint_errors == []
+
+
+def test_without_residues_a_pair_card_stays_consistent() -> None:
+    doc = _doc('SADI C1 C2 C3 C4\n')
+    doc.rename_atom(doc.shelxfile.atoms.get_atom_by_name('C3_0'), 'CQ')
+    reparsed = Shelxfile()
+    reparsed.read_string(doc.text)
+    sadi = next(iter(reparsed.restraints))
+    assert sadi.atoms == ['C1', 'C2', 'CQ', 'C4']
+
+
+def test_without_residues_named_operands_follow() -> None:
+    doc = _doc('FREE C1 C2\nHTAB C1 C2\n')
+    doc.rename_atom(doc.shelxfile.atoms.get_atom_by_name('C2_0'), 'CY')
+    assert doc.shelxfile.free[0].referenced_atoms == ['C1', 'CY']
+    assert doc.shelxfile.htab.referenced_atoms == ['C1', 'CY']
+
+
+def test_without_residues_hfix_follows() -> None:
+    doc = _doc('HFIX 43 C1 C2\n')
+    doc.rename_atom(doc.shelxfile.atoms.get_atom_by_name('C1_0'), 'CW')
+    assert doc.shelxfile.hfixes[0].referenced_atoms == ['CW', 'C2']
 
 
 # ------------------------------------------------------------- round-trip

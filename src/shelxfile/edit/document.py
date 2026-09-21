@@ -28,7 +28,11 @@ from shelxfile.edit.reports import (
     RemovalReason,
     RenameReport,
 )
-from shelxfile.edit.token_resolver import AtomTokenResolver, split_range_tokens
+from shelxfile.edit.token_resolver import (
+    LAST_KEYWORD,
+    AtomTokenResolver,
+    split_range_tokens,
+)
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
@@ -230,24 +234,39 @@ class ShelxDocument:
         atom.name = new_name.strip()
         report.new_name = atom.fullname
 
+        resolver = AtomTokenResolver(self._shx)
         for card, exclusive, shared in affected:
             before = str(card)
             if exclusive:
                 self._retarget(card, exclusive, atom.name)
                 report.add_update(card, before)
             for token in shared:
+                if self._still_covers(resolver, card, token, atom.fullname):
+                    # An element reference such as '$H' names a class of
+                    # atoms, so it follows the rename by itself.
+                    continue
                 report.add_skip(
                     card, token,
-                    'token also refers to atoms in other residues',
+                    'token also names atoms in other residues, so '
+                    'rewriting it would redirect them too',
                 )
         self._notify()
         return report
 
+    @staticmethod
+    def _still_covers(resolver, card, token: str, fullname: str) -> bool:
+        """Whether *token* reaches *fullname* after the rename."""
+        scope = getattr(card, 'residue_number', None)
+        if isinstance(scope, int):
+            scope = [scope]
+        return fullname in resolver.resolve([token], scope).fullnames
+
     def _rename_targets(self, atom: Atom, old_fullname: str):
         """Split each referencing card's tokens into exclusive and shared.
 
-        *exclusive* tokens resolve only to *atom* and may be rewritten;
-        *shared* ones also name surviving atoms and must be left alone.
+        *exclusive* tokens name this atom and nothing else, so they may be
+        rewritten; *shared* ones also reach other atoms and must be left
+        as they are.
         """
         resolver = AtomTokenResolver(self._shx)
         found = []
@@ -264,7 +283,7 @@ class ShelxDocument:
                 names = resolver.resolve([token], scope).fullnames
                 if old_fullname not in names:
                     continue
-                if len(names) == 1:
+                if _names_a_single_atom(token) and len(names) == 1:
                     exclusive.append(token)
                 else:
                     shared.append(token)
@@ -367,3 +386,20 @@ class ShelxDocument:
     def __repr__(self) -> str:
         return (f'<ShelxDocument {len(self._shx.atoms)} atoms, '
                 f'{self.line_count} lines>')
+
+
+def _names_a_single_atom(token: str) -> bool:
+    """Whether *token* is a literal atom name rather than a class of them.
+
+    Class references must never be rewritten by a rename, however few
+    atoms they happen to match today.  ``BOND $H`` in a structure with
+    one hydrogen still means "every hydrogen", and turning it into
+    ``BOND H9`` would quietly change the instruction.
+
+    Excluded: ``$element`` references, ``_*`` wildcards, and ``LAST``.
+    """
+    if not token or token.startswith('$'):
+        return False
+    if token.upper() == LAST_KEYWORD:
+        return False
+    return not token.endswith('_*')
