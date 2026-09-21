@@ -139,3 +139,61 @@ class AfixDependency(Enum):
     def pivot_is_outside_bracket(self) -> bool:
         """``True`` when the group depends on an atom before the card."""
         return self in (AfixDependency.RIDING, AfixDependency.ROTATING)
+
+
+class AtomReferencingCard:
+    """Shared classification for any card that names atoms.
+
+    Restraints are not the only instructions that reference atoms:
+    ``HFIX``, ``ANIS``, ``BOND``, ``MPLA``, ``CONN``, ``CONF``, ``BIND``,
+    ``FREE`` and ``HTAB`` do too, and would be left pointing at deleted
+    atoms if only restraints were maintained.
+
+    Subclasses store their atoms in different shapes -- a flat ``atoms``
+    list, or named fields such as ``FREE``'s ``atom1``/``atom2`` -- so
+    :attr:`referenced_atoms` normalises access to them.
+    """
+
+    #: How the atom list is structured. See :class:`AtomGrouping`.
+    ATOM_GROUPING: AtomGrouping = AtomGrouping.FLAT
+
+    #: Fewest atoms the card still means something with.  Only consulted
+    #: when :attr:`atom_semantics` is ``EXPLICIT``.
+    MIN_ATOMS: int = 2
+
+    #: What an empty atom list means for this card *class*.
+    EMPTY_MEANS: AtomListSemantics = AtomListSemantics.EXPLICIT
+
+    #: Whether the card is live input or inert post-``END`` output.
+    lifetime: CardLifetime = CardLifetime.INPUT
+
+    @property
+    def referenced_atoms(self) -> list[str]:
+        """Atom tokens this card names, in source order."""
+        return list(getattr(self, 'atoms', []) or [])
+
+    @property
+    def atom_grouping(self) -> AtomGrouping:
+        """How to interpret :attr:`referenced_atoms` for this instance."""
+        return self.ATOM_GROUPING
+
+    @property
+    def atom_semantics(self) -> AtomListSemantics:
+        """What this *instance*'s atom list means.
+
+        A card that named atoms is ``EXPLICIT`` whatever its class; only
+        one authored without names takes on the class meaning.
+        """
+        if self.referenced_atoms:
+            return AtomListSemantics.EXPLICIT
+        return self.EMPTY_MEANS
+
+    @property
+    def is_atom_linked(self) -> bool:
+        """Whether this card takes part in atom bookkeeping.
+
+        Excludes inert post-``END`` output, cards whose empty list means
+        "everything", and bare directives.
+        """
+        return (self.lifetime is CardLifetime.INPUT
+                and self.atom_semantics is AtomListSemantics.EXPLICIT)

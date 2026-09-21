@@ -9,6 +9,7 @@ from shelxfile.edit.card_meta import (
     AfixDependency,
     AtomGrouping,
     AtomListSemantics,
+    AtomReferencingCard,
     CardLifetime,
 )
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix, Matrix
@@ -125,7 +126,7 @@ class Residue:
         return self.shx.residues.residue_classes.get(self.residue_class, [0])  # type: ignore
 
 
-class Restraint(Residue):
+class Restraint(Residue, AtomReferencingCard):
 
     #: Live input by default; :meth:`Shelxfile._append_card` re-tags cards
     #: parsed after ``END`` as inert output. See :class:`CardLifetime`.
@@ -296,9 +297,10 @@ class Restraint(Residue):
     def atom_semantics(self) -> AtomListSemantics:
         """What this *instance*'s atom list means.
 
-        A card that named atoms is ``EXPLICIT`` regardless of its class.
-        Only one authored without names takes on the class meaning, which
-        for several instructions is "apply to everything".
+        Overrides the mixin to consult the atoms as **parsed** rather than
+        the current list: a card edited down to nothing must still be
+        recognised as one that named atoms, so it gets removed instead of
+        silently widening to "all atoms".
         """
         if self._original_atoms:
             return AtomListSemantics.EXPLICIT
@@ -412,7 +414,10 @@ class ABIN(Command):
             self.n2 = p[1]
 
 
-class ANIS(Command):
+class ANIS(Command, AtomReferencingCard):
+
+    # 'ANIS on its own ... makes all following non-hydrogen atoms anisotropic.'
+    EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
 
     def __init__(self, shx, spline: list):
         """
@@ -439,7 +444,11 @@ class ANIS(Command):
         return True
 
 
-class MPLA(Command):
+class MPLA(Command, AtomReferencingCard):
+
+    # 'A least-squares plane is calculated through the first na of the
+    # named atoms ... na must be at least 3.'
+    MIN_ATOMS = 3
 
     def __init__(self, shx, spline: list):
         """
@@ -995,7 +1004,11 @@ class FRAG(Command):
         self.cell = params[1:7]
 
 
-class FREE(Command):
+class FREE(Command, AtomReferencingCard):
+
+    #: Both operands name one bond, so losing either kills the card.
+    ATOM_GROUPING = AtomGrouping.PAIRS
+    MIN_ATOMS = 2
 
     def __init__(self, shx, spline: list):
         """
@@ -1010,6 +1023,11 @@ class FREE(Command):
             self.atom2 = atoms[1]
         except IndexError:
             raise ParseParamError(debug=shx.debug, verbose=shx.verbose)
+
+    @property
+    def referenced_atoms(self) -> list[str]:
+        """``FREE`` keeps its operands in named fields, not a list."""
+        return [a for a in (self.atom1, self.atom2) if a]
 
 
 class FMAP(Command):
@@ -1060,7 +1078,13 @@ class MERG(Command):
             self.n = _n[0]
 
 
-class HTAB(Command):
+class HTAB(Command, AtomReferencingCard):
+
+    #: ``HTAB dh`` sets a search distance and names nothing; only the
+    #: two-atom form references atoms.
+    EMPTY_MEANS = AtomListSemantics.DIRECTIVE_WHEN_EMPTY
+    ATOM_GROUPING = AtomGrouping.PAIRS
+    MIN_ATOMS = 2
 
     def __init__(self, shx, spline: list):
         """
@@ -1077,6 +1101,15 @@ class HTAB(Command):
         if len(atoms) == 2:
             self.donor = atoms[0]
             self.acceptor = atoms[1]
+
+    @property
+    def referenced_atoms(self) -> list[str]:
+        """Donor first, then acceptor.
+
+        Order matters: *"Only the acceptor atom may specify a symmetry
+        operation (_$n) because CIF requires this."*
+        """
+        return [a for a in (self.donor, self.acceptor) if a]
 
 
 class GRID(Command):
@@ -1124,7 +1157,11 @@ class ACTA(Command):
         return self._as_str()
 
 
-class BLOC(Command):
+class BLOC(Command, AtomReferencingCard):
+
+    # 'A BLOC instruction that does not refer to any atoms refines all
+    # atomic parameters in the specified cycles.'
+    EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
 
     def __init__(self, shx, spline: list):
         """
@@ -1249,7 +1286,11 @@ class FVARs:
         return [str(x.fvar_value) for x in self.fvars]
 
 
-class CONF(Command):
+class CONF(Command, AtomReferencingCard):
+
+    # 'If no atoms are specified, all possible torsion angles not
+    # involving hydrogen are generated from the connectivity array.'
+    EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
 
     def __init__(self, shx, spline: list) -> None:
         """
@@ -1258,7 +1299,10 @@ class CONF(Command):
         super(CONF, self).__init__(shx, spline)
 
 
-class CONN(Command):
+class CONN(Command, AtomReferencingCard):
+
+    # 'CONN without atom names changes the default value of bmax.'
+    EMPTY_MEANS = AtomListSemantics.DIRECTIVE_WHEN_EMPTY
 
     def __init__(self, shx, spline: list) -> None:
         """
@@ -1276,7 +1320,13 @@ class REM(Command):
         super(REM, self).__init__(shx, spline)
 
 
-class BIND(Command):
+class BIND(Command, AtomReferencingCard):
+
+    #: ``BIND m n`` links two PARTs and names no atoms; that form is a
+    #: different instruction from ``BIND atom1 atom2``.
+    EMPTY_MEANS = AtomListSemantics.DIRECTIVE_WHEN_EMPTY
+    ATOM_GROUPING = AtomGrouping.PAIRS
+    MIN_ATOMS = 2
 
     def __init__(self, shx, spline: list) -> None:
         """
@@ -1287,7 +1337,11 @@ class BIND(Command):
         self.parts, self.atoms = self._parse_line(spline)
 
 
-class BOND(Command):
+class BOND(Command, AtomReferencingCard):
+
+    # 'A BOND instruction with no parameters outputs bond lengths ...
+    # for all bonds in the connectivity table.'
+    EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
 
     def __init__(self, shx, spline: list) -> None:
         """
@@ -1687,7 +1741,10 @@ class DAMP(Command):
             return "DAMP  {:,g} {:,g}".format(self.damp, self.limse)
 
 
-class HFIX(Command):
+class HFIX(Command, AtomReferencingCard):
+
+    # HFIX must name the atoms it adds hydrogens to.
+    MIN_ATOMS = 1
 
     def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
