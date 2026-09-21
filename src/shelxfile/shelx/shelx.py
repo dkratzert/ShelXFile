@@ -1290,6 +1290,41 @@ class Shelxfile:
         packed_atoms = sdm.packer(sdm, needsymm, with_qpeaks=with_qpeaks)
         return packed_atoms
 
+    def _make_grown_names_unique(self, atoms: list[Atom]) -> None:
+        """Give *atoms* SHELXL-legal, unique names, in place.
+
+        In memory a symmetry image is labelled after its parent and the
+        operation that made it (``O1>>2``), which is readable and says
+        where the atom came from.  A ``.res`` file cannot carry that: a
+        name is "up to 4 characters, of which the first must be a
+        letter", and "the combination of atom name, PART and RESI numbers
+        must be unique".
+
+        So on the way out, anything that is not a legal name is replaced
+        by a plain sequential one.  Atoms of the asymmetric unit keep
+        their own labels, so the file still reads the way it was written.
+        """
+        from shelxfile.shelx.sdm import _unique_legal_atom_name
+
+        def slot(atom: Atom) -> str:
+            resi = atom.resi.residue_number if atom.resi else 0
+            part = atom.part.n if atom.part else 0
+            return f'{atom.name.upper()}_{resi}_{part}'
+
+        def is_legal(name: str) -> bool:
+            return (bool(name) and len(name) <= 4 and name[0].isalpha()
+                    and name.isalnum())
+
+        seen: set[str] = set()
+        used: set[str] = {a.name.upper() for a in atoms if is_legal(a.name)}
+        for atom in atoms:
+            if is_legal(atom.name) and slot(atom) not in seen:
+                seen.add(slot(atom))
+                continue
+            element = self.sfac2elem(atom.sfac_num) or 'C'
+            atom._name = _unique_legal_atom_name(element, used)
+            seen.add(slot(atom))
+
     def write_grown_file(self, filename: str | Path, with_qpeaks: bool = False) -> None:
         """Write a grown (complete molecule) .res file in P1 symmetry.
 
@@ -1317,6 +1352,11 @@ class Shelxfile:
 
         grown_atoms = self.grow(with_qpeaks=with_qpeaks)
         real_grown = [a for a in grown_atoms if not a.qpeak] if not with_qpeaks else grown_atoms
+        # Grown atoms keep the label of the atom they came from, which is
+        # what makes them recognisable in a viewer. A .res file cannot: the
+        # combination of name, PART and RESI has to be unique, so the
+        # duplicates are relabelled here, at the point where it matters.
+        self._make_grown_names_unique(real_grown)
 
         lines: list[str] = []
 

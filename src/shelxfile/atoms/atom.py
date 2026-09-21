@@ -6,6 +6,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
+from shelxfile.atoms.symmetry_mate import SymmetryMate
 from shelxfile.misc.dsrmath import atomic_distance
 from shelxfile.misc.elements import get_atomic_number, get_radius_from_element
 from shelxfile.misc.misc import split_fvar_and_parameter, ParseSyntaxError, frac_to_cart_fast, ParseUnknownParam
@@ -53,6 +54,10 @@ class Atom:
         self.yc: float = 0.0
         self.zc: float = 0.0
         self.qpeak: bool = False
+        #: Where this atom came from, when it is a symmetry image made by
+        #: :meth:`Shelxfile.grow` or :meth:`~Shelxfile.pack`. ``None`` for
+        #: atoms that are real lines in the file.
+        self.symm_mate: SymmetryMate | None = None
         self.peak_height: float = 0.0
         self.uvals: list[float] = [0.04, 0.0, 0.0, 0.0, 0.0, 0.0]  # [U] or [U11 U22 U33 U23 U13 U12]
         self.U11, self.U22, self.U33, self.U23, self.U13, self.U12 = self.uvals
@@ -174,7 +179,11 @@ class Atom:
         """
         Sets atom properties manually if not parsed from a SHELXL file.
         """
-        self.name = name
+        # Assigned directly rather than through the ``name`` property:
+        # this builds an atom rather than renaming one, and generated
+        # symmetry images carry display labels such as 'O1>>2' that are
+        # deliberately longer than SHELXL allows in an input file.
+        self._name = name
         self.sfac_num = sfac_num
         self.frac_coords = coords
         self.x, self.y, self.z = coords[0], coords[1], coords[2]
@@ -559,7 +568,13 @@ class Atom:
 
     def delete(self) -> None:
         """
-        Delete this atom from the file.
+        Remove this atom's line from the file.
+
+        This is the plain model-level removal: instructions that
+        referenced the atom are left as they are.  To have restraints,
+        ``AFIX`` groups and ``EQIV`` definitions follow the deletion, use
+        :meth:`shelxfile.edit.ShelxDocument.delete_atoms`, which works out
+        the whole cascade first and reports what it removed.
 
         Symmetry-generated atoms (produced by :meth:`Shelxfile.grow` or
         :meth:`Shelxfile.pack`) are not lines in the ``.res`` file and are

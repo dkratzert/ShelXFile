@@ -219,51 +219,82 @@ WGHT      0.0348      0.6278
         sdm = SDM(shx)
         self.assertEqual(7.343581289102655, sdm.vector_length(-0.3665069999999999, 0.293439, -0.06597900000000001))
 
-    def test_grown_atom_names_are_legal(self):
-        """Symmetry-generated atoms returned by packer() must have legal SHELXL names."""
-        import re
-        legal = re.compile(r'^[A-Za-z][A-Za-z0-9]{0,3}$')
+    def test_grown_atom_names_show_their_origin(self):
+        """An image of O1 under operation 2 is labelled 'O1>>2'.
+
+        Grown atoms exist to be displayed, not refined, so the label is
+        allowed to be longer than SHELXL permits in an input file. It
+        keeps the parent name recognisable and says which operation
+        produced the copy; write_grown_file converts them back to legal
+        names on the way out.
+        """
         shx = Shelxfile()
         shx.read_file('tests/resources/p-31c.res')
         sdm = SDM(shx)
         needsymm = sdm.calc_sdm()
-        packed_atoms = sdm.packer(sdm, needsymm)
-        for at in packed_atoms:
-            if at.symmgen:  # only check atoms created by the packer
-                self.assertRegex(at.name, legal,
-                                 f"Atom name '{at.name}' is not a legal SHELXL name")
+        mates = [at for at in sdm.packer(sdm, needsymm) if at.symmgen]
+        self.assertTrue(mates, "expected symmetry-generated atoms")
+        for at in mates:
+            self.assertIn('>>', at.name)
+            self.assertTrue(at.name.startswith(at.symm_mate.parent.name))
+            self.assertIn(str(at.symm_mate.symm_number), at.name.split('>>')[1])
 
     def test_grown_atom_names_are_unique(self):
-        """Every atom returned by packer() must have a unique name."""
+        """Labels must distinguish the copies, or a viewer cannot tell them apart."""
         shx = Shelxfile()
         shx.read_file('tests/resources/p-31c.res')
         sdm = SDM(shx)
-        needsymm = sdm.calc_sdm()
-        packed_atoms = sdm.packer(sdm, needsymm)
-        names = [at.name.upper() for at in packed_atoms]
+        names = [at.name.upper() for at in sdm.packer(sdm, sdm.calc_sdm())]
         self.assertEqual(len(names), len(set(names)),
                          "Duplicate atom names found in packer() output")
 
-    def test_pack_unit_cell_names_are_legal(self):
-        """Symmetry-generated atoms from pack_unit_cell() must have legal SHELXL names."""
-        import re
-        legal = re.compile(r'^[A-Za-z][A-Za-z0-9]{0,3}$')
+    def test_pack_unit_cell_names_show_their_origin(self):
+        """Packed images carry the same 'parent>>operation' label."""
         shx = Shelxfile()
         shx.read_file('tests/resources/p-31c.res')
         sdm = SDM(shx)
-        for at in sdm.pack_unit_cell():
-            if at.symmgen:  # only check atoms created by the packer
-                self.assertRegex(at.name, legal,
-                                 f"Atom name '{at.name}' is not a legal SHELXL name")
+        mates = [at for at in sdm.pack_unit_cell() if at.symmgen]
+        self.assertTrue(mates, "expected symmetry-generated atoms")
+        for at in mates:
+            self.assertIn('>>', at.name)
+            self.assertTrue(at.name.startswith(at.symm_mate.parent.name))
 
     def test_pack_unit_cell_names_are_unique(self):
-        """Every atom returned by pack_unit_cell() must have a unique name."""
+        """Filling a cell repeats atoms by translation as well as by symmetry."""
         shx = Shelxfile()
         shx.read_file('tests/resources/p-31c.res')
         sdm = SDM(shx)
         names = [at.name.upper() for at in sdm.pack_unit_cell()]
         self.assertEqual(len(names), len(set(names)),
                          "Duplicate atom names found in pack_unit_cell() output")
+
+    def test_written_grown_file_uses_legal_unique_names(self):
+        """A .res file cannot carry the display labels.
+
+        SHELXL allows "up to 4 characters, of which the first must be a
+        letter", so write_grown_file converts 'O1>>2' into a plain legal
+        name before writing.
+        """
+        import re as _re
+        import tempfile
+        legal = _re.compile(r"^[A-Za-z][A-Za-z0-9]{0,3}$")
+        shx = Shelxfile()
+        shx.read_file('tests/resources/p-31c.res')
+        with tempfile.NamedTemporaryFile(suffix='.res', delete=False) as f:
+            out = Path(f.name)
+        try:
+            shx.write_grown_file(out)
+            names = [line.split()[0]
+                     for line in out.read_text().splitlines()
+                     if Shelxfile.is_atom(line) and not line.lstrip().startswith('!')]
+            self.assertTrue(names)
+            for n in names:
+                self.assertRegex(n, legal, f"'{n}' is not a legal SHELXL name")
+            upper = [n.upper() for n in names]
+            self.assertEqual(len(upper), len(set(upper)),
+                             "Written grown file must not repeat atom names")
+        finally:
+            out.unlink(missing_ok=True)
 
 class TestSDMCpp(TestCase):
     """Tests for the C++ SDM acceleration (sdm_cpp).

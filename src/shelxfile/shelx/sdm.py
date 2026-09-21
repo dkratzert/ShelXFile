@@ -30,9 +30,51 @@ except ImportError:
     HAS_CPP = False
 
 from shelxfile.atoms.atom import Atom
+from shelxfile.atoms.symmetry_mate import SymmetryMate
 from shelxfile.misc.dsrmath import vol_unitcell
 from shelxfile.misc.misc import wrap_line
 from shelxfile.shelx.cards import AFIX, RESI
+
+
+def _packed_atom_name(parent_name: str, symm_num: int, used: set) -> str:
+    """Name an atom placed by :meth:`SDM.pack_unit_cell`.
+
+    Filling a cell repeats atoms by lattice translation as well as by
+    symmetry, so even the identity operation yields several copies of the
+    same atom.  The first keeps the plain name; the rest are labelled
+    like any other image.
+
+    *used* is updated with the returned name.
+    """
+    if symm_num == 0 and parent_name.upper() not in used:
+        used.add(parent_name.upper())
+        return parent_name
+    return _symmetry_image_name(parent_name, symm_num, used)
+
+
+def _symmetry_image_name(parent_name: str, symm_num: int, used: set) -> str:
+    """Name a symmetry image after the atom it came from.
+
+    ``O1`` under symmetry operation 2 becomes ``O1>>2``, so a grown
+    structure stays readable: the label still says which atom this is and
+    adds where it came from.
+
+    Grown atoms exist for display rather than refinement, so this is not
+    held to SHELXL's four-character limit for names in an input file.
+
+    Several images can share an operation and differ only by a lattice
+    shift, so a letter is appended when a name is already taken.
+
+    *used* is updated with the returned name.
+    """
+    base = f'{parent_name}>>{symm_num}'
+    candidate = base
+    suffix = ord('a')
+    while candidate.upper() in used:
+        candidate = f'{base}{chr(suffix)}'
+        suffix += 1
+    used.add(candidate.upper())
+    return candidate
 
 
 def _unique_legal_atom_name(element: str, used_names: set) -> str:
@@ -395,8 +437,8 @@ class SDM:
         else:
             showatoms = [at for at in asymm if not at.qpeak]
 
-        # Seed used_names with all names already present so generated names
-        # never clash with the asymmetric-unit atoms or with each other.
+        # Seeded with the names already present so an image never collides
+        # with an asymmetric-unit atom.
         used_names: set = {at.name.upper() for at in showatoms}
 
         for symm in need_symm:
@@ -431,12 +473,11 @@ class SDM:
                 py = x1 * m[0][1] + y1 * m[1][1] + z1 * m[2][1] + t[1] + k
                 pz = x1 * m[0][2] + y1 * m[1][2] + z1 * m[2][2] + t[2] + l
 
-                # Assign a unique, legal SHELXL atom name (≤4 alphanumeric chars).
-                element = self.shx.sfac2elem(atom.sfac_num)
-                new_name = _unique_legal_atom_name(element, used_names)
-
+                # An image of O1 is labelled 'O1>>2': still recognisably
+                # O1, plus the operation that produced it. The full
+                # provenance lives in ``symm_mate``.
                 new_atom.set_atom_parameters(
-                    name=new_name,
+                    name=_symmetry_image_name(atom.name, symm_num, used_names),
                     sfac_num=atom.sfac_num,
                     coords=[px, py, pz],
                     part=atom.part,
@@ -445,6 +486,13 @@ class SDM:
                     site_occupation=atom.sof,
                     uvals=uvals,
                     symmgen=True,
+                )
+                # Remember which operation produced this image, so a
+                # viewer can turn a click on it into an EQIV reference.
+                new_atom.symm_mate = SymmetryMate(
+                    parent=atom,
+                    symm_number=symm_num,
+                    hkl_shift=(h, k, l),
                 )
 
                 isthere = False
@@ -461,9 +509,6 @@ class SDM:
                             break
                 if not isthere:
                     showatoms.append(new_atom)
-                else:
-                    # Atom was a duplicate — release the name we just reserved
-                    used_names.discard(new_name.upper())
 
         return showatoms
 
@@ -588,9 +633,9 @@ class SDM:
                         bucket.append((px, py, pz, part, idx_packed))
 
         # Build Atom objects with the packed fractional coordinates.
-        # Assign unique, legal SHELXL names: identity-operation atoms keep
-        # their original names; symmetry-generated copies get new sequential
-        # names so no two atoms in the result share the same label.
+        # Images are labelled after the atom they came from plus the
+        # operation that produced them ('O1>>2'); which one that was also
+        # lives in ``symm_mate``.
         result: list[Atom] = []
         used_names: set = set()
         for (orig_at, px, py, pz, symm_num) in packed:
@@ -598,15 +643,7 @@ class SDM:
             uvals = list(orig_at.uvals)
             if sum(abs(u) for u in uvals[2:]) > 1e-5:
                 uvals = list(self.transform_uvalues(uvals, symm_num))
-            # For the identity operation the original name is available unless
-            # already taken (shouldn't happen, but guard anyway).
-            orig_name_up = orig_at.name.upper()
-            if orig_name_up not in used_names:
-                atom_name = orig_at.name
-                used_names.add(orig_name_up)
-            else:
-                element = self.shx.sfac2elem(orig_at.sfac_num)
-                atom_name = _unique_legal_atom_name(element, used_names)
+            atom_name = _packed_atom_name(orig_at.name, symm_num, used_names)
             new_atom.set_atom_parameters(
                 name=atom_name,
                 sfac_num=orig_at.sfac_num,
@@ -619,6 +656,14 @@ class SDM:
                 uvals=uvals,
                 symmgen=(symm_num != 0),
             )
+            # Provenance for the packed image. pack_unit_cell folds
+            # positions back into the cell rather than tracking the shift
+            # that did it, so only the operation is recorded here.
+            if symm_num != 0:
+                new_atom.symm_mate = SymmetryMate(
+                    parent=orig_at,
+                    symm_number=symm_num,
+                )
             result.append(new_atom)
 
         return result
