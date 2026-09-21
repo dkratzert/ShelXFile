@@ -276,9 +276,17 @@ class CascadeEngine:
 
     @staticmethod
     def _rewrite(card: AtomReferencingCard, tokens: list[str]) -> None:
-        """Replace a card's atom list in place, keeping its identity."""
+        """Replace a card's atom list in place, keeping its identity.
+
+        Cards whose grammar couples a count to the list -- only ``MPLA``
+        so far -- get that count brought back into range, since SHELXL
+        cannot satisfy an ``na`` larger than the list it indexes.
+        """
         if hasattr(card, 'atoms') and isinstance(card.atoms, list):
             card.atoms[:] = tokens
+            clamp = getattr(card, 'clamp_na', None)
+            if callable(clamp):
+                clamp()
             return
         # FREE/HTAB keep their operands in named fields.
         names = [t for t in tokens if t not in RANGE_MARKERS]

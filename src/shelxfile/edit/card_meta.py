@@ -89,6 +89,13 @@ class AtomListSemantics(Enum):
     #: atoms and are never atom-linked.
     DIRECTIVE_WHEN_EMPTY = auto()
 
+    #: ``BUMP``/``DEFS``: the grammar has no atom list at all
+    #: (``BUMP s``, ``DEFS sd sf su ss maxsof``).  Distinct from an
+    #: *empty* list, which is an authoring choice about a card that
+    #: could have named atoms; here there is nothing that could ever be
+    #: emptied, so a minimum atom count must never be applied.
+    NEVER_NAMES_ATOMS = auto()
+
 
 class AfixDependency(Enum):
     """Where an ``AFIX`` group's pivot atom sits, from the ``n`` digit.

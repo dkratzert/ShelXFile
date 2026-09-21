@@ -352,6 +352,13 @@ class Command:
         self._spline: list[str] = spline
         self.residue_class: str = ''
         self._textline: str = ' '.join(spline)
+        #: Source tokens before and after the atom names, kept verbatim.
+        #: Two lists rather than one because the atom list is not always
+        #: last: ``CONF atomnames max_d max_a`` puts numbers *after* it.
+        self._prefix_tokens: list[str] = list(spline)
+        self._suffix_tokens: list[str] = []
+        #: Atom tokens as parsed, used to detect later edits.
+        self._original_atoms: tuple[str, ...] = ()
 
     def _parse_line(self, spline: list[str], intnums: bool = False) -> tuple[list[int | float], list[str]]:
         """
@@ -373,7 +380,41 @@ class Command:
                     numparams.append(float(x))
             else:
                 words.append(x)
+        self._remember_source(spline, words)
         return numparams, words
+
+    def _remember_source(self, spline: list[str], atoms: list[str]) -> None:
+        """Record where the atom names sat in the source line.
+
+        Everything before the first atom token and everything after the
+        last is kept as the original *strings*, so regenerating an edited
+        card preserves the author's own number formatting and any
+        trailing parameters.
+        """
+        if not atoms:
+            self._prefix_tokens = list(spline)
+            self._suffix_tokens = []
+            self._original_atoms = ()
+            return
+        first = spline.index(atoms[0])
+        last = len(spline) - 1 - spline[::-1].index(atoms[-1])
+        self._prefix_tokens = spline[:first]
+        self._suffix_tokens = spline[last + 1:]
+        self._original_atoms = tuple(atoms)
+
+    @property
+    def atoms_were_edited(self) -> bool:
+        """``True`` once this card's atom list differs from the source.
+
+        Uses :attr:`referenced_atoms` rather than a raw ``atoms``
+        attribute so cards that keep their operands in named fields
+        (``FREE``'s ``atom1``/``atom2``, ``HTAB``'s donor/acceptor) are
+        covered by the same rule.
+        """
+        current = getattr(self, 'referenced_atoms', None)
+        if current is None:
+            return False
+        return tuple(current) != self._original_atoms
 
     def set(self, value: str) -> None:
         self.__init__(self._shx, value.split())
@@ -391,13 +432,31 @@ class Command:
             yield x
 
     def split(self) -> list[str]:
-        return self._textline.split()
+        return str(self).split()
 
     def __str__(self) -> str:
-        return self._textline
+        """Render the card, regenerating only when its atoms were edited.
+
+        Mirrors :meth:`Restraint.__str__`: an untouched card is echoed
+        exactly as it was read, so loading and writing a file never
+        reflows instructions nobody asked about.  Without this, trimming
+        an atom out of a ``BOND``/``ANIS``/``HFIX``/``MPLA`` list would
+        never reach the file and the card would be left naming a deleted
+        atom.
+
+        Post-``END`` cards are inert output and are always echoed; see
+        :class:`CardLifetime`.
+        """
+        if self.lifetime is not CardLifetime.INPUT:
+            return self._textline
+        if not self.atoms_were_edited:
+            return self._textline
+        return ' '.join(
+            [*self._prefix_tokens, *self.referenced_atoms, *self._suffix_tokens]
+        )
 
     def __repr__(self) -> str:
-        return self._textline
+        return str(self)
 
 
 class ABIN(Command):
@@ -418,6 +477,10 @@ class ANIS(Command, AtomReferencingCard):
 
     # 'ANIS on its own ... makes all following non-hydrogen atoms anisotropic.'
     EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
+
+    # 'The named atoms are made anisotropic' -- one at a time, so a
+    # single-atom ANIS is valid and must not be treated as spent.
+    MIN_ATOMS = 1
 
     def __init__(self, shx, spline: list):
         """
@@ -486,9 +549,7 @@ class MPLA(Command, AtomReferencingCard):
         if len(self.atoms) < self.MIN_ATOMS:
             return False
         self.na = len(self.atoms)
-        self._textline = ' '.join(
-            [self._spline[0], str(self.na), *self.atoms]
-        )
+        self._prefix_tokens = [self._prefix_tokens[0], str(self.na)]
         return True
 
 
@@ -1055,6 +1116,9 @@ class FREE(Command, AtomReferencingCard):
             self.atom2 = atoms[1]
         except IndexError:
             raise ParseParamError(debug=shx.debug, verbose=shx.verbose)
+        # Re-record against what was actually stored, so a malformed line
+        # cannot make the card look edited and get rewritten.
+        self._remember_source(spline, self.referenced_atoms)
 
     @property
     def referenced_atoms(self) -> list[str]:
@@ -1133,6 +1197,10 @@ class HTAB(Command, AtomReferencingCard):
         if len(atoms) == 2:
             self.donor = atoms[0]
             self.acceptor = atoms[1]
+        # Re-record against what was actually stored: a line with a
+        # different number of names keeps its text rather than being
+        # rewritten from two empty fields.
+        self._remember_source(spline, self.referenced_atoms)
 
     @property
     def referenced_atoms(self) -> list[str]:
@@ -1194,6 +1262,10 @@ class BLOC(Command, AtomReferencingCard):
     # 'A BLOC instruction that does not refer to any atoms refines all
     # atomic parameters in the specified cycles.'
     EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
+
+    # 'the x, y and z parameters of the named atoms are refined in cycle
+    # |n1|' -- per atom, so one named atom is a valid block.
+    MIN_ATOMS = 1
 
     def __init__(self, shx, spline: list):
         """
@@ -1324,11 +1396,18 @@ class CONF(Command, AtomReferencingCard):
     # involving hydrogen are generated from the connectivity array.'
     EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
 
+    # 'The named atoms define a chain of at least four atoms.'
+    MIN_ATOMS = 4
+
     def __init__(self, shx, spline: list) -> None:
         """
         CONF atomnames max_d[1.9] max_a[170]
+
+        Note the unusual order: the two numeric parameters follow the atom
+        names rather than preceding them.
         """
-        super(CONF, self).__init__(shx, spline)
+        super(CONF, self).__init__(spline=spline, shx=shx)
+        self.params, self.atoms = self._parse_line(spline)
 
 
 class CONN(Command, AtomReferencingCard):
@@ -1336,11 +1415,16 @@ class CONN(Command, AtomReferencingCard):
     # 'CONN without atom names changes the default value of bmax.'
     EMPTY_MEANS = AtomListSemantics.DIRECTIVE_WHEN_EMPTY
 
+    # CONN sets a coordination limit for each named atom independently.
+    MIN_ATOMS = 1
+
     def __init__(self, shx, spline: list) -> None:
         """
         CONN bmax[12] r[#] atomnames or CONN bmax[12]
         """
         super(CONN, self).__init__(shx, spline)
+        self.params, self.atoms = self._parse_line(spline)
+        self.bmax = self.params[0] if self.params else 12
 
 
 class REM(Command):
@@ -1441,6 +1525,10 @@ class Restraints:
 
 class DEFS(Restraint):
 
+    #: ``DEFS sd sf su ss maxsof`` sets default esds for the restraints
+    #: that follow it.  It names no atoms, ever.
+    EMPTY_MEANS = AtomListSemantics.NEVER_NAMES_ATOMS
+
     def __init__(self, shx, spline: list):
         """
         DEFS sd[0.02] sf[0.1] su[0.01] ss[0.04] maxsof[1]
@@ -1502,6 +1590,10 @@ class ISOR(Restraint):
 
     EMPTY_MEANS = AtomListSemantics.GLOBAL_WHEN_EMPTY
 
+    # 'The named atoms are restrained ... so that their Uij components
+    # approximate to isotropic behavior' -- each on its own.
+    MIN_ATOMS = 1
+
     def __init__(self, shx: Shelxfile, spline: list[str]):
         """
         ISOR s[0.1] st[0.2] atomnames
@@ -1542,6 +1634,10 @@ class BUMP(Restraint):
     two non-bonded C, N, O and S atoms (based on the SFAC type) that are shorter than
     the expected shortest non-bonded distances, allowing for the possibility of hydrogen bonds.
     """
+
+    #: ``BUMP s`` takes an esd and nothing else: there is no atom list in
+    #: the grammar, so it must never be judged against a minimum count.
+    EMPTY_MEANS = AtomListSemantics.NEVER_NAMES_ATOMS
 
     def __init__(self, shx, spline):
         """
