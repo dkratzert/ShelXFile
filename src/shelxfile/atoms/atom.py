@@ -77,7 +77,7 @@ class Atom:
         if self.symmgen:
             return 0
         try:
-            return self.shx._reslist.index(self)
+            return self.shx.index_of(self)
         except ValueError:
             return 0
 
@@ -519,9 +519,17 @@ class Atom:
 
     def delete(self) -> None:
         """
-        Delete atom(s) in the file.
+        Delete this atom from the file.
+
+        Symmetry-generated atoms (produced by :meth:`Shelxfile.grow` or
+        :meth:`Shelxfile.pack`) are not lines in the ``.res`` file and are
+        silently ignored.
         """
-        del self.shx.atoms[self.index]
+        if self.symmgen:
+            if self.shx.debug:
+                print(f'*** Refusing to delete symmetry-generated atom {self.name} ***')
+            return
+        del self.shx.atoms[self.atomid]
         self.shx.atoms._atomsdict.clear()
 
     def to_isotropic(self) -> None:

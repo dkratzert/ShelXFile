@@ -79,7 +79,7 @@ HTAB O4 O2
 HTAB O4 O3_$3
 HTAB O4 O2'
 HTAB O4 O3'_$3
-REM Highest difference peak 0.644, deepest hole -0.800, 1-sigma level 0.081
+REM Highest difference peak  0.644,  deepest hole -0.800,  1-sigma level  0.081
 Q1   1   0.4067    0.3024    0.3472   11.00000  0.04      0.64     
 Q2   1   0.3005    0.2585    0.4504   11.00000  0.04      0.45     
 Q3   1   0.4027    0.3426    0.4328   11.00000  0.04      0.43     

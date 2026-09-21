@@ -5,6 +5,7 @@ from math import cos, radians, sqrt, sin
 from typing import TYPE_CHECKING, Iterator
 
 from shelxfile.atoms.pairs import AtomPair
+from shelxfile.edit.card_meta import CardLifetime
 from shelxfile.misc.dsrmath import my_isnumeric, SymmetryElement, OrthogonalMatrix, Matrix
 from shelxfile.misc.misc import chunks, ParseParamError, ParseNumError, \
     ParseOrderError, ParseSyntaxError, resolve_fvar_encoded_value
@@ -121,6 +122,10 @@ class Residue:
 
 class Restraint(Residue):
 
+    #: Live input by default; :meth:`Shelxfile._append_card` re-tags cards
+    #: parsed after ``END`` as inert output. See :class:`CardLifetime`.
+    lifetime: CardLifetime = CardLifetime.INPUT
+
     def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         """
         Base class for parsing restraints.
@@ -140,9 +145,14 @@ class Restraint(Residue):
         """
         Delete this restraint from the file: removes it from
         ``shx.restraints`` and from ``shx._reslist``.
+
+        The atoms this restraint references are deliberately **not**
+        touched.  Losing a restraint is a refinement decision and does not
+        imply the atoms are unwanted; use the explicit
+        ``delete_restraint_with_atoms()`` API when that is intended.
         """
         self.shx.restraints._restraints.remove(self)
-        del self.shx._reslist[self.shx._reslist.index(self)]
+        self.shx.remove_from_reslist(self)
 
     def _parse_line(self, spline: list[str]) -> tuple[list[float], list[str]]:
         """
@@ -247,6 +257,10 @@ class Command:
     """
     A class to parse all general commands except restraints.
     """
+
+    #: Live input by default; cards parsed after ``END`` are re-tagged as
+    #: inert output. See :class:`CardLifetime`.
+    lifetime: CardLifetime = CardLifetime.INPUT
 
     def __init__(self, shx: Shelxfile, spline: list[str]) -> None:
         self._shx: Shelxfile = shx

@@ -2,6 +2,9 @@
 .idea/
 shelXlesaves/
 
+# Locally generated corpus baseline (paths/hashes of private structure data)
+tests/tools/corpus_baseline.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -29,6 +29,7 @@ from typing import cast
 from shelxfile.atoms.atom import Atom, BedeLoneResultAtom
 from shelxfile.atoms.atoms import Atoms
 from shelxfile.cif.cif_write import CifFile
+from shelxfile.edit.card_meta import CardLifetime
 from shelxfile.misc.dsrmath import Array
 from shelxfile.misc.elements import weight_from_symbol
 # noinspection PyUnresolvedReferences
@@ -200,6 +201,10 @@ class Shelxfile:
         self.resfile: Path | None = None
         self.orthogonal_matrix: Array | None = None
         self._reslist: list[ResListEntry] = []
+        #: Source line of the card currently being parsed, with '='
+        #: continuations glued on. Parse-time scratch used by
+        #: :meth:`_tag_lifetime`.
+        self._current_raw_line: str = ''
 
     def dumps(self) -> str:
         """
@@ -291,6 +296,12 @@ class Shelxfile:
         if empty_residues:
             warnings.append(f'*** Empty residue(s) detected (no atoms): {", ".join(empty_residues)} ***')
         for restraint in self.restraints:
+            if not restraint.lifetime:
+                # After END: inert output from the previous refinement,
+                # which SHELXL never reads back. Its atom names may carry
+                # ACTA TABS part suffixes (C1^a) that deliberately do not
+                # resolve against the atom list. See CardLifetime.
+                continue
             bad_atoms = []
             missing_eqiv = []
             for restraint_atom in restraint.atoms:
@@ -442,6 +453,9 @@ class Shelxfile:
             # This while loop makes wrapped lines look like they are not wrapped. The following lines are then
             # beginning with a space character and thus are ignored. The 'lines' list holds the line nnumbers where
             # 'line' is located ([line_num]) plus the wrapped lines.
+            # The untouched physical lines, kept so post-END output can be
+            # echoed exactly as read (see _tag_lifetime).
+            raw_physical_lines: list[str] = [line]
             if multiline_test(line):
                 multiline = True
             else:
@@ -450,6 +464,7 @@ class Shelxfile:
                 # Glue together the two lines wrapped with "=":
                 wrapindex += 1
                 wrapped_line = cast(str, self._reslist[line_num + wrapindex])
+                raw_physical_lines.append(wrapped_line)
                 line = line.rpartition('=')[0] + wrapped_line
                 # self.delete_on_write.update([line_num + wrapindex])
                 list_of_lines.append(line_num + wrapindex)  # list containing the lines of a multiline command
@@ -460,6 +475,15 @@ class Shelxfile:
                     multiline = False
                 self._reslist[line_num + wrapindex] = ''
             raw_line_with_comment = line  # keep comment for BEDE/LONE parsing before stripping it below
+            # Source of this card as the original *physical* lines, '=' breaks
+            # and all. _tag_lifetime() echoes these for post-END output.
+            # Storing the glued single line instead would be unstable: the
+            # continuation's leading spaces end up inside the text and
+            # wrap_line() adds a fresh indent on every round-trip.
+            # Trailing whitespace is dropped because it carries no meaning
+            # and can push a line past wrap_line()'s 79-character limit,
+            # which would make the output grow a continuation per round-trip.
+            self._current_raw_line = '\n'.join(x.rstrip() for x in raw_physical_lines)
             # The current line split:
             spline: list[str] = line.split('!')[0].split()  # Ignore comments with "!"
             # The current line as string:
@@ -1303,13 +1327,38 @@ class Shelxfile:
         Appends SHELX card to an object list, e.g. self.restraints and
         assigns the line_num in reslist with the card instance.
         """
+        self._tag_lifetime(card, line_num)
         obj.append(card)
         self._reslist[line_num] = card
         return card
 
     def _assign_card(self, card, line_num: int):
+        self._tag_lifetime(card, line_num)
         self._reslist[line_num] = card
         return card
+
+    def _tag_lifetime(self, card, line_num: int) -> None:
+        """Mark *card* as live input or inert post-``END`` output.
+
+        Cards after ``END`` keep their **original source line** so they
+        round-trip verbatim (plan item D-10).  Parsing normalises
+        whitespace via ``' '.join(spline)``, which would silently reflow
+        the generated ``SADI`` block that SHELXL wrote out; that block is
+        a record of a refinement that already happened and must not be
+        rewritten.
+        """
+        if not self.end:
+            card.lifetime = CardLifetime.INPUT
+            return
+        card.lifetime = CardLifetime.POST_END_OUTPUT
+        raw = self._current_raw_line
+        if not isinstance(raw, str) or not raw:
+            return
+        # Restraint renders from .textline, Command from ._textline.
+        if hasattr(card, 'textline'):
+            card.textline = raw
+        if hasattr(card, '_textline'):
+            card._textline = raw
 
     @staticmethod
     def is_atom(atomline: str) -> bool:
@@ -1454,7 +1503,57 @@ class Shelxfile:
         self._reslist[self.index_of(obj)] = new_line
 
     def index_of(self, obj: ResListEntry) -> int:
-        return self._reslist.index(obj)
+        """Position of *obj* in ``_reslist``, matched by **identity**.
+
+        ``list.index()`` uses ``__eq__``, and :meth:`Atom.__eq__` compares
+        the serialised line.  Two atoms that render identically would
+        therefore resolve to the same index and the wrong line would be
+        edited or deleted.  SHELXL guarantees that the combination of atom
+        name, ``PART`` and ``RESI`` is unique, but the rendered string is
+        not, so identity is the only safe key here.
+
+        :raises ValueError: if *obj* is not present.
+        """
+        for num, item in enumerate(self._reslist):
+            if item is obj:
+                return num
+        # Fall back to equality for plain strings, which have no identity
+        # of their own once they have been copied around.
+        if isinstance(obj, str):
+            return self._reslist.index(obj)
+        # Deliberately not %r: repr() of an Atom asks for its atomid, which
+        # calls back into index_of() and would recurse forever.
+        raise ValueError(f'{type(obj).__name__} instance is not in the reslist')
+
+    def remove_from_reslist(self, obj: ResListEntry) -> int:
+        """Remove *obj* from ``_reslist`` by identity and keep bookkeeping sane.
+
+        Every deletion path must go through here.  Besides dropping the
+        entry it re-maps :attr:`delete_on_write`, which stores *indices*:
+        without the shift, deleting any line would silently suppress the
+        wrong line on the next write.
+
+        :returns: the index the object occupied.
+        :raises ValueError: if *obj* is not present.
+        """
+        index = self.index_of(obj)
+        del self._reslist[index]
+        self._shift_delete_on_write(index)
+        return index
+
+    def _shift_delete_on_write(self, removed_index: int) -> None:
+        """Keep :attr:`delete_on_write` pointing at the same lines.
+
+        Indices above *removed_index* move down by one; an index equal to
+        it refers to a line that no longer exists and is dropped.
+        """
+        if not self.delete_on_write:
+            return
+        self.delete_on_write = {
+            num - 1 if num > removed_index else num
+            for num in self.delete_on_write
+            if num != removed_index
+        }
 
     @property
     def sum_formula(self) -> str:

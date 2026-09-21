@@ -103,15 +103,17 @@ class Atoms:
         Delete an atom by its atomid:
         del atoms[4]
         """
-        for n, at in enumerate(self.all_atoms):
+        for num, at in enumerate(self.all_atoms):
             if key == at.atomid:
                 if self.shx.debug:
                     print("deleting atom", at.fullname)
-                del self.all_atoms[n]
-                del self.shx._reslist[self.shx._reslist.index(at)]
+                del self.all_atoms[num]
+                self.shx.remove_from_reslist(at)
                 self._atomsdict.clear()
-        # if self.shx.debug:
-        #    print('Could not delete atom {}'.format(self.get_atom_by_id(key.atomid).fullname))
+                # The list is being mutated; stop rather than skip the
+                # next entry. atomid is unique, so there is nothing else
+                # to find anyway.
+                return
 
     @property
     def atomsdict(self) -> dict[str, Atom]:

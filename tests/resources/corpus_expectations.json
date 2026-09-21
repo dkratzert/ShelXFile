@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "Ratchet expectations for the opt-in corpus sweep (plan invariants I1/I2).",
+    "These are AGGREGATE budgets only - no file names, no structural data - so",
+    "they are safe to commit while the corpus itself stays private.",
+    "Counts may only ever go DOWN. Lower them as the idempotence-fixes task",
+    "lands; never raise them to make a failing run pass.",
+    "Measured 2026-09-21 against a 6022-file corpus."
+  ],
+  "reference_corpus_size": 6022,
+  "max_parse_error_ratio": 0.0005,
+  "max_non_idempotent_ratio": 0.0153,
+  "known_failure_categories": {
+    "line_wrap_instability": "wrap_line() emits a different continuation on the second pass (trailing space before '='). Dominant cause.",
+    "afix_code_drift": "AFIX 13 is re-emitted as AFIX 43 - a semantic change, not formatting.",
+    "rem_trailing_whitespace": "REM continuation lines gain/lose a trailing space before '='.",
+    "sfac_spacing": "SFAC element columns re-pad on reparse, e.g. 'Mg  O Si' -> 'Mg  O  Si'.",
+    "sadi_trailing_space": "Long SADI lines gain a trailing space before the continuation marker.",
+    "sfac_full_form_keyerror": "SFAC given in the full exponential-series form raises KeyError('a1')."
+  }
+}

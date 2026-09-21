@@ -43,6 +43,12 @@ dev = [
 [tool.setuptools.dynamic]
 version = {attr = "shelxfile.version.VERSION"}
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "corpus: test requires the external structure corpus (--corpus PATH or $SHELXFILE_CORPUS); skipped otherwise.",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["shelxfile*"]
