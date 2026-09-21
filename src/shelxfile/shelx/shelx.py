@@ -98,6 +98,11 @@ class Shelxfile:
     _goof_regex = re.compile(r'^REM\swR2\s=\s.*,\sGooF', re.IGNORECASE)
     _spgrp_regex = re.compile(r'^REM\s+\S+\s+in\s+\S+', re.IGNORECASE)
 
+    #: How many individually unparsable instruction lines to tolerate
+    #: before giving up on a file. A handful signals an oddity worth
+    #: reporting; dozens signal that this is not a SHELXL file at all.
+    MAX_UNPARSABLE_LINES = 20
+
     def __init__(self, verbose: bool = False, debug: bool = False) -> None:
         if debug and verbose:
             raise ValueError("Either 'verbose' or 'debug' allowed, not both.")
@@ -204,6 +209,13 @@ class Shelxfile:
         #: Bumped on every structural change. Lets the edit layer notice a
         #: stale cache without the model having to know about it.
         self.model_version: int = 0
+        #: Instruction lines that could not be parsed, as messages.
+        self.parse_errors: list[str] = []
+        #: ``_reslist`` indices quarantined after a parse failure. They
+        #: stay in the file as text so they still round-trip.
+        self._unparsable_lines: set[int] = set()
+        #: Pristine copy of the input lines, so parsing can restart.
+        self._source_lines: list[ResListEntry] = []
         #: Source line of the card currently being parsed, with '='
         #: continuations glued on. Parse-time scratch used by
         #: :meth:`_tag_lifetime`.
@@ -275,16 +287,67 @@ class Shelxfile:
         self.parse_cards()
 
     def parse_cards(self) -> None:
-        try:
-            self._parse_cards()
-        except Exception as e:
-            if self.debug or self.verbose:
-                self.show_line_where_error_occured(e)
+        """Parse the instruction lines, tolerating individual bad ones.
+
+        A single malformed instruction used to cost the whole file: the
+        exception propagated out of :meth:`_parse_cards`, was swallowed
+        here, and the caller received a model silently missing every card
+        and atom below the failure.  In the reference corpus that hit
+        7.6 % of files -- one ``TEMP -100.0C`` discarded six ``MPLA``
+        cards and the atom list beneath it.
+
+        SHELXL keeps reading past an instruction it cannot use, so the
+        offending line is recorded in :attr:`parse_errors`, quarantined,
+        and parsing restarts.  The line stays in ``_reslist`` as text, so
+        it still round-trips to the output.
+
+        Debug mode raises instead, which is what it is for.
+        """
+        self._source_lines = list(self._reslist)
+        for _ in range(self.MAX_UNPARSABLE_LINES + 1):
+            try:
+                self._parse_cards()
+                break
+            except Exception as error:
+                if self.debug or self.verbose:
+                    self.show_line_where_error_occured(error)
                 if self.debug:
                     raise
-            else:
-                return
+                failed_at = self.error_line_num
+                if failed_at < 0 or failed_at in self._unparsable_lines:
+                    return
+                self._record_line_error(failed_at, error)
+                self._unparsable_lines.add(failed_at)
+                self._restart_parsing()
+        else:
+            return
         self.restraint_errors = self._assign_atoms_to_restraints()
+
+    def _restart_parsing(self) -> None:
+        """Reset parse state, keeping the source text and what we learnt."""
+        source = self._source_lines
+        quarantined = self._unparsable_lines
+        errors = self.parse_errors
+        resfile = self.resfile
+        self.__init__(debug=self.debug, verbose=self.verbose)
+        self.resfile = resfile
+        self._source_lines = source
+        self._unparsable_lines = quarantined
+        self.parse_errors = errors
+        self._reslist = list(source)
+
+    def _record_line_error(self, line_num: int, error: Exception) -> None:
+        """Note that one instruction could not be parsed, and carry on."""
+        try:
+            text = str(self._reslist[line_num])
+        except IndexError:
+            text = ''
+        self.parse_errors.append(
+            f'*** Could not parse line {line_num + 1}: {text.strip()!r} '
+            f'({type(error).__name__}: {error}) ***'
+        )
+        if self.verbose:
+            print(self.parse_errors[-1])
 
     def _assign_atoms_to_restraints(self) -> list[str]:
         warnings: list[str] = []
@@ -466,6 +529,10 @@ class Shelxfile:
         for line_num, line in enumerate(self._reslist):
             if not isinstance(line, str):
                 continue
+            if line_num in self._unparsable_lines:
+                # Quarantined by an earlier pass: kept as text so it still
+                # round-trips, but not interpreted.
+                continue
             self.error_line_num = line_num  # For exception during parsing.
             list_of_lines = [line_num]  # list of lines where a card appears, e.g. for atoms with two lines
             if line.startswith(' ') or line == '':
@@ -537,7 +604,11 @@ class Shelxfile:
                 self.afix.mn = 0
                 if self.debug or self.verbose:
                     print('AFIX in line {} was not closed'.format(line_num + 1))
-            elif word == 'AFIX':
+                # Deliberately not an 'elif' chain below: closing an open
+                # AFIX must not consume the dispatch, or the very HKLF line
+                # that triggered it never gets parsed. The RESI and PART
+                # guards above avoid 'continue' for the same reason.
+            if word == 'AFIX':
                 self.afix = self._assign_card(AFIX(self, spline), line_num)
             elif self._is_bede_lone_result(raw_line_with_comment, spline):
                 # A BEDE/LONE bond/lone-pair electron density pseudo-atom result, e.g.:
@@ -874,7 +945,11 @@ class Shelxfile:
                 self.swat = self._assign_card(SWAT(self, spline), line_num)
             elif word == 'TEMP':
                 # TEMP T[20]  -> in Celsius
-                self.temp = float(spline[1].split('(')[0])
+                # Written with a stray unit now and then ('-100.0C'), and
+                # occasionally with an esd in parentheses.
+                self.temp = float(
+                    spline[1].split('(')[0].rstrip('Cc\u00b0').strip()
+                )
                 self.temp_in_kelvin = self.temp + 273.15
             elif word == 'TWIN':
                 # TWIN 3x3 matrix [-1 0 0 0 -1 0 0 0 -1] N[2]

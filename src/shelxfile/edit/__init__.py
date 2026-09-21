@@ -14,6 +14,7 @@ from shelxfile.edit.card_meta import (
     CardLifetime,
 )
 from shelxfile.edit.document import ShelxDocument
+from shelxfile.edit.eqiv_cleanup import EqivCleaner, validate_symmetry_arity
 from shelxfile.edit.graph import AtomRestraintGraph
 from shelxfile.edit.line_map import RenderedFile, render
 from shelxfile.edit.reports import (
@@ -39,6 +40,7 @@ __all__ = [
     'CardLifetime',
     'DeletionReport',
     'EditReport',
+    'EqivCleaner',
     'RemovalReason',
     'RemovedItem',
     'RenderedFile',
@@ -47,4 +49,5 @@ __all__ = [
     'SameResolver',
     'ShelxDocument',
     'render',
+    'validate_symmetry_arity',
 ]

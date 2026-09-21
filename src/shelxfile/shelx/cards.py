@@ -456,8 +456,40 @@ class MPLA(Command, AtomReferencingCard):
         """
         super(MPLA, self).__init__(shx, spline)
         p, self.atoms = self._parse_line(spline, intnums=True)
+        self.na: int | None = None
         if len(p) > 0:
             self.na = p[0]
+
+    @property
+    def na_is_consistent(self) -> bool:
+        """Whether ``na`` still fits the atom list.
+
+        ``na`` counts how many of the named atoms define the plane, so it
+        is coupled to the list rather than independent of it.  Losing an
+        atom can leave ``na`` larger than the list, which SHELXL cannot
+        satisfy.  "na must be at least 3."
+        """
+        if self.na is None:
+            return True
+        return self.MIN_ATOMS <= self.na <= len(self.atoms)
+
+    def clamp_na(self) -> bool:
+        """Bring ``na`` back within range after the atom list shrank.
+
+        :returns: ``True`` if the value changed.  ``False`` when it was
+            already consistent, or when too few atoms remain for a plane
+            at all -- in that case the card itself is beyond saving and
+            the caller should remove it.
+        """
+        if self.na is None or self.na_is_consistent:
+            return False
+        if len(self.atoms) < self.MIN_ATOMS:
+            return False
+        self.na = len(self.atoms)
+        self._textline = ' '.join(
+            [self._spline[0], str(self.na), *self.atoms]
+        )
+        return True
 
 
 class MORE(Command):

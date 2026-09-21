@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable, Union
 
 from shelxfile.edit.brackets import BracketResolver
+from shelxfile.edit.eqiv_cleanup import EqivCleaner
 from shelxfile.edit.graph import AtomRestraintGraph
 from shelxfile.edit.line_map import RenderedFile, render
 from shelxfile.edit.reports import DeletionReport, EditReport, RemovalReason
@@ -191,8 +192,18 @@ class ShelxDocument:
                     reasons.setdefault(id(extra), reason)
                     queue.append(extra)
         if not report.is_empty:
+            self._collect_orphaned_eqivs(report)
             self._notify()
         return report
+
+    def _collect_orphaned_eqivs(self, report: DeletionReport) -> None:
+        """Drop ``EQIV`` cards left with nothing referencing them.
+
+        Ids are never reassigned: a surviving ``_$n`` elsewhere would
+        otherwise start pointing at a different operation.
+        """
+        self.graph.rebuild()
+        EqivCleaner(self._shx, self.graph).remove_orphans(report)
 
     def _afix_fallout(
         self,
@@ -261,6 +272,7 @@ class ShelxDocument:
         report = DeletionReport()
         report.add_card(restraint, RemovalReason.REQUESTED)
         restraint.delete()
+        self._collect_orphaned_eqivs(report)
         self._notify()
         return report
 
