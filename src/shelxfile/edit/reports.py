@@ -115,6 +115,58 @@ class DeletionReport:
 
 
 @dataclass
+class SkippedReference:
+    """A card that could not follow a rename, and why.
+
+    Chiefly the residue-class case: a token such as ``C1`` on a
+    ``SADI_TOL`` applies to every residue of that class, so rewriting it
+    for one renamed atom would silently redirect all the others.
+    """
+
+    card: object
+    token: str
+    reason: str
+
+    def __str__(self) -> str:
+        return f'{self.card}: kept {self.token!r} ({self.reason})'
+
+
+@dataclass
+class RenameReport:
+    """Result of renaming an atom."""
+
+    atom: object = None
+    old_name: str = ''
+    new_name: str = ''
+    #: Cards whose tokens were rewritten.
+    updated: list[EditedCard] = field(default_factory=list)
+    #: Cards that keep referring to the old name on purpose.
+    skipped: list[SkippedReference] = field(default_factory=list)
+    #: Why the rename did not happen at all.
+    error: str | None = None
+
+    @property
+    def ok(self) -> bool:
+        return self.error is None
+
+    def add_update(self, card, before: str) -> None:
+        self.updated.append(EditedCard(card, before))
+
+    def add_skip(self, card, token: str, reason: str) -> None:
+        self.skipped.append(SkippedReference(card, token, reason))
+
+    def summary(self) -> str:
+        if not self.ok:
+            return f'rename failed: {self.error}'
+        text = f'renamed {self.old_name} to {self.new_name}'
+        if self.updated:
+            text += f', updated {len(self.updated)} card(s)'
+        if self.skipped:
+            text += f', {len(self.skipped)} reference(s) left unchanged'
+        return text
+
+
+@dataclass
 class EditReport:
     """Result of an additive or modifying edit."""
 

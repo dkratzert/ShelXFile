@@ -449,11 +449,51 @@ class Atom:
 
     @name.setter
     def name(self, new_name: str) -> None:
-        name_has_residue_number = new_name.split('_')[-1].isdigit()
-        if '_' in new_name and name_has_residue_number:
-            print('*** Illegal atom name. Use a name without a residue number. ***')
+        """Rename this atom.
+
+        Referencing instructions are *not* updated; use
+        ``ShelxDocument.rename_atom()`` for that.  Validation follows the
+        SHELXL limits: a name is "up to 4 characters, of which the first
+        must be a letter", and "the combination of atom name, PART and
+        RESI numbers must be unique".
+        """
+        problem = self.name_problem(new_name)
+        if problem:
+            if self.shx.debug or self.shx.verbose:
+                print(f'*** {problem} ***')
+            if self.shx.debug:
+                raise ValueError(problem)
             return
         self._name = new_name
+        # The lookup dict is keyed on fullname, so it now points at the
+        # wrong entries: a stale dict resolves the *old* name and fails on
+        # the new one.
+        self.shx.atoms._atomsdict.clear()
+        self.shx.touch()
+
+    def name_problem(self, new_name: str) -> str | None:
+        """Why *new_name* cannot be used, or ``None`` if it can."""
+        if not new_name or not new_name.strip():
+            return 'Atom name must not be empty'
+        candidate = new_name.strip()
+        if '_' in candidate and candidate.split('_')[-1].isdigit():
+            return ('Illegal atom name. Use a name without a residue '
+                    'number.')
+        if not candidate[0].isalpha():
+            return f'Atom name {candidate!r} must start with a letter'
+        if len(candidate) > 4:
+            return f'Atom name {candidate!r} is longer than 4 characters'
+        if candidate.upper() == self._name.upper():
+            return None
+        if self.resi is None:
+            # Still being built: it has no residue yet, so there is
+            # nothing to be unique against.
+            return None
+        clash = self.shx.atoms.get_atom_by_name(f'{candidate}_{self.resinum}')
+        if clash is not None and clash is not self and clash.part.n == self.part.n:
+            return (f'Atom name {candidate!r} is already used in residue '
+                    f'{self.resinum}, part {self.part.n}')
+        return None
 
     @property
     def an(self) -> int:

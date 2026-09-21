@@ -22,8 +22,11 @@ from shelxfile.edit.line_map import RenderedFile, render
 from shelxfile.edit.reports import (
     DeletionReport,
     EditReport,
+    EditedCard,
     RemovalReason,
     RemovedItem,
+    RenameReport,
+    SkippedReference,
 )
 from shelxfile.edit.same_links import SameFragments, SameResolver
 from shelxfile.edit.token_resolver import (
@@ -45,14 +48,17 @@ __all__ = [
     'CascadePlan',
     'DeletionReport',
     'EditReport',
+    'EditedCard',
     'EqivCleaner',
     'RemovalReason',
     'RemovedItem',
+    'RenameReport',
     'RenderedFile',
     'ResolvedAtoms',
     'SameFragments',
     'SameResolver',
     'ShelxDocument',
+    'SkippedReference',
     'render',
     'validate_symmetry_arity',
 ]

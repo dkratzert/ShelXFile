@@ -22,7 +22,13 @@ from shelxfile.edit.cascade import CascadeEngine, CascadePlan
 from shelxfile.edit.eqiv_cleanup import EqivCleaner
 from shelxfile.edit.graph import AtomRestraintGraph
 from shelxfile.edit.line_map import RenderedFile, render
-from shelxfile.edit.reports import DeletionReport, EditReport, RemovalReason
+from shelxfile.edit.reports import (
+    DeletionReport,
+    EditReport,
+    RemovalReason,
+    RenameReport,
+)
+from shelxfile.edit.token_resolver import AtomTokenResolver, split_range_tokens
 
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
@@ -188,6 +194,98 @@ class ShelxDocument:
         Useful for confirming a destructive edit before it happens.
         """
         return CascadeEngine(self._shx, self.graph).plan(atoms)
+
+    # ---------------------------------------------------------- renaming
+
+    def rename_atom(self, atom: Atom, new_name: str) -> RenameReport:
+        """Rename *atom* and follow it through the instructions.
+
+        A token is rewritten only when it refers to this atom **and
+        nothing else**.  On a residue-class-scoped card such as
+        ``SADI_TOL C1 C2``, the token ``C1`` stands for that atom in every
+        ``TOL`` residue, so rewriting it would silently redirect all of
+        them.  Those references are left alone and listed in
+        :attr:`RenameReport.skipped`; SHELXL then ignores the instruction
+        for this residue, which is its normal behaviour for a name it
+        cannot find.
+
+        Atoms in the middle of a range need no change at all -- a range is
+        positional -- but an endpoint does.
+        """
+        report = RenameReport(atom=atom, old_name=atom.fullname)
+        if atom.symmgen:
+            report.error = 'symmetry-generated atoms are not part of the file'
+            return report
+        problem = atom.name_problem(new_name)
+        if problem:
+            report.error = problem
+            return report
+        if new_name.strip().upper() == atom.name.upper():
+            report.new_name = atom.fullname
+            return report
+
+        old_fullname = atom.fullname
+        affected = self._rename_targets(atom, old_fullname)
+
+        atom.name = new_name.strip()
+        report.new_name = atom.fullname
+
+        for card, exclusive, shared in affected:
+            before = str(card)
+            if exclusive:
+                self._retarget(card, exclusive, atom.name)
+                report.add_update(card, before)
+            for token in shared:
+                report.add_skip(
+                    card, token,
+                    'token also refers to atoms in other residues',
+                )
+        self._notify()
+        return report
+
+    def _rename_targets(self, atom: Atom, old_fullname: str):
+        """Split each referencing card's tokens into exclusive and shared.
+
+        *exclusive* tokens resolve only to *atom* and may be rewritten;
+        *shared* ones also name surviving atoms and must be left alone.
+        """
+        resolver = AtomTokenResolver(self._shx)
+        found = []
+        for card in self.graph.cards_for_atom(atom):
+            tokens = split_range_tokens(card.referenced_atoms)
+            scope = getattr(card, 'residue_number', None)
+            if isinstance(scope, int):
+                scope = [scope]
+            exclusive: list[str] = []
+            shared: list[str] = []
+            for token in tokens:
+                if token in ('>', '<', '='):
+                    continue
+                names = resolver.resolve([token], scope).fullnames
+                if old_fullname not in names:
+                    continue
+                if len(names) == 1:
+                    exclusive.append(token)
+                else:
+                    shared.append(token)
+            if exclusive or shared:
+                found.append((card, exclusive, shared))
+        return found
+
+    @staticmethod
+    def _retarget(card, tokens: list[str], new_name: str) -> None:
+        """Point *tokens* on *card* at *new_name*, keeping any suffix."""
+        replacements = {}
+        for token in tokens:
+            suffix = token.split('_', 1)[1] if '_' in token else ''
+            replacements[token] = f'{new_name}_{suffix}' if suffix else new_name
+        if hasattr(card, 'atoms') and isinstance(card.atoms, list):
+            card.atoms[:] = [replacements.get(t, t) for t in card.atoms]
+            return
+        for attribute in ('atom1', 'atom2', 'donor', 'acceptor'):
+            current = getattr(card, attribute, None)
+            if current in replacements:
+                setattr(card, attribute, replacements[current])
 
     def _collect_orphaned_eqivs(self, report: DeletionReport) -> None:
         """Drop ``EQIV`` cards left with nothing referencing them.
