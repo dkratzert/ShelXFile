@@ -21,6 +21,7 @@ from shelxfile.edit.reports import (
     RemovalReason,
     RemovedItem,
 )
+from shelxfile.edit.same_links import SameFragments, SameResolver
 from shelxfile.edit.token_resolver import (
     AtomReference,
     AtomTokenResolver,
@@ -40,6 +41,8 @@ __all__ = [
     'RemovedItem',
     'RenderedFile',
     'ResolvedAtoms',
+    'SameFragments',
+    'SameResolver',
     'ShelxDocument',
     'render',
 ]
