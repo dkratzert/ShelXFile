@@ -188,10 +188,17 @@ class AtomReferencingCard:
     def atom_semantics(self) -> AtomListSemantics:
         """What this *instance*'s atom list means.
 
-        A card that named atoms is ``EXPLICIT`` whatever its class; only
-        one authored without names takes on the class meaning.
+        Consults the atoms **as parsed**, not the current list: a card
+        edited down to nothing must still be recognised as one that named
+        atoms, so it gets removed rather than silently widening to "all
+        atoms".  Cards that never record their source fall back to their
+        current state.
         """
-        if self.referenced_atoms:
+        original = getattr(self, '_original_atoms', None)
+        if original is None:
+            return (AtomListSemantics.EXPLICIT if self.referenced_atoms
+                    else self.EMPTY_MEANS)
+        if original:
             return AtomListSemantics.EXPLICIT
         return self.EMPTY_MEANS
 

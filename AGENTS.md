@@ -26,7 +26,16 @@ ShelXFile is a Python library for parsing, editing, and writing SHELXL crystallo
 | `src/shelxfile/atoms/atom.py` | `Atom` class — fractional/Cartesian coords, occupancy, SFAC, U-value chain (`ucif`, `ustar`, `u_cart`, `ueq`, `Uiso`) |
 | `src/shelxfile/atoms/atoms.py` | `Atoms` container — iteration, lookup, geometry methods, `conntable` property |
 | `src/shelxfile/shelx/sdm.py` | SDM (Shortest Distance Matrix) — `calc_sdm()`, `packer()`, `pack_unit_cell()`; optional C++ fast path via `sdm_cpp` |
-| `src/shelxfile/misc/misc.py` | Parse error classes, `wrap_line`, `build_conntable`, `frac_to_cart`, `cart_to_frac` |
+| `src/shelxfile/edit/document.py` | `ShelxDocument` — the editing façade and **the only object that touches `_reslist`** |
+| `src/shelxfile/edit/card_meta.py` | Card classification enums (`CardLifetime`, `AtomGrouping`, `AtomListSemantics`, `AfixDependency`) and the `AtomReferencingCard` mixin |
+| `src/shelxfile/edit/cascade.py` | `CascadeEngine` — works out the full consequences of a deletion, then applies them in one go |
+| `src/shelxfile/edit/graph.py` | `AtomRestraintGraph` — atom ↔ card links, rebuilt on demand |
+| `src/shelxfile/edit/token_resolver.py` | Atom-token grammar: `>`, `<`, `LAST`, `$element`, `_+`/`_-`, `_$n`, residue scoping |
+| `src/shelxfile/edit/eqiv_factory.py` | `EqivFactory` — reuse-or-mint `EQIV` symmetry operations |
+| `src/shelxfile/edit/line_map.py` | `render()` — text plus the `_reslist` index each line came from |
+| `src/shelxfile/edit/reports.py` | `DeletionReport`, `EditReport`, `RenameReport` and their reasons |
+| `src/shelxfile/gui/editor_widget.py` | Optional Qt widget. A **pure view** over `ShelxDocument`; holds no SHELXL knowledge |
+| `src/shelxfile/misc/misc.py` | Parse error classes, `wrap_line`, `multiline_test`, `build_conntable`, `frac_to_cart`, `cart_to_frac` |
 | `src/shelxfile/misc/dsrmath.py` | `Array`, `OrthogonalMatrix`, crystallographic math; also re-exports `frac_to_cart` and `cart_to_frac` |
 | `src/shelxfile/misc/elements.py` | Element data tables, `get_radius_from_element()` |
 | `src/shelxfile/refine/refine.py` | Thin wrapper that calls the external `shelxl` binary |
@@ -42,7 +51,19 @@ ShelXFile is a Python library for parsing, editing, and writing SHELXL crystallo
 - List cards use `self._append_card(self.restraints, CardClass(self, spline), line_num)` → appended to a list attribute.
 
 ### Atom identification
-`Shelxfile.is_atom(line)` returns `True` when: first token not in `SHX_CARDS`, ≥5 tokens, field[1] has no `.` (SFAC integer), and coords are all `≤ 4.0`.
+`Shelxfile.is_atom(line)` returns `True` when: first token not in `SHX_CARDS`, ≥5 tokens, field[1] has no `.` (SFAC integer), and the coordinates are plausible. A coordinate is plausible when it is a plain fractional value (≤ 4.0) **or** decodes from SHELXL's `10*m + p` form — *"to fix any atom parameter, add 10"*, so `10.666600` is 0.6666 held fixed and `21.000000` is `1.0 × fv2`. The one refused code is `m = 1` with `abs(p) ≥ 1`, because `11.00000` is overwhelmingly a fixed occupancy that slid into a coordinate column. `Atom.coordinates_as_written` re-encodes on write, so a constraint is never silently released.
+
+### Editing (the `edit` layer)
+`ShelxDocument` owns every mutation. `Atom.delete()` deliberately does **not** cascade; use `doc.delete_atoms()` for cleanup. Cascades are one-directional (**D-9**): deleting an atom may remove cards, but removing a card never deletes atoms — `delete_restraint_with_atoms()` must be asked for by name.
+
+Two rules are easy to get wrong and are enforced by tests:
+* **An empty atom list is not a dead card.** A bare `ISOR`/`SIMU`/`ANIS` means *"all non-hydrogen atoms"* (`GLOBAL_WHEN_EMPTY`); a bare `SADI`/`CONN`/`HTAB` is a different instruction (`DIRECTIVE_WHEN_EMPTY`); `BUMP`/`DEFS` never take atoms at all (`NEVER_NAMES_ATOMS`). So a card is *removed*, never emptied.
+* **`atom_semantics` consults the atoms as parsed**, not the current list, so a card edited down to nothing is still recognised as one that named atoms.
+
+Card serialization uses a dirty flag: an untouched card echoes its source line verbatim, and only a card whose atoms changed is regenerated. This applies to both `Restraint` and `Command` — a card that fails to regenerate is left naming a deleted atom.
+
+### Layering (D-8)
+`gui → edit → shelx/atoms`, never the reverse. Nothing under `edit/` may import Qt; nothing under `gui/` may touch `_reslist` or make SHELXL parsing decisions. `tests/test_layering.py` enforces both.
 
 ### Atom naming
 `atom.fullname` = `"C1_0"` (name + `_` + residue number). Residue 0 is the default. Use `shx.atoms.get_atom_by_name('F1_2')` to look up atom F1 in residue 2.
@@ -99,6 +120,16 @@ pytest tests/          # all tests
 pytest tests/test_shelx.py  # single file
 ```
 Tests run from the project root; resource files are referenced as `'tests/resources/p21c.res'` (relative paths). The primary fixture file is `tests/resources/p21c.res`.
+
+Card behaviour is covered by a **registry-driven gate**: `tests/card_catalog.py` holds one hand-written sample per atom-referencing card, each justified by a quoted sentence from the SHELXL manual, and `tests/test_card_coverage.py` fails until a newly added card class has one. Corpus frequency measures prevalence, not importance — a rare card gets the same scrutiny as a common one.
+
+### Corpus tests (opt-in)
+Marked `corpus` and skipped unless given data:
+```bash
+pytest -m corpus --corpus /path/to/structures     # or $SHELXFILE_CORPUS
+pytest -m corpus --corpus PATH --corpus-sample 500  # quick subset
+```
+`tests/test_corpus.py` covers I1 (parse stability) and I2 (`dumps()` idempotence) as **ratchets** — the budgets in `tests/resources/corpus_expectations.json` may only ever be lowered. `tests/test_corpus_edits.py` deletes an atom from every structure and checks I3 (edit locality), I4 (report completeness) and I5 (no semantic escalation). A full sweep takes about six minutes and is held to `--corpus-time-budget`. No corpus content is ever committed, only aggregate counts.
 
 ### Linting / type checking
 ```bash

@@ -48,6 +48,25 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help='Use a deterministic random sample of N corpus files instead of '
              'the full sweep. 0 (the default) means all files.',
     )
+    group.addoption(
+        '--corpus-edit-sample',
+        action='store',
+        type=int,
+        default=0,
+        metavar='N',
+        help='Bound the destructive edit invariants (I3-I5) to N structures '
+             'while leaving the parse sweep over all files. 0 (the default) '
+             'edits every file; --corpus-sample bounds both.',
+    )
+    group.addoption(
+        '--corpus-time-budget',
+        action='store',
+        type=float,
+        default=900.0,
+        metavar='SECONDS',
+        help='Fail the sweep if it takes longer than this, so the opt-in '
+             'suite stays usable. 0 disables the check.',
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -104,3 +123,25 @@ def corpus_files(request: pytest.FixtureRequest, corpus_root: Path) -> list[Path
         rng = random.Random(_SAMPLE_SEED)
         files = sorted(rng.sample(files, limit))
     return files
+
+
+@pytest.fixture(scope='session')
+def corpus_edit_files(request: pytest.FixtureRequest,
+                      corpus_files: list[Path]) -> list[Path]:
+    """Structures the destructive edit invariants run against.
+
+    Defaults to every file in :func:`corpus_files`.  ``--corpus-edit-sample``
+    bounds only this sweep, for when the full parse sweep is wanted but a
+    quick edit check will do; ``--corpus-sample`` bounds both.
+    """
+    limit = int(request.config.getoption('--corpus-edit-sample') or 0)
+    if 0 < limit < len(corpus_files):
+        rng = random.Random(_SAMPLE_SEED + 1)
+        return sorted(rng.sample(corpus_files, limit))
+    return corpus_files
+
+
+@pytest.fixture(scope='session')
+def time_budget(request: pytest.FixtureRequest) -> float:
+    """Seconds a single sweep may take before it is considered unusable."""
+    return float(request.config.getoption('--corpus-time-budget') or 0.0)

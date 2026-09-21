@@ -655,6 +655,133 @@ No matter if you loaded a `.res` or `.ins` file, `refine()` runs SHELXL on the `
  SHELXL Version 2018/3
 ```
 
+## Editing Structures
+
+Deleting an atom is not a local operation. A `SADI` restraint that named it
+is now short a partner, an `AFIX` group may fall below the atom count its
+code requires, and an `EQIV` may be left with nothing referencing it.
+`shelxfile.edit` handles those consequences, and reports every one.
+
+`ShelxDocument` is the entry point. It wraps a `Shelxfile`, owns all
+mutation, and is free of Qt so it can be used headless:
+
+```python
+from shelxfile.edit import ShelxDocument
+
+doc = ShelxDocument.from_file('tests/resources/p21c.res')
+doc.shelxfile        # the underlying model, for read-only use
+doc.text             # the file as text, identical to shx.dumps()
+doc.write('out.res')
+```
+
+### Deleting Atoms
+
+```python
+report = doc.delete_atoms([doc.shelxfile.atoms.get_atom_by_name('F1_2')])
+print(report.summary())          # 'removed 1 atom(s)'
+report.atoms                     # atoms that went, each with a reason
+report.cards                     # instructions removed as a consequence
+report.edited                    # instructions trimmed, with their former text
+```
+
+Consequences are worked out in full before anything is touched, so a
+cascade is never half-applied. To see them without committing:
+
+```python
+plan = doc.plan_deletion([atom])
+len(plan.cards), len(plan.atoms)
+```
+
+A card is trimmed when enough of it survives and removed when it does not:
+`SADI 0.02 C1 C2 C3 C4` loses a pair, `SADI 0.02 C1 C2` loses its meaning.
+The minimum per card comes from the SHELXL manual — `FLAT` needs four
+atoms, `MPLA` three, `CHIV` one — not from a single global rule.
+
+Two cases that look like deletion candidates but are not:
+
+- **An empty atom list is not a dead card.** A bare `ISOR` means *"all
+  non-hydrogen atoms"*, so a card must never be *emptied* — it is removed
+  instead. A bare `SADI` is a different instruction again.
+- **A shared reference is left alone.** `SADI_CCF3 ... F1 ...` applies to
+  every residue of class `CCF3`; deleting `F1` in one of them leaves the
+  token resolvable elsewhere, and the manual is explicit that *"the
+  instruction is simply ignored for that residue"*.
+
+Removing an instruction never deletes atoms — losing a restraint is a
+refinement decision, not a statement about the atoms it mentioned. The
+destructive variant has to be asked for by name:
+
+```python
+doc.remove_restraint(restraint)            # card only
+doc.remove_card(card)                      # any instruction, atoms untouched
+doc.delete_restraint_with_atoms(restraint) # explicit opt-in
+```
+
+### Renaming Atoms
+
+```python
+report = doc.rename_atom(atom, 'C99')
+report.ok        # False if the new name is invalid or already taken
+report.updated   # references that now point at the new name
+report.skipped   # references deliberately left alone, each with a reason
+```
+
+References are only retargeted when they name *this* atom and nothing
+else. A class reference such as `BOND $C`, a residue-class restraint
+shared by other residues, or a range like `C1 > C9` is reported in
+`skipped` rather than rewritten.
+
+### Symmetry-Aware Card Editing
+
+`pack()` and `grow()` record where each generated atom came from, so a card
+can be written against a symmetry image and the required `EQIV` is created
+for you:
+
+```python
+packed = doc.shelxfile.pack()
+mate = next(a for a in packed if a.symm_mate is not None)
+mate.name                 # 'O1>>1'  — '>>' plus the symmetry card number
+mate.symm_mate            # O1_4 [-x, -y, -z]
+
+doc.add_bind(doc.shelxfile.atoms.get_atom_by_name('C1_1'), mate)
+# EQIV $1 -x, -y, -z
+# BIND C1_1 O1_4_$1
+```
+
+`add_bind`, `add_free` and `add_htab` accept an `Atom`, a symmetry image or
+a plain name string. Existing `EQIV` definitions are matched on the parsed
+operation rather than its text, so `1-x, y, 1-z` and `-x+1, +y, -z+1` are
+recognised as the same operation; a new one takes the lowest unused `$n`
+and is never renumbered. Placement respects the rule that *"such a symmetry
+operation must be defined before it is used"*.
+
+The arity limits are enforced, not assumed: *"only one of the two atoms may
+be an equivalent atom"* for `BIND`/`FREE`, and *"only the acceptor atom may
+specify a symmetry operation"* for `HTAB`. A refused card leaves no trace —
+the insert is rolled back before the error is raised. `remove_card` collects
+an `EQIV` whose last user has gone, but leaves one another card still needs.
+
+### Watching for Changes
+
+Views can follow the model without polling. Observers are plain callables,
+so nothing in the edit layer depends on a GUI framework:
+
+```python
+doc.subscribe(lambda document: print(document.line_count, 'lines'))
+
+doc.line_of_atom('C1_1')     # 0-based text line of that atom
+doc.item_at_line(42)         # whatever produced that line
+doc.items_in_lines(10, 20)   # distinct entries in a line range
+```
+
+### Layering
+
+`shelxfile.edit` is the only place that touches the model's internals, and
+it never imports Qt. `shelxfile.gui` displays and does not decide: it holds
+no SHELXL knowledge and routes every change through `ShelxDocument`. The
+dependency direction is `gui → edit → shelx/atoms`, never the reverse, and
+`tests/test_layering.py` fails the build if that erodes.
+
 ## GUI Editor (optional)
 
 An optional, embeddable Qt6 widget for viewing and editing SHELX files is
@@ -668,28 +795,41 @@ pip install shelxfile[gui] PyQt6
 
 ```python
 from qtpy.QtWidgets import QApplication
-from shelxfile import Shelxfile
+from shelxfile.edit import ShelxDocument
 from shelxfile.gui.editor_widget import ShelxEditorWidget
 
 app = QApplication([])
-shx = Shelxfile()
-shx.read_file('tests/resources/p21c.res')
+document = ShelxDocument.from_file('tests/resources/p21c.res')
 
-editor = ShelxEditorWidget(shx)
+editor = ShelxEditorWidget(document)
 editor.show()
 app.exec()
 ```
 
-The widget provides a syntax-highlighted text view plus toolbar actions that
-mutate the bound `Shelxfile` model directly (not just the text):
+A plain `Shelxfile` is still accepted and wrapped for you:
 
-- **Apply** — re-parses the current text into a fresh `Shelxfile`; on success
-  the model is swapped in and `model_changed` is emitted, on failure an
-  inline error is shown and the old model is left untouched.
-- **Add atom…** / **Delete selected atom(s)** — call `shx.add_atom()` /
-  `atom.delete()` and refresh the text from the model.
-- **Add restraint…** / **Delete selected restraint** — call
-  `shx.add_restraint()` / `restraint.delete()` and refresh the text.
+```python
+editor = ShelxEditorWidget(shx)   # editor.document is a ShelxDocument
+```
+
+The widget is a **pure view**: it renders what the document gives it,
+reports what the user pointed at, and asks the document to make changes. It
+never indexes the model directly and makes no parsing decisions of its own,
+so every toolbar action gets the same cascade handling and reporting as the
+API above.
+
+- **Apply** — re-parses the current text into a fresh document; on success
+  it is swapped in and `model_changed` is emitted, on failure an inline
+  error is shown and the old document is left untouched.
+- **Add atom…** / **Delete selected atom(s)** — `document.add_atom()` /
+  `document.delete_atoms()`, so deleting an atom also cleans up the
+  instructions that referenced it.
+- **Add restraint…** / **Delete selected restraint** —
+  `document.add_restraint()` / `document.remove_card()`. Removing a
+  restraint leaves its atoms in place.
+
+The view refreshes on *any* edit to the bound document, not only on its own
+toolbar actions, because it subscribes as an observer.
 
 It also exposes two hooks meant for embedding in a 3D viewer such as
 [Fastmolwidget](https://github.com/dkratzert/Fastmolwidget), keyed on
@@ -702,6 +842,49 @@ editor.atom_selected.connect(your_atom_highlight_callback)   # cursor in text ->
 ```
 
 ## Development
+
+### Running the tests
+```bash
+pytest tests/                 # the full suite, no external data needed
+pytest tests/test_shelx.py    # a single file
+ruff check src/shelxfile/
+ty check src/shelxfile/
+```
+
+### Testing against a corpus of real structures
+Some invariants only show up at scale, so the suite can be pointed at a
+directory tree of real `.res`/`.ins` files. These tests are marked `corpus`
+and are **skipped unless you provide the data**, so CI and contributors
+without it are unaffected. Nothing from the corpus is ever committed — only
+aggregate counts, in `tests/resources/corpus_expectations.json`.
+
+```bash
+pytest -m corpus --corpus /path/to/structures
+export SHELXFILE_CORPUS=/path/to/structures   # or set it once
+```
+
+Two sweeps run over every file:
+
+| Invariant | Check |
+|---|---|
+| **I1** parse stability | no new parse errors |
+| **I2** idempotence | `dumps(parse(dumps(parse(f)))) == dumps(parse(f))` |
+| **I3** edit locality | after deleting an atom, only lines the report explains may change |
+| **I4** report completeness | nothing disappears without appearing in the `DeletionReport` |
+| **I5** no semantic escalation | no card is left having named atoms but naming none |
+
+I1 and I2 are *ratchets*: the budgets in `corpus_expectations.json` may only
+ever be lowered, never raised to make a failing run pass.
+
+Useful options:
+
+```bash
+--corpus-sample 500        # deterministic subset, for a quick check
+--corpus-edit-sample 500   # bound only the destructive I3-I5 sweep
+--corpus-time-budget 900   # fail if a sweep takes longer than this (0 disables)
+```
+
+A full sweep over ~6000 structures takes roughly six minutes.
 
 ### Git hooks
 A `pre-push` hook in `githooks/` rejects pushing a version tag (e.g. `v30`) whose numeric

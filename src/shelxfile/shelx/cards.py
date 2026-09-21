@@ -294,19 +294,6 @@ class Restraint(Residue, AtomReferencingCard):
         return self.ATOM_GROUPING
 
     @property
-    def atom_semantics(self) -> AtomListSemantics:
-        """What this *instance*'s atom list means.
-
-        Overrides the mixin to consult the atoms as **parsed** rather than
-        the current list: a card edited down to nothing must still be
-        recognised as one that named atoms, so it gets removed instead of
-        silently widening to "all atoms".
-        """
-        if self._original_atoms:
-            return AtomListSemantics.EXPLICIT
-        return self.EMPTY_MEANS
-
-    @property
     def is_atom_linked(self) -> bool:
         """Whether this card should participate in atom bookkeeping.
 

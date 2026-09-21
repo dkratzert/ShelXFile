@@ -8,7 +8,8 @@ Skipped entirely when no corpus is configured, so CI and contributors
 without the (private) data are unaffected.  See ``tests/conftest.py``.
 
 Covers invariants **I1** (parse stability) and **I2** (``dumps()``
-idempotence) from the plan.  Both are enforced as *ratchets*: the
+idempotence) from the plan; the destructive invariants **I3**-**I5** live
+in ``test_corpus_edits.py``.  I1 and I2 are enforced as *ratchets*: the
 aggregate budgets in ``tests/resources/corpus_expectations.json`` may only
 ever be lowered.  The corpus itself is never committed, and neither are
 the file names -- only the aggregate counts.
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import time
 from pathlib import Path
 
 import pytest
@@ -46,6 +48,7 @@ def sweep(corpus_files: list[Path]) -> dict:
     result: dict[str, list[str]] = {
         'parsed': [], 'errors': [], 'non_idempotent': [], 'reparse_errors': [],
     }
+    started = time.perf_counter()
     with tempfile.TemporaryDirectory() as tmpdir:
         scratch = Path(tmpdir)
         for path in corpus_files:
@@ -72,6 +75,7 @@ def sweep(corpus_files: list[Path]) -> dict:
                 continue
             if second.dumps() != dumped:
                 result['non_idempotent'].append(key)
+    result['elapsed'] = time.perf_counter() - started
     return result
 
 
@@ -130,4 +134,16 @@ def test_roundtrip_output_always_reparses(sweep: dict) -> None:
     assert not sweep['reparse_errors'], (
         'ShelXFile produced output it cannot parse back: '
         f'{sweep["reparse_errors"][:5]}'
+    )
+
+
+def test_parse_sweep_stays_within_its_time_budget(sweep: dict,
+                                                  time_budget: float) -> None:
+    """An opt-in suite nobody is willing to wait for gets run by nobody."""
+    if not time_budget:
+        pytest.skip('time budget disabled (--corpus-time-budget 0)')
+    assert sweep['elapsed'] <= time_budget, (
+        f'the parse sweep took {sweep["elapsed"]:.0f}s over '
+        f'{len(sweep["parsed"])} structures, above the budget of '
+        f'{time_budget:.0f}s.'
     )
