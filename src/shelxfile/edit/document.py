@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable, Union
 
 from shelxfile.edit.cascade import CascadeEngine, CascadePlan
-from shelxfile.edit.eqiv_cleanup import EqivCleaner
+from shelxfile.edit.eqiv_cleanup import EqivCleaner, validate_symmetry_arity
+from shelxfile.edit.eqiv_factory import EqivFactory
 from shelxfile.edit.graph import AtomRestraintGraph
 from shelxfile.edit.line_map import RenderedFile, render
 from shelxfile.edit.reports import (
@@ -366,6 +367,134 @@ class ShelxDocument:
         return found
 
     # ---------------------------------------------------------- addition
+
+    #: Cards that name atoms and can be added directly. Kept apart from
+    #: ``RESTRAINT_CARD_CLASSES``, which is documented as restraints only.
+    ATOM_CARD_CLASSES: dict[str, str] = {
+        'BIND': 'bind',
+        'FREE': 'free',
+        'CONN': 'conn',
+        'HTAB': 'htab',
+    }
+
+    def add_bind(self, atom1, atom2) -> EditReport:
+        """Add a bond between two atoms.
+
+        Either operand may be a symmetry image; the ``EQIV`` it needs is
+        created if this is the first reference to that operation.  Only
+        one of the two may be an image: *"Only one of the two atoms may
+        be an equivalent atom"*.
+        """
+        return self._add_atom_pair_card('BIND', atom1, atom2)
+
+    def add_free(self, atom1, atom2) -> EditReport:
+        """Remove a bond between two atoms, with the same rules as
+        :meth:`add_bind`."""
+        return self._add_atom_pair_card('FREE', atom1, atom2)
+
+    def add_htab(self, donor, acceptor) -> EditReport:
+        """Record a hydrogen bond.
+
+        Only the acceptor may be a symmetry image: *"Only the acceptor
+        atom may specify a symmetry operation (_$n) because CIF requires
+        this"*.
+        """
+        return self._add_atom_pair_card('HTAB', donor, acceptor)
+
+    def _add_atom_pair_card(self, keyword: str, first, second) -> EditReport:
+        names = []
+        for operand in (first, second):
+            name = self.name_for(operand)
+            if name is None:
+                raise ValueError(
+                    f'Cannot express {operand!r} as an atom reference; its '
+                    f'symmetry operation could not be resolved.'
+                )
+            names.append(name)
+        card = self._insert_card(keyword, names)
+        problem = validate_symmetry_arity(card)
+        if problem:
+            self._undo_insert(card, keyword)
+            raise ValueError(problem)
+        self._notify()
+        return EditReport(added=[card])
+
+    def name_for(self, target) -> str | None:
+        """How to refer to *target* in an instruction.
+
+        Accepts an :class:`Atom`, a :class:`SymmetryMate`, a
+        :class:`SymBond` neighbour, or a name that is already a string,
+        so a viewer can pass whatever its click handler produced.
+        """
+        if isinstance(target, str):
+            return target
+        return EqivFactory(self._shx).symmetry_atom_name(target)
+
+    def _insert_card(self, keyword: str, names: list[str]):
+        from shelxfile.shelx import cards as card_module
+
+        card_class = getattr(card_module, keyword)
+        card = card_class(self._shx, [keyword, *names])
+        position = self._card_insert_position(names)
+        self._shx._reslist.insert(position, card)
+        collection = getattr(self._shx, self.ATOM_CARD_CLASSES[keyword], None)
+        if isinstance(collection, list):
+            collection.append(card)
+        else:
+            setattr(self._shx, self.ATOM_CARD_CLASSES[keyword], card)
+        self._shx.touch()
+        return card
+
+    def _undo_insert(self, card, keyword: str) -> None:
+        try:
+            self._shx.remove_from_reslist(card)
+        except ValueError:
+            pass
+        collection = getattr(self._shx, self.ATOM_CARD_CLASSES[keyword], None)
+        if isinstance(collection, list) and card in collection:
+            collection.remove(card)
+
+    def _card_insert_position(self, names: list[str]) -> int:
+        """Below any ``EQIV`` the card references, above the atoms.
+
+        An ``EQIV`` has to be defined before it is used, so a card that
+        names one cannot sit above it.
+        """
+        from shelxfile.atoms.atom import Atom as AtomClass
+        from shelxfile.shelx.cards import EQIV as EqivCard
+
+        referenced = {n.rsplit('_', 1)[1] for n in names if '_$' in n}
+        lowest_allowed = 0
+        first_atom = None
+        for index, item in enumerate(self._shx._reslist):
+            if isinstance(item, EqivCard) and item.id in referenced:
+                lowest_allowed = max(lowest_allowed, index + 1)
+            elif first_atom is None and isinstance(item, AtomClass):
+                first_atom = index
+        if first_atom is not None and first_atom > lowest_allowed:
+            return first_atom
+        return max(lowest_allowed, 0)
+
+    def remove_card(self, card) -> DeletionReport:
+        """Remove an instruction, leaving its atoms alone (**D-9**).
+
+        An ``EQIV`` left with nothing referencing it is collected too.
+        """
+        report = DeletionReport()
+        report.add_card(card, RemovalReason.REQUESTED)
+        try:
+            self._shx.remove_from_reslist(card)
+        except ValueError:
+            return DeletionReport()
+        for name in self.ATOM_CARD_CLASSES.values():
+            collection = getattr(self._shx, name, None)
+            if isinstance(collection, list) and card in collection:
+                collection.remove(card)
+            elif collection is card:
+                setattr(self._shx, name, None)
+        self._collect_orphaned_eqivs(report)
+        self._notify()
+        return report
 
     def add_restraint(self, text: str) -> EditReport:
         """Parse and insert a restraint instruction line."""

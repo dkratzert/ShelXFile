@@ -17,6 +17,7 @@ from shelxfile.edit.card_meta import (
 from shelxfile.edit.cascade import CascadeEngine, CascadePlan
 from shelxfile.edit.document import ShelxDocument
 from shelxfile.edit.eqiv_cleanup import EqivCleaner, validate_symmetry_arity
+from shelxfile.edit.eqiv_factory import EqivFactory, canonical_symmop
 from shelxfile.edit.graph import AtomRestraintGraph
 from shelxfile.edit.line_map import RenderedFile, render
 from shelxfile.edit.reports import (
@@ -50,6 +51,7 @@ __all__ = [
     'EditReport',
     'EditedCard',
     'EqivCleaner',
+    'EqivFactory',
     'RemovalReason',
     'RemovedItem',
     'RenameReport',
@@ -59,6 +61,7 @@ __all__ = [
     'SameResolver',
     'ShelxDocument',
     'SkippedReference',
+    'canonical_symmop',
     'render',
     'validate_symmetry_arity',
 ]
