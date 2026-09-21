@@ -153,10 +153,10 @@ class Restraint(Residue):
         The atoms this restraint references are deliberately **not**
         touched.  Losing a restraint is a refinement decision and does not
         imply the atoms are unwanted; use the explicit
-        ``delete_restraint_with_atoms()`` API when that is intended.
+        ``ShelxDocument.delete_restraint_with_atoms()`` when that is
+        intended.
         """
-        self.shx.restraints._restraints.remove(self)
-        self.shx.remove_from_reslist(self)
+        self.shx.restraints.remove(self)
 
     def _parse_line(self, spline: list[str]) -> tuple[list[float], list[str]]:
         """
@@ -550,6 +550,32 @@ class Residues:
     @property
     def residue_numbers(self) -> dict[int, str]:
         return dict((x.residue_number, x.residue_class) for x in self.shx.residues.all_residues)
+
+    def remove(self, resi: RESI) -> None:
+        """Remove *resi* from the model and from ``_reslist``.
+
+        The mirror image of :meth:`append`, including its bookkeeping.
+        ``residue_classes`` maps a class to a *list* of numbers and may
+        legitimately hold the same number twice (a class split across
+        several ``RESI`` cards), so exactly one entry is dropped rather
+        than every match.  A class left with no numbers is removed
+        entirely, otherwise later lookups would see a class that no
+        residue belongs to.
+        """
+        try:
+            self.all_residues.remove(resi)
+        except ValueError:
+            return
+        numbers = self.residue_classes.get(resi.residue_class)
+        if numbers is not None:
+            if resi.residue_number in numbers:
+                numbers.remove(resi.residue_number)
+            if not numbers:
+                del self.residue_classes[resi.residue_class]
+        try:
+            self.shx.remove_from_reslist(resi)
+        except ValueError:
+            pass
 
 
 class RESI(Command):
@@ -1238,6 +1264,24 @@ class Restraints:
 
     def append(self, restr: Restraint) -> None:
         self._restraints.append(restr)
+
+    def remove(self, restr: Restraint) -> None:
+        """Remove *restr* from the collection and from ``_reslist``.
+
+        The atoms it referenced are untouched: see
+        :meth:`Restraint.delete`, which this mirrors, and plan rule D-9b.
+        """
+        try:
+            self._restraints.remove(restr)
+        except ValueError:
+            return
+        try:
+            restr.shx.remove_from_reslist(restr)
+        except ValueError:
+            pass
+
+    def __len__(self) -> int:
+        return len(self._restraints)
 
     def __iter__(self) -> Iterator[Restraint]:
         x: Restraint
