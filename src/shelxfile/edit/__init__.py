@@ -16,14 +16,22 @@ from shelxfile.edit.reports import (
     RemovalReason,
     RemovedItem,
 )
+from shelxfile.edit.token_resolver import (
+    AtomReference,
+    AtomTokenResolver,
+    ResolvedAtoms,
+)
 
 __all__ = [
+    'AtomReference',
+    'AtomTokenResolver',
     'CardLifetime',
     'DeletionReport',
     'EditReport',
     'RemovalReason',
     'RemovedItem',
     'RenderedFile',
+    'ResolvedAtoms',
     'ShelxDocument',
     'render',
 ]

@@ -307,15 +307,25 @@ class Shelxfile:
             for restraint_atom in restraint.atoms:
                 if restraint_atom in ('>', '<', '='):
                     continue
-                if (restraint.residue_class or sum(restraint.residue_number) > 0) and '_' not in restraint_atom:
+                # A trailing '_$n' is a symmetry reference, not a residue, so
+                # the name underneath may still need the instruction's residue
+                # scope applied to it: 'RTAB_23 ... O1_$3' means (O1_23)_$3.
+                eqiv_match = _EQIV_ATOM_SUFFIX_RE.match(restraint_atom)
+                base_name = eqiv_match.group(1) if eqiv_match else restraint_atom
+                has_own_residue = '_' in base_name
+                if (restraint.residue_class or sum(restraint.residue_number) > 0) and not has_own_residue:
                     populated_nums = populated_resi_nums_by_class.get(restraint.residue_class, set())
                     for num in restraint.residue_number:
                         # Skip residue numbers of this class that have no atoms at all.
                         # SHELXL silently ignores empty residues for restraints too.
                         if restraint.residue_class and num not in populated_nums:
                             continue
-                        self.does_atom_exist(f'{restraint_atom}_{num}', bad_atoms, f'{restraint_atom}_{num}',
-                                              missing_eqiv)
+                        if eqiv_match:
+                            self.does_atom_exist(restraint_atom, bad_atoms, restraint_atom,
+                                                 missing_eqiv, residue_scope=num)
+                        else:
+                            self.does_atom_exist(f'{restraint_atom}_{num}', bad_atoms, f'{restraint_atom}_{num}',
+                                                 missing_eqiv)
                 elif '_' in restraint_atom:
                     self.does_atom_exist(f'{restraint_atom}', bad_atoms, restraint_atom, missing_eqiv)
                 else:
@@ -345,6 +355,7 @@ class Shelxfile:
         bad_atoms: list[str],
         restraint_atom: str,
         missing_eqiv: list[str],
+        residue_scope: int = 0,
     ) -> None:
         # A trailing '_$n' references a symmetry equivalent atom defined by an EQIV
         # instruction (see EQIV documentation), not a residue number. It has to be
@@ -354,7 +365,10 @@ class Shelxfile:
         if eqiv_match:
             base_name, eqiv_num = eqiv_match.groups()
             eqiv_id = f'${eqiv_num}'
-            atom_name = base_name if '_' in base_name else f'{base_name}_0'
+            # The manual applies the residue *before* the symmetry operation,
+            # so an unqualified name inherits the instruction's residue rather
+            # than defaulting to residue 0.
+            atom_name = base_name if '_' in base_name else f'{base_name}_{residue_scope}'
         residue_number_is_wildcard = '_' in atom_name and atom_name.split('_')[-1] == '*'
         if atom_name.startswith('$'):
             return None
