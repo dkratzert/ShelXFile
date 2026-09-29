@@ -44,6 +44,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -77,6 +78,10 @@ class ShelxEditorToolbar(QWidget):
                  parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._editor = editor
+        # A row of buttons is exactly as tall as the buttons.  Without this
+        # a host's vertical layout hands it a share of the leftover space
+        # and the buttons end up floating in the middle of a white gap.
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
 
         self.apply_button = QPushButton('Apply')
         self.add_atom_button = QPushButton('Add atom…')
