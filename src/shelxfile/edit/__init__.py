@@ -19,6 +19,7 @@ from shelxfile.edit.document import ParseAttempt, ShelxDocument, restraint_keywo
 from shelxfile.edit.eqiv_cleanup import EqivCleaner, validate_symmetry_arity
 from shelxfile.edit.eqiv_factory import EqivFactory, canonical_symmop
 from shelxfile.edit.graph import AtomRestraintGraph
+from shelxfile.edit.history import EditHistory, HistoryState, UndoResult
 from shelxfile.edit.line_map import RenderedFile, render
 from shelxfile.edit.reports import (
     DeletionReport,
@@ -50,8 +51,10 @@ __all__ = [
     'DeletionReport',
     'EditReport',
     'EditedCard',
+    'EditHistory',
     'EqivCleaner',
     'EqivFactory',
+    'HistoryState',
     'ParseAttempt',
     'RemovalReason',
     'RemovedItem',
@@ -62,6 +65,7 @@ __all__ = [
     'SameResolver',
     'ShelxDocument',
     'SkippedReference',
+    'UndoResult',
     'canonical_symmop',
     'render',
     'restraint_keywords',

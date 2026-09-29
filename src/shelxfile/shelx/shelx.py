@@ -1258,7 +1258,7 @@ class Shelxfile:
         )
         # --- insert into _reslist at the correct position ---
         insert_pos = self._find_atom_insert_position(after=after)
-        self._reslist.insert(insert_pos, a)
+        self.insert_into_reslist(insert_pos, a)
         self.atoms.append(a)
         self.atoms._atomsdict.clear()
         return a
@@ -1272,6 +1272,34 @@ class Shelxfile:
         'DFIX': DFIX, 'DANG': DANG, 'SADI': SADI, 'SAME': SAME, 'RIGU': RIGU,
         'SIMU': SIMU, 'DELU': DELU, 'CHIV': CHIV, 'EADP': EADP, 'EXYZ': EXYZ,
     }
+
+    def _header_insert_position(self) -> int:
+        """Index just before the first real atom and the brackets opening it.
+
+        Instructions placed here are read before any atom, outside every
+        ``PART``, ``AFIX`` and ``RESI`` scope -- which matters for
+        restraints: inside a ``RESI`` block an unqualified atom name refers
+        to that residue.
+        """
+        first_atom = None
+        for i, item in enumerate(self._reslist):
+            if isinstance(item, Atom) and not item.qpeak:
+                first_atom = i
+                break
+        if first_atom is None:
+            for i, item in enumerate(self._reslist):
+                if isinstance(item, HKLF):
+                    return i
+            return max(len(self._reslist) - 1, 0)
+        position = first_atom
+        while position > 0:
+            previous = self._reslist[position - 1]
+            if isinstance(previous, (PART, AFIX, RESI)) or \
+                    (isinstance(previous, str) and not previous.strip()):
+                position -= 1
+            else:
+                break
+        return position
 
     def _find_restraint_insert_position(self, after: Restraint | None = None) -> int:
         """
@@ -1296,12 +1324,10 @@ class Shelxfile:
                 last_restraint_pos = i
         if last_restraint_pos is not None:
             return last_restraint_pos + 1
-        for i, item in enumerate(self._reslist):
-            if isinstance(item, Atom):
-                return i
-        return max(len(self._reslist) - 1, 0)
+        return self._header_insert_position()
 
-    def add_restraint(self, text: str, after: Restraint | None = None) -> Restraint:
+    def add_restraint(self, text: str, after: Restraint | None = None, *,
+                      header: bool = False) -> Restraint:
         """
         Parse a single restraint instruction line and insert it into the
         structure at the correct position so that ``write_shelx_file``
@@ -1316,6 +1342,8 @@ class Shelxfile:
                       this :class:`~shelxfile.shelx.cards.Restraint` in the
                       file. Otherwise it is appended after the last existing
                       restraint (or before the first atom if there is none).
+        :param header: Insert just before the first atom instead, outside any
+                       `PART`/`AFIX`/`RESI` scope (ignored with *after*).
         :returns: The new :class:`~shelxfile.shelx.cards.Restraint` instance.
         :raises ValueError: if *text* is empty or its keyword is not a
                              supported restraint instruction.
@@ -1331,8 +1359,11 @@ class Shelxfile:
                 f"Unsupported restraint keyword {spline[0]!r}. Supported: {supported}"
             )
         restraint = card_cls(self, spline)
-        insert_pos = self._find_restraint_insert_position(after=after)
-        self._reslist.insert(insert_pos, restraint)
+        if header and after is None:
+            insert_pos = self._header_insert_position()
+        else:
+            insert_pos = self._find_restraint_insert_position(after=after)
+        self.insert_into_reslist(insert_pos, restraint)
         self.restraints.append(restraint)
         return restraint
 
@@ -1784,6 +1815,22 @@ class Shelxfile:
         self._shift_delete_on_write(index)
         self.touch()
         return index
+
+    def insert_into_reslist(self, index: int, obj: ResListEntry) -> None:
+        """Insert *obj* at *index* and keep bookkeeping sane.
+
+        The counterpart of :meth:`remove_from_reslist`: every insertion
+        path should go through here, because :attr:`delete_on_write` stores
+        *indices* and a line suppressed on write would otherwise shift onto
+        its neighbour.
+        """
+        self._reslist.insert(index, obj)
+        if self.delete_on_write:
+            self.delete_on_write = {
+                num + 1 if num >= index else num
+                for num in self.delete_on_write
+            }
+        self.touch()
 
     def _shift_delete_on_write(self, removed_index: int) -> None:
         """Keep :attr:`delete_on_write` pointing at the same lines.

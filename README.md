@@ -774,6 +774,83 @@ doc.item_at_line(42)         # whatever produced that line
 doc.items_in_lines(10, 20)   # distinct entries in a line range
 ```
 
+### Moving Atoms and Building Disorder
+
+The primitives a model builder needs to write a split disorder back:
+
+```python
+doc = ShelxDocument.from_file('tests/resources/jkd77.res')
+atoms = doc.shelxfile.atoms
+methyl = [atoms.get_atom_by_name(n) for n in ('C10', 'H10A', 'H10B', 'H10C')]
+
+with doc.batch('Split C10'):                    # one undo step, one notification
+    fv = doc.add_free_variable(0.5)             # -> 2, appended to FVAR
+    taken = set()
+    part1 = [doc.split_name(a, 'A', taken, keep_own_name=True) for a in methyl]
+    taken |= {n.upper() for n in part1}
+    part2 = []
+    for a in methyl:
+        part2.append(doc.split_name(a, 'B', taken))   # C10B, H10D, H10E, H10F
+        taken.add(part2[-1].upper())
+    doc.duplicate_atoms(methyl, part2, 2, -(10 * fv + 1), new_cartesian_xyz)
+    doc.assign_part(methyl, 1, 10 * fv + 1)
+    for a, name in zip(methyl, part1):
+        doc.rename_atom(a, name)
+    doc.add_restraint('SADI 0.02 C4 C10A C4 C10B')
+```
+
+- `move_atoms([(atom, xyz), ...], cartesian=True)` moves atoms. A coordinate
+  held by a `10*m + p` code that actually moves loses the code, and the
+  report says so in `messages`.
+- `assign_part(atoms, part, sof)` wraps each contiguous run in
+  `PART n … PART 0`, outside any `AFIX` group, and writes the raw `sof` on
+  every atom. Atoms already in a part are refused.
+- `duplicate_atoms(atoms, names, part, sof, coordinates=None, uvals=None)`
+  writes copies as one `PART n … PART 0` block after the sources, in file
+  order, copying each `AFIX` card in front of the atoms it governed. Riding U
+  codes such as `-1.2` therefore refer to the copied pivot. `Atom` objects are
+  not hashable, so per-atom arguments are sequences parallel to `atoms`.
+- `split_name(atom, suffix)` gives `C1` → `C1A`; when that exceeds four
+  characters or is already taken it keeps the own name (`keep_own_name=True`)
+  or takes the next free letter of the same stem (`H10A` → `H10D`, as SHELXL
+  names a split methyl group), then a free `<element><number>` name.
+- An `AFIX` group must be taken whole, together with the atom it rides on:
+  `doc.atom_problem_for_part(atoms)` explains why a selection is refused.
+- `set_uvals([(atom, [0.035]), ...])` replaces raw U values (one value =
+  isotropic, six = anisotropic; codes such as `-1.2` are written as given).
+- `name_for_operation(atom, '-X+1, Y, -Z+1/2')` returns `'C1_$n'` for a
+  restraint across symmetry, reusing an `EQIV` for *exactly* that operation
+  (lattice translations included) or creating one.
+
+### Undo and Redo
+
+Every edit is one undo step; `batch(label)` groups several into one. The
+history stores the whole file text before each step (zlib-compressed, no
+depth limit), so undo is exact for cascades, renames and brackets alike:
+
+```python
+doc.undo()            # UndoResult(label, payload) or None
+doc.redo()
+doc.can_undo, doc.can_redo, doc.history.undo_labels
+doc.is_modified       # False right after loading or doc.write()
+```
+
+A step is only recorded if the edit changed something, and a batch that
+raises is rolled back. Undo re-reads the stored text, so `doc.shelxfile` is
+a **new** object afterwards: look atoms up again by name. The rollback
+restores the *model*; state a caller mutated inside the block is its own to
+undo.
+
+Callers that keep state of their own next to the file register a provider;
+its value is stored with every snapshot and returned with the restored
+state:
+
+```python
+doc.set_state_provider(lambda: my_viewer_state.copy())
+result = doc.undo()
+my_viewer_state = result.payload
+```
+
 ### Layering
 
 `shelxfile.edit` is the only place that touches the model's internals, and

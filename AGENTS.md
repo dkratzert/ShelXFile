@@ -34,13 +34,15 @@ ShelXFile is a Python library for parsing, editing, and writing SHELXL crystallo
 | `src/shelxfile/edit/eqiv_factory.py` | `EqivFactory` — reuse-or-mint `EQIV` symmetry operations |
 | `src/shelxfile/edit/line_map.py` | `render()` — text plus the `_reslist` index each line came from |
 | `src/shelxfile/edit/reports.py` | `DeletionReport`, `EditReport`, `RenameReport` and their reasons |
+| `src/shelxfile/edit/structure_edits.py` | Moving atoms, `PART` bracketing, duplicating atoms with their `AFIX` groups, free variables, split naming |
+| `src/shelxfile/edit/history.py` | `EditHistory` — snapshot-based undo/redo (`batch()` = one step, caller payload via `set_state_provider`) |
 | `src/shelxfile/gui/editor_widget.py` | Optional Qt widget. A **pure view** over `ShelxDocument`; holds no SHELXL knowledge |
 | `src/shelxfile/misc/misc.py` | Parse error classes, `wrap_line`, `multiline_test`, `build_conntable`, `frac_to_cart`, `cart_to_frac` |
 | `src/shelxfile/misc/dsrmath.py` | `Array`, `OrthogonalMatrix`, crystallographic math; also re-exports `frac_to_cart` and `cart_to_frac` |
 | `src/shelxfile/misc/elements.py` | Element data tables, `get_radius_from_element()` |
 | `src/shelxfile/refine/refine.py` | Thin wrapper that calls the external `shelxl` binary |
 | `src/shelxfile/cif/cif_write.py` | CIF export using a Jinja-style template |
-| `src/shelxfile/version.py` | **Single source of version**: `VERSION = '23'` |
+| `src/shelxfile/version.py` | **Single source of version**: `VERSION = '30'` |
 
 ## Key Conventions
 

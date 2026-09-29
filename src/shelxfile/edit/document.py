@@ -15,13 +15,17 @@ variant exists but has to be named explicitly:
 
 from __future__ import annotations
 
+import functools
+from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterable, NamedTuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, Union
 
+from shelxfile.edit import structure_edits
 from shelxfile.edit.cascade import CascadeEngine, CascadePlan
 from shelxfile.edit.eqiv_cleanup import EqivCleaner, validate_symmetry_arity
 from shelxfile.edit.eqiv_factory import EqivFactory
 from shelxfile.edit.graph import AtomRestraintGraph
+from shelxfile.edit.history import EditHistory, HistoryState, UndoResult
 from shelxfile.edit.line_map import RenderedFile, render
 from shelxfile.edit.reports import (
     DeletionReport,
@@ -44,6 +48,25 @@ if TYPE_CHECKING:
 Observer = Callable[['ShelxDocument'], None]
 
 ResListItem = Union['Atom', 'Restraint', 'Command', str]
+
+#: Returns whatever a caller wants stored with every history snapshot.
+StateProvider = Callable[[], Any]
+
+
+def _undoable(label: str):
+    """Run the decorated edit as one undo step labelled *label*.
+
+    A call that changes nothing (a refused rename, an empty deletion)
+    leaves no step behind, because the step is only kept when the edit
+    reached :meth:`ShelxDocument._notify`.
+    """
+    def decorate(method):
+        @functools.wraps(method)
+        def wrapper(self: ShelxDocument, *args, **kwargs):
+            with self.batch(label):
+                return method(self, *args, **kwargs)
+        return wrapper
+    return decorate
 
 
 class ParseAttempt(NamedTuple):
@@ -85,6 +108,9 @@ class ShelxDocument:
         self._observers: list[Observer] = []
         self._rendered: RenderedFile | None = None
         self._graph: AtomRestraintGraph | None = None
+        self._history = EditHistory()
+        self._state_provider: StateProvider | None = None
+        self._batch_depth = 0
 
     # ------------------------------------------------------------- model
 
@@ -224,12 +250,128 @@ class ShelxDocument:
             self._observers.remove(callback)
 
     def _notify(self) -> None:
+        if self._batch_depth:
+            # Inside a batch: the observers are told once, when the
+            # outermost batch ends.
+            return
         self.invalidate()
         for callback in list(self._observers):
             callback(self)
 
+    # ----------------------------------------------------- undo and redo
+
+    @property
+    def history(self) -> EditHistory:
+        """The undo/redo stacks, for views that list the steps."""
+        return self._history
+
+    def set_state_provider(self, provider: StateProvider | None) -> None:
+        """Store *provider()*'s result with every history snapshot.
+
+        A caller that keeps state of its own next to the document registers
+        a provider; :meth:`undo` and :meth:`redo` hand the value stored with
+        the restored state back in :attr:`UndoResult.payload`.
+        """
+        self._state_provider = provider
+
+    def _capture(self) -> HistoryState:
+        payload = self._state_provider() if self._state_provider is not None else None
+        return self._history.capture(self._shx.dumps(), payload)
+
+    @contextmanager
+    def batch(self, label: str = 'Edit') -> Iterator[ShelxDocument]:
+        """Group every edit made inside the block into one undo step.
+
+        Observers are told once, when the outermost block ends.  Nested
+        blocks fold into the outer one.  If the block raises, the model is
+        restored to its state before the block and the exception
+        propagates, so a composite edit is never left half-applied.
+
+        Objects taken from the model before a failed block are stale
+        afterwards, because the restore re-reads the file text.
+        """
+        if self._batch_depth:
+            self._batch_depth += 1
+            try:
+                yield self
+            finally:
+                self._batch_depth -= 1
+            return
+
+        before = self._capture()
+        self._batch_depth = 1
+        try:
+            yield self
+        except BaseException:
+            self._batch_depth = 0
+            self._restore(before)
+            self._notify()
+            raise
+        self._batch_depth = 0
+        if self._shx.dumps() != before.text:
+            self._history.push(label, before)
+            self._notify()
+
+    def _restore(self, state: HistoryState) -> None:
+        """Replace the model with the one serialised in *state*."""
+        from shelxfile import Shelxfile
+
+        old = self._shx
+        shx = Shelxfile(debug=old.debug, verbose=old.verbose)
+        shx.read_string(state.text)
+        shx.resfile = old.resfile
+        shx.encoding = old.encoding
+        self._shx = shx
+        self._graph = None
+        self.invalidate()
+
+    @property
+    def can_undo(self) -> bool:
+        return self._history.can_undo
+
+    @property
+    def can_redo(self) -> bool:
+        return self._history.can_redo
+
+    @property
+    def is_modified(self) -> bool:
+        """Whether the model differs from the state last written or loaded."""
+        return self._history.is_modified
+
+    def mark_saved(self) -> None:
+        """Declare the current state to be the one on disk."""
+        self._history.mark_saved()
+
+    def undo(self) -> UndoResult | None:
+        """Revert the most recent step; ``None`` when there is none.
+
+        The model is re-read from the stored text, so :attr:`shelxfile` is
+        a **new** object afterwards and any atom or card taken from the old
+        one must be looked up again (by name).
+        """
+        if self._batch_depth:
+            raise RuntimeError('Cannot undo inside a batch')
+        if not self._history.can_undo:
+            return None
+        label, state = self._history.pop_undo(self._capture())
+        self._restore(state)
+        self._notify()
+        return UndoResult(label, state.payload)
+
+    def redo(self) -> UndoResult | None:
+        """Re-apply the most recently undone step; ``None`` when there is none."""
+        if self._batch_depth:
+            raise RuntimeError('Cannot redo inside a batch')
+        if not self._history.can_redo:
+            return None
+        label, state = self._history.pop_redo(self._capture())
+        self._restore(state)
+        self._notify()
+        return UndoResult(label, state.payload)
+
     # ---------------------------------------------------------- deletion
 
+    @_undoable('Delete atoms')
     def delete_atoms(self, atoms: Iterable[Atom]) -> DeletionReport:
         """Delete *atoms* and everything that cannot survive without them.
 
@@ -261,6 +403,7 @@ class ShelxDocument:
 
     # ---------------------------------------------------------- renaming
 
+    @_undoable('Rename atom')
     def rename_atom(self, atom: Atom, new_name: str) -> RenameReport:
         """Rename *atom* and follow it through the instructions.
 
@@ -378,6 +521,7 @@ class ShelxDocument:
     def delete_atom(self, atom: Atom) -> DeletionReport:
         return self.delete_atoms([atom])
 
+    @_undoable('Remove restraint')
     def remove_restraint(self, restraint: Restraint) -> DeletionReport:
         """Remove the card and nothing else.
 
@@ -392,6 +536,7 @@ class ShelxDocument:
         self._notify()
         return report
 
+    @_undoable('Delete restraint with atoms')
     def delete_restraint_with_atoms(self, restraint: Restraint) -> DeletionReport:
         """Remove the card **and** the atoms it names.
 
@@ -460,6 +605,7 @@ class ShelxDocument:
         """
         return self._add_atom_pair_card('HTAB', donor, acceptor)
 
+    @_undoable('Add instruction')
     def _add_atom_pair_card(self, keyword: str, first, second) -> EditReport:
         names = []
         for operand in (first, second):
@@ -495,7 +641,7 @@ class ShelxDocument:
         card_class = getattr(card_module, keyword)
         card = card_class(self._shx, [keyword, *names])
         position = self._card_insert_position(names)
-        self._shx._reslist.insert(position, card)
+        self._shx.insert_into_reslist(position, card)
         collection = getattr(self._shx, self.ATOM_CARD_CLASSES[keyword], None)
         if isinstance(collection, list):
             collection.append(card)
@@ -519,21 +665,16 @@ class ShelxDocument:
         An ``EQIV`` has to be defined before it is used, so a card that
         names one cannot sit above it.
         """
-        from shelxfile.atoms.atom import Atom as AtomClass
         from shelxfile.shelx.cards import EQIV as EqivCard
 
         referenced = {n.rsplit('_', 1)[1] for n in names if '_$' in n}
         lowest_allowed = 0
-        first_atom = None
         for index, item in enumerate(self._shx._reslist):
             if isinstance(item, EqivCard) and item.id in referenced:
                 lowest_allowed = max(lowest_allowed, index + 1)
-            elif first_atom is None and isinstance(item, AtomClass):
-                first_atom = index
-        if first_atom is not None and first_atom > lowest_allowed:
-            return first_atom
-        return max(lowest_allowed, 0)
+        return max(lowest_allowed, self._shx._header_insert_position())
 
+    @_undoable('Remove instruction')
     def remove_card(self, card) -> DeletionReport:
         """Remove an instruction, leaving its atoms alone (**D-9**).
 
@@ -560,21 +701,187 @@ class ShelxDocument:
         self._notify()
         return report
 
-    def add_restraint(self, text: str) -> EditReport:
-        """Parse and insert a restraint instruction line."""
-        restraint = self._shx.add_restraint(text)
+    @_undoable('Add restraint')
+    def add_restraint(self, text: str, *, header: bool = False) -> EditReport:
+        """Parse and insert a restraint instruction line.
+
+        :param header: Put it just before the first atom, outside every
+            ``PART``/``AFIX``/``RESI`` scope, instead of after the last
+            existing restraint.  Inside a ``RESI`` block an unqualified name
+            refers to that residue, so generated restraints that name atoms
+            by their full name belong in the header.
+        """
+        restraint = self._shx.add_restraint(text, header=header)
         self._notify()
         return EditReport(added=[restraint])
 
+    @_undoable('Add atom')
     def add_atom(self, **kwargs) -> EditReport:
         atom = self._shx.add_atom(**kwargs)
         self._notify()
         return EditReport(added=[atom])
 
+    # ------------------------------------------------- structural edits
+
+    def _to_fractional(self, xyz: Sequence[float], cartesian: bool) -> tuple[float, float, float]:
+        from shelxfile.misc.misc import cart_to_frac
+
+        if not cartesian:
+            return float(xyz[0]), float(xyz[1]), float(xyz[2])
+        return cart_to_frac([float(v) for v in xyz], list(self._shx.cell))
+
+    @_undoable('Move atoms')
+    def move_atoms(self, moves: Iterable[tuple[Atom, Sequence[float]]], *,
+                   cartesian: bool = True) -> EditReport:
+        """Put each atom of *moves* (``(atom, xyz)`` pairs) at a new position.
+
+        :param cartesian: Whether *xyz* is Cartesian (Å, the default) or
+            fractional.
+        :returns: The moved atoms in :attr:`EditReport.changed`, and a message
+            for every coordinate whose fixing code was released because it
+            moved (see :func:`~shelxfile.edit.structure_edits.move_atom`).
+        """
+        report = EditReport()
+        for atom, xyz in moves:
+            report.messages.extend(
+                structure_edits.move_atom(self._shx, atom, self._to_fractional(xyz, cartesian)))
+            report.changed.append(atom)
+        if report.changed:
+            self._notify()
+        return report
+
+    @_undoable('Add free variable')
+    def add_free_variable(self, value: float = 0.5) -> int:
+        """Append a free variable starting at *value* and return its number."""
+        number = structure_edits.add_free_variable(self._shx, value)
+        self._notify()
+        return number
+
+    @_undoable('Assign PART')
+    def assign_part(self, atoms: Iterable[Atom], part: int,
+                    sof: float | Sequence[float]) -> EditReport:
+        """Put *atoms* (all in ``PART 0``) into ``PART part`` with raw *sof*.
+
+        See :func:`~shelxfile.edit.structure_edits.assign_part`.  The new
+        ``PART`` cards are listed in :attr:`EditReport.added`.
+        """
+        atoms = list(atoms)
+        cards = structure_edits.assign_part(self._shx, atoms, part, sof)
+        if cards:
+            self._notify()
+        return EditReport(added=list(cards), changed=atoms)
+
+    @_undoable('Duplicate atoms')
+    def duplicate_atoms(
+        self,
+        atoms: Sequence[Atom],
+        names: Sequence[str],
+        part: int,
+        sof: float | Sequence[float],
+        coordinates: Sequence[Sequence[float] | None] | None = None,
+        *,
+        cartesian: bool = True,
+        uvals: Sequence[Sequence[float] | None] | None = None,
+    ) -> EditReport:
+        """Copy *atoms* into a new ``PART part`` block.
+
+        See :func:`~shelxfile.edit.structure_edits.duplicate_atoms`.  All
+        per-atom arguments are parallel to *atoms*; the copies are returned
+        in :attr:`EditReport.added` in the same order.
+        """
+        frac = None
+        if coordinates is not None:
+            frac = [None if xyz is None else self._to_fractional(xyz, cartesian)
+                    for xyz in coordinates]
+        copies = structure_edits.duplicate_atoms(
+            self._shx, atoms, names, part, sof, frac_coordinates=frac, uvals=uvals)
+        if copies:
+            self._notify()
+        return EditReport(added=list(copies))
+
+    def split_name(self, atom: Atom, suffix: str, taken: Iterable[str] = (), *,
+                   keep_own_name: bool = False) -> str:
+        """``C1`` → ``C1A``/``C1B``, with fallbacks when that does not fit.
+
+        See :func:`~shelxfile.edit.structure_edits.split_name`.
+        """
+        return structure_edits.split_name(self._shx, atom, suffix, taken,
+                                          keep_own_name=keep_own_name)
+
+    def free_atom_name(self, element: str, resinum: int = 0,
+                       taken: Iterable[str] = ()) -> str:
+        """The first unused ``<element><number>`` name in residue *resinum*."""
+        return structure_edits.free_atom_name(self._shx, element, resinum, taken)
+
+    def atom_problem_for_part(self, atoms: Iterable[Atom]) -> str | None:
+        """Why *atoms* cannot be bracketed or duplicated as a unit, or ``None``."""
+        return structure_edits.afix_closure_problem(self._shx, atoms)
+
+    @_undoable('Set U values')
+    def set_uvals(self, changes: Iterable[tuple[Atom, Sequence[float]]]) -> EditReport:
+        """Replace the raw U values of atoms (``(atom, uvals)`` pairs).
+
+        One value makes the atom isotropic, six set ``U11 U22 U33 U23 U13
+        U12``.  Values are written as given, so riding codes such as ``-1.2``
+        and free-variable codes are accepted.
+        """
+        report = EditReport()
+        pending = []
+        for atom, uvals in changes:
+            values = [float(u) for u in uvals]
+            if len(values) == 1:
+                values += [0.0] * 5
+            if len(values) != 6:
+                raise ValueError(f'{atom.name}: expected 1 or 6 U values, got {len(values)}')
+            pending.append((atom, values))
+        for atom, values in pending:
+            atom.set_uvals(values)
+            atom.uvals_orig = list(values)
+            report.changed.append(atom)
+        if report.changed:
+            self._shx.touch()
+            self._notify()
+        return report
+
+    @_undoable('Add EQIV')
+    def name_for_operation(self, atom: Atom, symmop: str) -> str:
+        """How to write *atom* transformed by *symmop* in an instruction.
+
+        ``'C2'`` when *symmop* is the identity, otherwise ``'C2_$n'`` with
+        an ``EQIV`` for *exactly* this operation reused or created (e.g.
+        ``'-X+1, Y, -Z+1/2'``).
+
+        Unlike :meth:`EqivFactory.find`, lattice translations count here: a
+        distance restraint to ``C2`` one cell further along is a different
+        restraint.
+
+        :raises ValueError: when *symmop* cannot be parsed or every ``$n`` is
+            taken.
+        """
+        from shelxfile.edit.eqiv_factory import IDENTITY_SYMMOP, canonical_symmop
+
+        wanted = canonical_symmop(symmop, reduce_translation=False)
+        if wanted is None:
+            raise ValueError(f'Cannot parse symmetry operation {symmop!r}')
+        if wanted == IDENTITY_SYMMOP:
+            return atom.fullname_short
+        factory = EqivFactory(self._shx)
+        existing = factory.find(symmop, reduce_translation=False)
+        if existing is not None:
+            return f'{atom.fullname_short}_{existing.id}'
+        number = factory.next_free_number()
+        if number is None:
+            raise ValueError('No free EQIV number left')
+        card = factory._insert(number, symmop)
+        self._notify()
+        return f'{atom.fullname_short}_{card.id}'
+
     # ------------------------------------------------------------ output
 
     def write(self, path: str | Path | None = None) -> None:
+        """Write the file and remember this state as the saved one."""
         self._shx.write_shelx_file(path)
+        self._history.mark_saved()
 
     def __repr__(self) -> str:
         return (f'<ShelxDocument {len(self._shx.atoms)} atoms, '

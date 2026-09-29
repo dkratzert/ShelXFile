@@ -173,6 +173,9 @@ class EditReport:
     added: list[object] = field(default_factory=list)
     changed: list[object] = field(default_factory=list)
     removed: DeletionReport = field(default_factory=DeletionReport)
+    #: Side effects worth telling the user about, e.g. a coordinate that
+    #: lost its fixing code because it was moved.
+    messages: list[str] = field(default_factory=list)
 
     @property
     def is_empty(self) -> bool:
