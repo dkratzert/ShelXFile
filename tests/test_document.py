@@ -50,6 +50,92 @@ def test_from_string_builds_a_usable_document() -> None:
     assert doc.line_of_atom('C1') is not None
 
 
+# ---------------------------------------------------------------- apply_text
+
+def test_apply_text_swaps_the_model_in_place(doc: ShelxDocument) -> None:
+    """The document must survive a re-parse, or a bound view comes loose."""
+    old_model = doc.shelxfile
+    seen: list[ShelxDocument] = []
+    doc.subscribe(seen.append)
+
+    attempt = doc.apply_text(doc.text + '\nREM applied\n')
+
+    assert attempt.document is doc
+    assert doc.shelxfile is not old_model
+    assert seen == [doc]
+    assert 'REM applied' in doc.text
+
+
+def test_apply_text_keeps_earlier_history(doc: ShelxDocument) -> None:
+    doc.add_restraint('SADI 0.02 C1 C2')
+    doc.apply_text(doc.text + '\nREM applied\n')
+
+    assert doc.undo().label == 'Edit text'
+    assert 'REM applied' not in doc.text
+    assert doc.undo().label == 'Add restraint'
+    assert 'SADI 0.02 C1 C2' not in doc.text
+
+
+def test_apply_text_keeps_the_file_path(doc: ShelxDocument) -> None:
+    """Otherwise ``refine`` and ``write`` lose track of the file."""
+    resfile = doc.shelxfile.resfile
+    encoding = doc.shelxfile.encoding
+    doc.apply_text(doc.text + '\nREM applied\n')
+    assert doc.shelxfile.resfile == resfile
+    assert doc.shelxfile.encoding == encoding
+
+
+def test_apply_text_reports_failure_and_changes_nothing(doc: ShelxDocument) -> None:
+    old_model = doc.shelxfile
+    old_text = doc.text
+    seen: list[ShelxDocument] = []
+    doc.subscribe(seen.append)
+
+    attempt = doc.apply_text('this is not a shelx file at all')
+
+    assert attempt.document is None
+    assert attempt.error
+    assert doc.shelxfile is old_model
+    assert doc.text == old_text
+    assert seen == []
+
+
+def test_apply_text_of_the_same_model_is_a_no_op(doc: ShelxDocument) -> None:
+    old_model = doc.shelxfile
+    seen: list[ShelxDocument] = []
+    doc.subscribe(seen.append)
+
+    assert doc.apply_text(doc.text).document is doc
+
+    assert doc.shelxfile is old_model
+    assert not doc.can_undo
+    assert seen == []
+
+
+def test_apply_text_coalesces_consecutive_steps(doc: ShelxDocument) -> None:
+    for n in range(3):
+        doc.apply_text(doc.text + f'\nREM burst {n}\n', coalesce=True)
+
+    assert doc.history.undo_labels.count('Edit text') == 1
+    assert doc.is_modified
+    doc.undo()
+    assert 'REM burst' not in doc.text
+    assert not doc.can_undo
+
+
+def test_apply_text_reports_the_origin_to_observers(doc: ShelxDocument) -> None:
+    origin = object()
+    seen: list[object] = []
+    doc.subscribe(lambda document: seen.append(document.change_origin))
+
+    doc.apply_text(doc.text + '\nREM applied\n', origin=origin)
+    assert seen == [origin]
+
+    doc.add_restraint('SADI 0.02 C1 C2')
+    assert seen == [origin, None]
+    assert doc.change_origin is None
+
+
 # ------------------------------------------------------------ line lookups
 
 def test_item_at_line_round_trips_with_line_of(doc: ShelxDocument) -> None:

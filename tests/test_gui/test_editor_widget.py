@@ -12,10 +12,16 @@ import shutil
 from pathlib import Path
 
 import pytest
+from qtpy.QtWidgets import QVBoxLayout, QWidget
 
 from shelxfile import Shelxfile
 from shelxfile.edit import ShelxDocument
-from shelxfile.gui.editor_widget import AddAtomDialog, AddRestraintDialog, ShelxEditorWidget
+from shelxfile.gui.editor_widget import (
+    AddAtomDialog,
+    AddRestraintDialog,
+    ShelxEditorToolbar,
+    ShelxEditorWidget,
+)
 
 RESOURCE = 'tests/resources/p21c.res'
 
@@ -63,6 +69,68 @@ def test_accepts_a_bare_shelxfile_for_backwards_compatibility(qtbot, shx):
 def test_document_and_shelxfile_agree(widget, document):
     assert widget.document is document
     assert widget.shelxfile is document.shelxfile
+
+
+def test_clear_unbinds_the_document(widget, document):
+    widget.clear()
+    assert widget.document is None
+    assert widget.editor.toPlainText() == ''
+    assert widget.editor.isReadOnly()
+    assert not widget.is_dirty
+    assert all(not button.isEnabled() for button in widget.toolbar.buttons)
+
+    # The view must no longer follow the document it was unbound from.
+    document.add_restraint('SADI 0.02 C1 C2')
+    assert widget.editor.toPlainText() == ''
+
+
+def test_binding_again_after_clear_works(widget, document):
+    widget.clear()
+    widget.set_document(document)
+    assert widget.editor.toPlainText() == document.text
+    assert not widget.editor.isReadOnly()
+    assert all(button.isEnabled() for button in widget.toolbar.buttons)
+
+
+def test_an_unbound_editor_is_disabled(qtbot):
+    w = ShelxEditorWidget()
+    qtbot.addWidget(w)
+    assert w.document is None
+    assert w.editor.isReadOnly()
+    assert all(not button.isEnabled() for button in w.toolbar.buttons)
+
+
+# --------------------------------------------------------------- toolbar
+
+
+def test_toolbar_is_a_widget_of_its_own(widget):
+    """So a host can place it outside the 80-column-wide text area."""
+    assert isinstance(widget.toolbar, ShelxEditorToolbar)
+    assert widget.toolbar.parent() is widget
+    assert widget.apply_button is widget.toolbar.apply_button
+
+
+def test_toolbar_buttons_still_work_after_reparenting(qtbot, widget):
+    host = QWidget()
+    qtbot.addWidget(host)
+    QVBoxLayout(host).addWidget(widget.toolbar)
+    assert widget.toolbar.parent() is host
+
+    widget.editor.setPlainText(widget.editor.toPlainText() + '\nREM from the toolbar\n')
+    widget.apply_button.click()
+    assert 'REM from the toolbar' in widget.document.text
+
+
+def test_character_width_covers_84_columns(widget):
+    from qtpy.QtGui import QFontMetricsF
+
+    width = widget.character_width()
+    text = QFontMetricsF(widget.editor.font()).horizontalAdvance('0' * 84)
+    # The frame, document margins and scrollbar come on top of the glyphs,
+    # but the toolbar's much larger width must not.
+    assert width > text
+    assert width < text + 120
+    assert widget.character_width(40) < width
 
 
 # ------------------------------------------------------------- navigation
@@ -158,30 +226,71 @@ def test_model_changed_emitted_on_delete(qtbot, widget, document, shx):
 # ------------------------------------------------------------------ apply
 
 
-def test_apply_reparses_and_swaps_model(widget):
+def test_apply_keeps_the_document_and_its_history(widget):
+    """``apply`` swaps the *model*, in place, and keeps everything around it."""
     old_document = widget.document
     assert widget.apply() is True
-    assert widget.document is not old_document
+    assert widget.document is old_document
     assert isinstance(widget.document, ShelxDocument)
     assert isinstance(widget.shelxfile, Shelxfile)
 
 
-def test_apply_rebinds_the_observer(widget):
-    """After ``apply`` the view must follow the *new* document, not the old."""
-    old_document = widget.document
-    widget.apply()
+def test_apply_does_not_bury_an_earlier_edit(widget):
+    """A step made before ``apply`` must still be reachable by undo."""
     widget.document.add_restraint('SADI 0.02 C1 C2')
+    assert widget.document.history.undo_label == 'Add restraint'
+
+    widget.editor.setPlainText(widget.editor.toPlainText() + '\nREM applied\n')
+    assert widget.apply() is True
+    assert widget.document.history.undo_label == 'Edit text'
+
+    assert widget.document.undo().label == 'Edit text'
+    assert widget.document.undo().label == 'Add restraint'
+    assert 'SADI 0.02 C1 C2' not in widget.document.text
+
+
+def test_apply_keeps_the_observer_bound(widget):
+    """The view keeps following the document it was bound to."""
+    document = widget.document
+    widget.apply()
+    document.add_restraint('SADI 0.02 C1 C2')
+    assert widget.editor.toPlainText() == document.text
+
+
+def test_apply_normalises_the_text_by_default(widget):
+    widget.editor.setPlainText(widget.editor.toPlainText() + '\nREM normalise me\n')
+    assert widget.apply() is True
     assert widget.editor.toPlainText() == widget.document.text
 
-    old_document.add_restraint('SADI 0.02 C1 C3')
-    assert widget.editor.toPlainText() != old_document.text
+
+def test_apply_can_leave_the_text_alone(widget):
+    """A live editor must not have its own input reformatted under the cursor."""
+    typed = widget.editor.toPlainText() + '\nREM   kept    as-is\n'
+    widget.editor.setPlainText(typed)
+    assert widget.apply(normalise=False) is True
+    assert widget.editor.toPlainText() == typed
+    assert 'kept    as-is' in widget.editor.toPlainText()
+    assert not widget.is_dirty
+
+
+def test_coalescing_applies_fold_into_one_undo_step(widget):
+    base = widget.editor.toPlainText()
+    for n in range(3):
+        widget.editor.setPlainText(f'{base}\nREM burst {n}\n')
+        assert widget.apply(normalise=False, coalesce=True) is True
+
+    assert widget.document.history.undo_labels.count('Edit text') == 1
+    widget.document.undo()
+    assert 'REM burst' not in widget.document.text
 
 
 def test_apply_on_broken_text_keeps_old_model(widget):
     old_document = widget.document
+    old_text = old_document.text
     widget.editor.setPlainText('this is not a shelx file at all')
     assert widget.apply() is False
     assert widget.document is old_document
+    assert widget.document.text == old_text
     assert not widget.error_label.isHidden()
 
 

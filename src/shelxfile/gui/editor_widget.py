@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from qtpy.QtCore import Signal
-from qtpy.QtGui import QColor, QFont, QTextCharFormat, QTextCursor
+from qtpy.QtGui import QColor, QFont, QFontMetricsF, QTextCharFormat, QTextCursor
 from qtpy.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -57,7 +57,55 @@ from shelxfile.shelx.cards import Restraint
 if TYPE_CHECKING:
     from shelxfile.shelx.shelx import Shelxfile
 
-__all__ = ['ShelxEditorWidget', 'AddAtomDialog', 'AddRestraintDialog', 'main']
+__all__ = ['ShelxEditorWidget', 'ShelxEditorToolbar', 'AddAtomDialog', 'AddRestraintDialog', 'main']
+
+
+class ShelxEditorToolbar(QWidget):
+    """The action buttons of a :class:`ShelxEditorWidget`, as their own widget.
+
+    Kept separate from the text area so a host can place it wherever it
+    likes -- in its own control bar, say -- instead of having its width
+    dictate how wide the editor pane has to be.  A SHELX line is at most
+    80 characters, so an embedded editor wants to be about that wide, and
+    a row of buttons is easily wider than that.
+
+    By default :class:`ShelxEditorWidget` puts one of these above its text
+    area; re-parent it (or hide it) to take it over.
+    """
+
+    def __init__(self, editor: ShelxEditorWidget,
+                 parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._editor = editor
+
+        self.apply_button = QPushButton('Apply')
+        self.add_atom_button = QPushButton('Add atom…')
+        self.delete_atom_button = QPushButton('Delete selected atom(s)')
+        self.add_restraint_button = QPushButton('Add restraint…')
+        self.delete_restraint_button = QPushButton('Delete selected restraint')
+        self.refine_button = QPushButton('Refine (SHELXL)')
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        for button in self.buttons:
+            layout.addWidget(button)
+        layout.addStretch(1)
+
+        self.apply_button.clicked.connect(lambda: editor.apply())
+        self.add_atom_button.clicked.connect(editor._on_add_atom_clicked)
+        self.delete_atom_button.clicked.connect(editor.delete_selected_atoms)
+        self.add_restraint_button.clicked.connect(editor._on_add_restraint_clicked)
+        self.delete_restraint_button.clicked.connect(editor.delete_selected_restraint)
+        self.refine_button.clicked.connect(editor._on_refine_clicked)
+
+    @property
+    def buttons(self) -> tuple[QPushButton, ...]:
+        """Every action button, in display order."""
+        return (
+            self.apply_button, self.add_atom_button, self.delete_atom_button,
+            self.add_restraint_button, self.delete_restraint_button,
+            self.refine_button,
+        )
 
 
 class ShelxEditorWidget(QWidget):
@@ -95,20 +143,8 @@ class ShelxEditorWidget(QWidget):
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
 
-        toolbar = QHBoxLayout()
-        self.apply_button = QPushButton('Apply')
-        self.add_atom_button = QPushButton('Add atom…')
-        self.delete_atom_button = QPushButton('Delete selected atom(s)')
-        self.add_restraint_button = QPushButton('Add restraint…')
-        self.delete_restraint_button = QPushButton('Delete selected restraint')
-        self.refine_button = QPushButton('Refine (SHELXL)')
-        for button in (
-                self.apply_button, self.add_atom_button, self.delete_atom_button,
-                self.add_restraint_button, self.delete_restraint_button, self.refine_button,
-        ):
-            toolbar.addWidget(button)
-        toolbar.addStretch(1)
-        layout.addLayout(toolbar)
+        self.toolbar = ShelxEditorToolbar(self)
+        layout.addWidget(self.toolbar)
 
         self.error_label = QLabel('')
         self.error_label.setStyleSheet('color: #a00000;')
@@ -122,14 +158,61 @@ class ShelxEditorWidget(QWidget):
         self.highlighter = ShelxSyntaxHighlighter(self.editor.document())
         layout.addWidget(self.editor)
 
-        self.apply_button.clicked.connect(self.apply)
-        self.add_atom_button.clicked.connect(self._on_add_atom_clicked)
-        self.delete_atom_button.clicked.connect(self.delete_selected_atoms)
-        self.add_restraint_button.clicked.connect(self._on_add_restraint_clicked)
-        self.delete_restraint_button.clicked.connect(self.delete_selected_restraint)
-        self.refine_button.clicked.connect(self._on_refine_clicked)
         self.editor.textChanged.connect(self._on_text_changed)
         self.editor.cursorPositionChanged.connect(self._on_cursor_position_changed)
+        self._set_actions_enabled(False)
+
+    # Kept as attributes for hosts that wired themselves to the buttons
+    # before the toolbar became a widget of its own.
+    @property
+    def apply_button(self) -> QPushButton:
+        return self.toolbar.apply_button
+
+    @property
+    def add_atom_button(self) -> QPushButton:
+        return self.toolbar.add_atom_button
+
+    @property
+    def delete_atom_button(self) -> QPushButton:
+        return self.toolbar.delete_atom_button
+
+    @property
+    def add_restraint_button(self) -> QPushButton:
+        return self.toolbar.add_restraint_button
+
+    @property
+    def delete_restraint_button(self) -> QPushButton:
+        return self.toolbar.delete_restraint_button
+
+    @property
+    def refine_button(self) -> QPushButton:
+        return self.toolbar.refine_button
+
+    def _set_actions_enabled(self, enabled: bool) -> None:
+        """Enable or disable everything that needs a bound document."""
+        for button in self.toolbar.buttons:
+            button.setEnabled(enabled)
+        self.editor.setReadOnly(not enabled)
+
+    def character_width(self, characters: int = 84) -> int:
+        """The width this widget needs to show *characters* of its font.
+
+        SHELXL writes at most 80 columns, so 84 is that plus a little.
+        Includes the text area's frame, margins and vertical scrollbar,
+        but deliberately **not** :attr:`toolbar` -- a row of buttons is
+        wider than 84 characters, which is exactly why it can be taken out
+        and placed elsewhere.
+        """
+        metrics = QFontMetricsF(self.editor.font())
+        text = metrics.horizontalAdvance('0' * characters)
+        document_margin = self.editor.document().documentMargin() * 2
+        frame = self.editor.frameWidth() * 2
+        scrollbar = self.editor.verticalScrollBar().sizeHint().width()
+        margins = self.layout().contentsMargins()
+        return int(round(
+            text + document_margin + frame + scrollbar
+            + margins.left() + margins.right()
+        ))
 
     # --------------------------------------------------------------- model
 
@@ -149,6 +232,7 @@ class ShelxEditorWidget(QWidget):
             self._document.unsubscribe(self._on_document_changed)
         self._document = document
         document.subscribe(self._on_document_changed)
+        self._set_actions_enabled(True)
         self._hide_error()
         self._refresh_text_from_model(preserve_cursor=False)
 
@@ -156,7 +240,31 @@ class ShelxEditorWidget(QWidget):
         """Bind a model (or a document) to this widget and refresh the view."""
         self.set_document(shx if isinstance(shx, ShelxDocument) else ShelxDocument(shx))
 
-    def _on_document_changed(self, _document: ShelxDocument) -> None:
+    def clear(self) -> None:
+        """Unbind the current document and empty the view.
+
+        A host that shows structures the editor cannot represent -- a CIF,
+        an XYZ file -- calls this instead of leaving the previous file's
+        text on screen, where editing it would apply to nothing.
+        """
+        if self._document is not None:
+            self._document.unsubscribe(self._on_document_changed)
+        self._document = None
+        self._updating_text = True
+        try:
+            self.editor.clear()
+        finally:
+            self._updating_text = False
+        self._dirty_since_apply = False
+        self.editor.setExtraSelections([])
+        self._set_actions_enabled(False)
+        self._hide_error()
+
+    def _on_document_changed(self, document: ShelxDocument) -> None:
+        if document.change_origin is self:
+            # Our own text, parsed and handed back: re-rendering it here
+            # would reformat what the user is in the middle of typing.
+            return
         self._refresh_text_from_model()
 
     def text(self) -> str:
@@ -226,25 +334,41 @@ class ShelxEditorWidget(QWidget):
 
     # --------------------------------------------------------------- apply
 
-    def apply(self) -> bool:
+    def apply(self, *, normalise: bool = True, coalesce: bool = False) -> bool:
         """
-        Re-parse the current editor text into a fresh document.
+        Re-parse the current editor text into this widget's document.
 
-        On success, the new document replaces the previously bound one, the
-        text is regenerated from it (normalising formatting), and
-        :attr:`model_changed` is emitted. On failure, the text and the old
-        document are left untouched and :attr:`parse_error` is emitted
-        together with an inline error message.
+        The model is replaced **in place** (see
+        :meth:`ShelxDocument.apply_text`), so the document keeps its
+        identity, its undo history and its observers: a step made before
+        the call can still be undone, and another view bound to the same
+        document stays bound. On success :attr:`model_changed` is emitted.
+        On failure the text and the model are left untouched and
+        :attr:`parse_error` is emitted together with an inline error
+        message.
+
+        :param normalise: regenerate the editor text from the model
+            afterwards, so the formatting matches what the model would be
+            written as. Turn this **off** for an editor that applies
+            continuously while the user types, where reformatting the text
+            under the cursor is not wanted.
+        :param coalesce: fold the undo step into the previous one when
+            that is also a text edit, so a burst of live edits does not
+            bury the model-level steps beneath it.
         """
         if self._document is None:
             return False
-        attempt = ShelxDocument.try_from_string(self.editor.toPlainText())
+        attempt = self._document.apply_text(
+            self.editor.toPlainText(), coalesce=coalesce, origin=self)
         if attempt.document is None:
             self._show_error(attempt.error or 'Could not parse SHELX file.',
                              attempt.error_line)
             return False
-        self.set_document(attempt.document)
-        self.model_changed.emit(attempt.document.shelxfile)
+        self._hide_error()
+        self._dirty_since_apply = False
+        if normalise:
+            self._refresh_text_from_model()
+        self.model_changed.emit(self._document.shelxfile)
         return True
 
     def _show_error(self, message: str, line_num: int) -> None:

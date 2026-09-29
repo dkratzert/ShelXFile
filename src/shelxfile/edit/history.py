@@ -111,8 +111,21 @@ class EditHistory:
         """Snapshot the current state (not yet recorded anywhere)."""
         return HistoryState.capture(text, payload, self._current_id)
 
-    def push(self, label: str, before: HistoryState) -> None:
-        """Record a finished step whose prior state was *before*."""
+    def push(self, label: str, before: HistoryState, *,
+             coalesce: bool = False) -> None:
+        """Record a finished step whose prior state was *before*.
+
+        With *coalesce*, a step that repeats the label of the step already
+        on top folds into it instead of becoming one of its own: the entry
+        keeps the *earlier* prior state, so undoing reverts the whole run
+        in one go.  That is what keeps a stream of live text edits from
+        burying the model-level steps (a drag, a split) underneath it.
+        """
+        if coalesce and self._undo and self._undo[-1][0] == label:
+            self._redo.clear()
+            self._current_id = self._next_id
+            self._next_id += 1
+            return
         self._undo.append((label, before))
         self._redo.clear()
         self._current_id = self._next_id

@@ -112,6 +112,7 @@ class ShelxDocument:
         self._history = EditHistory()
         self._state_provider: StateProvider | None = None
         self._batch_depth = 0
+        self._origin: object | None = None
 
     # ------------------------------------------------------------- model
 
@@ -173,6 +174,59 @@ class ShelxDocument:
     def unused_atom_name(self, element: str) -> str:
         """A free atom name for *element*, e.g. ``'C12'``."""
         return self._shx.unused_atom_name(element)
+
+    def apply_text(self, text: str, *, label: str = 'Edit text',
+                   coalesce: bool = False,
+                   origin: object | None = None) -> ParseAttempt:
+        """Replace this document's model with the one parsed from *text*.
+
+        Where :meth:`try_from_string` builds a *separate* document, this
+        swaps the model **in place**, exactly as :meth:`undo` and
+        :meth:`refine` do.  The document therefore keeps its identity, its
+        history, its observers and its state provider, so a view bound to
+        it stays bound, and a step made before the call -- a dragged atom,
+        say -- can still be undone afterwards.  That is what lets a text
+        editor and another view of the same structure stay on one model.
+
+        The parse runs under :meth:`try_from_string`'s rules, so a file
+        the user is halfway through breaking is reported rather than
+        raised, and nothing is changed until it parses.  ``resfile`` and
+        ``encoding`` carry over, so :meth:`refine` and :meth:`write` keep
+        working on the same file.
+
+        Text that only differs from the current model in formatting
+        changes nothing: no history step is recorded and no observer is
+        told, because the model really is the same.
+
+        :param label: the undo step's label.
+        :param coalesce: fold the step into the previous one when that
+            carries the same *label*.  A live editor applying every pause
+            in typing uses this, so a burst of edits is one undo step.
+        :param origin: handed to the observers as :attr:`change_origin`.
+        :returns: a :class:`ParseAttempt` whose ``document`` is *this*
+            document on success, and ``None`` with a message on failure.
+        """
+        attempt = self.try_from_string(text)
+        if attempt.document is None:
+            return attempt
+
+        old = self._shx
+        new = attempt.document.shelxfile
+        if new.dumps() == old.dumps():
+            # Only formatting differs: swapping the model would invalidate
+            # every Atom and card a caller is holding, for nothing.
+            return ParseAttempt(self, None, -1)
+
+        new.resfile = old.resfile
+        new.encoding = old.encoding
+        new.debug = old.debug
+        new.verbose = old.verbose
+
+        with self.batch(label, coalesce=coalesce, origin=origin):
+            self._shx = new
+            self._graph = None
+            self.invalidate()
+        return ParseAttempt(self, None, -1)
 
     # --------------------------------------------------------- rendering
 
@@ -250,14 +304,30 @@ class ShelxDocument:
         if callback in self._observers:
             self._observers.remove(callback)
 
-    def _notify(self) -> None:
+    @property
+    def change_origin(self) -> object | None:
+        """Who caused the change currently being notified, or ``None``.
+
+        Only meaningful while an observer is running.  An edit made
+        through :meth:`batch` (and therefore through every ``@_undoable``
+        method) carries whatever the caller passed as ``origin``, so a view
+        can recognise -- and skip -- a change it caused itself, instead of
+        redrawing itself from its own input.
+        """
+        return self._origin
+
+    def _notify(self, origin: object | None = None) -> None:
         if self._batch_depth:
             # Inside a batch: the observers are told once, when the
             # outermost batch ends.
             return
         self.invalidate()
-        for callback in list(self._observers):
-            callback(self)
+        self._origin = origin
+        try:
+            for callback in list(self._observers):
+                callback(self)
+        finally:
+            self._origin = None
 
     # ----------------------------------------------------- undo and redo
 
@@ -280,7 +350,8 @@ class ShelxDocument:
         return self._history.capture(self._shx.dumps(), payload)
 
     @contextmanager
-    def batch(self, label: str = 'Edit') -> Iterator[ShelxDocument]:
+    def batch(self, label: str = 'Edit', *, coalesce: bool = False,
+              origin: object | None = None) -> Iterator[ShelxDocument]:
         """Group every edit made inside the block into one undo step.
 
         Observers are told once, when the outermost block ends.  Nested
@@ -290,6 +361,12 @@ class ShelxDocument:
 
         Objects taken from the model before a failed block are stale
         afterwards, because the restore re-reads the file text.
+
+        :param coalesce: fold this step into the one already on the undo
+            stack when that carries the same *label* (see
+            :meth:`EditHistory.push`).
+        :param origin: handed to the observers as :attr:`change_origin`,
+            so a view can tell its own edits from everybody else's.
         """
         if self._batch_depth:
             self._batch_depth += 1
@@ -310,8 +387,8 @@ class ShelxDocument:
             raise
         self._batch_depth = 0
         if self._shx.dumps() != before.text:
-            self._history.push(label, before)
-            self._notify()
+            self._history.push(label, before, coalesce=coalesce)
+            self._notify(origin)
 
     def _restore(self, state: HistoryState) -> None:
         """Replace the model with the one serialised in *state*."""
