@@ -1294,8 +1294,12 @@ class Shelxfile:
         position = first_atom
         while position > 0:
             previous = self._reslist[position - 1]
-            if isinstance(previous, (PART, AFIX, RESI)) or \
-                    (isinstance(previous, str) and not previous.strip()):
+            # REM lines are comments and never open or close a bracket, so
+            # one sitting between the brackets and the first atom must not
+            # stop the walk -- that would leave the position inside them.
+            if isinstance(previous, (PART, AFIX, RESI, REM)) or \
+                    (isinstance(previous, str) and
+                     (not previous.strip() or previous.strip().upper().startswith('REM'))):
                 position -= 1
             else:
                 break

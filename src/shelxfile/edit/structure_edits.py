@@ -71,6 +71,17 @@ def _is_blank(item: object) -> bool:
     return isinstance(item, str) and not item.strip()
 
 
+def _is_comment(item: object) -> bool:
+    """A ``REM`` line, which is a comment and never part of a bracket."""
+    if type(item).__name__ == 'REM':
+        return True
+    return isinstance(item, str) and item.strip().upper().startswith('REM')
+
+
+def _is_skippable(item: object) -> bool:
+    return _is_blank(item) or _is_comment(item)
+
+
 def _is_afix(item: object) -> bool:
     return type(item).__name__ == 'AFIX'
 
@@ -80,15 +91,21 @@ def _is_part(item: object) -> bool:
 
 
 def _next_meaningful(reslist: list, index: int) -> int:
-    """First index at or after *index* that is not a blank line."""
-    while index < len(reslist) and _is_blank(reslist[index]):
+    """First index at or after *index* that is not a blank or comment line.
+
+    ``REM`` lines are skipped as well as blanks: SHELXL treats them as
+    comments, so a ``REM`` between the last riding atom and its closing
+    ``AFIX 0`` does not end the group.  Files written with an embedded
+    ``REM <hkl>`` block really do look like that.
+    """
+    while index < len(reslist) and _is_skippable(reslist[index]):
         index += 1
     return index
 
 
 def _previous_meaningful(reslist: list, index: int) -> int:
-    """Last index at or before *index* that is not a blank line."""
-    while index >= 0 and _is_blank(reslist[index]):
+    """Last index at or before *index* that is not a blank or comment line."""
+    while index >= 0 and _is_skippable(reslist[index]):
         index -= 1
     return index
 
@@ -313,7 +330,7 @@ def assign_part(shx: Shelxfile, atoms: Iterable[Atom], part: int,
         previous = runs[-1][-1]
         between = reslist[shx.index_of(previous) + 1:shx.index_of(atom)]
         joined = all(
-            _is_blank(item) or _is_afix(item)
+            _is_skippable(item) or _is_afix(item)
             or (isinstance(item, AtomClass) and id(item) in selected)
             for item in between
         )

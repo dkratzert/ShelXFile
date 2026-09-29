@@ -305,3 +305,68 @@ def test_short_per_atom_arguments_are_refused(doc, kwargs):
     sources = [atom(doc, 'C10'), atom(doc, 'H10A')]
     with pytest.raises(ValueError):
         doc.duplicate_atoms(sources, ['C80', 'H80A'], 2, 1.0, **kwargs)
+
+
+# --------------------------------------------------------- REM comments
+
+
+def commented(doc: ShelxDocument, after: str, *comments: str) -> ShelxDocument:
+    """Re-read *doc* with *comments* inserted after the line starting with *after*."""
+    lines = doc.text.splitlines()
+    index = next(i for i, line in enumerate(lines) if line.upper().startswith(after.upper()))
+    lines[index + 1:index + 1] = list(comments)
+    fresh = ShelxDocument.from_file(RES)
+    fresh._restore(fresh._history.capture('\n'.join(lines) + '\n', None))
+    return fresh
+
+
+def test_a_comment_before_the_closing_afix_does_not_shrink_the_group(doc):
+    """A REM is a comment; it cannot end an AFIX group.
+
+    Files with an embedded ``REM <hkl>`` block really do put comments
+    between the last riding atom and its ``AFIX 0``.
+    """
+    doc = commented(doc, 'H10C', 'REM <hkl>', 'REM jkd77.hkl', 'REM </hkl>')
+    methyl = [atom(doc, name) for name in METHYL]
+
+    doc.duplicate_atoms(methyl, ['C80', 'H80A', 'H80B', 'H80C'], 2, 1.0)
+    doc.assign_part(methyl, 1, 0.5)
+
+    shx = reparse(doc)
+    for name in ('C80', 'H80A', 'H80B', 'H80C'):
+        assert shx.atoms.get_atom_by_name(name) is not None, name
+    # The copies went after the sources' AFIX 0, not inside the group.
+    written = [line.split()[0] for line in doc.text.splitlines()
+               if line.strip() and not line[0].isspace()]
+    assert written.index('C80') > written.index('REM')
+
+
+def test_comments_between_selected_atoms_keep_them_in_one_part(doc):
+    doc = commented(doc, 'H10A', 'REM a note')
+    methyl = [atom(doc, name) for name in METHYL]
+    openers = doc.assign_part(methyl, 1, 0.5).added
+    assert len([card for card in openers if getattr(card, 'n', 0) == 1]) == 1
+
+
+def test_a_comment_above_the_first_atom_keeps_restraints_out_of_its_brackets(doc):
+    """`header=True` must stay outside every PART/AFIX/RESI bracket.
+
+    A REM between the opening bracket and the first atom is a comment and
+    must not stop the search, or the restraint lands inside the bracket --
+    where an unqualified atom name means something else.
+    """
+    lines = doc.text.splitlines()
+    plain = doc.shelxfile._header_insert_position()
+    opener = next(i for i, line in enumerate(lines)
+                  if line.upper().startswith(doc.shelxfile._reslist[plain].name.upper() + ' '))
+    lines[opener:opener] = ['PART 1', 'REM a note']
+    fresh = ShelxDocument.from_file(RES)
+    fresh._restore(fresh._history.capture('\n'.join(lines) + '\n', None))
+
+    position = fresh.shelxfile._header_insert_position()
+    assert type(fresh.shelxfile._reslist[position]).__name__ == 'PART'
+
+    fresh.add_restraint('SADI C1 C2', header=True)
+    written = [line.split()[0] for line in fresh.text.splitlines()
+               if line.strip() and not line[0].isspace()]
+    assert written.index('SADI') < written.index('PART')
