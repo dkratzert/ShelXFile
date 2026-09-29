@@ -16,9 +16,10 @@ variant exists but has to be named explicitly:
 from __future__ import annotations
 
 import functools
+import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, Union, cast
 
 from shelxfile.edit import structure_edits
 from shelxfile.edit.cascade import CascadeEngine, CascadePlan
@@ -42,7 +43,7 @@ from shelxfile.edit.token_resolver import (
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
     from shelxfile.atoms.atom import Atom
-    from shelxfile.shelx.cards import Command, Restraint
+    from shelxfile.shelx.cards import ACTA, Command, LSCycles, Restraint
 
 #: An observer is called with the document after every successful edit.
 Observer = Callable[['ShelxDocument'], None]
@@ -875,6 +876,78 @@ class ShelxDocument:
         card = factory._insert(number, symmop)
         self._notify()
         return f'{atom.fullname_short}_{card.id}'
+
+    # ----------------------------------------------------------- refine
+
+    def refine(self, cycles: int | None = None, backup_before: bool = True) -> bool:
+        """
+        Save the current model as a SHELXL instruction (``.ins``) file, run
+        SHELXL on it, and replace this document's model with the refined
+        result.
+
+        Like :meth:`apply`, a successful refinement swaps in a **fresh**
+        model rather than mutating the old one in place: the replacement is
+        read straight from the ``.res`` file SHELXL produced, so the
+        document ends up reflecting exactly what is on disk -- including
+        that ``ACTA``, which has to be removed before SHELXL runs, is not
+        restored afterwards. This intentionally does not call
+        :meth:`Shelxfile.refine`, which is written for the command line and
+        reloads the same object in place (and does restore ``ACTA``, but
+        only in memory, never on disk); that method is left untouched.
+
+        The whole attempt runs as one undo step: if refinement fails for any
+        reason, the document -- including its ``ACTA`` card -- is restored
+        to exactly the state it had before this call, and the failure is
+        raised as :class:`RuntimeError` instead of the underlying code's
+        ``sys.exit()``, so a caller such as a GUI can report it without
+        being killed.
+
+        :param cycles: overrides the number of least-squares cycles
+            (``shx.cycles``) before refining, if given.
+        :param backup_before: whether :class:`ShelxlRefine` keeps a ``.res``
+            backup before overwriting it (see ``shxsaves/``).
+        :raises RuntimeError: if no file is associated with this document,
+            no SHELXL executable is found, or refinement fails.
+        :returns: ``True`` once the refined result has replaced this
+            document's model.
+        """
+        from shelxfile.refine.refine import ShelxlRefine, find_shelxl_exe
+
+        if self._shx.resfile is None:
+            raise RuntimeError('Cannot refine: this document has no file path (save it first).')
+        if not find_shelxl_exe():
+            raise RuntimeError('No SHELXL executable (shelxl/xl) found on PATH.')
+
+        with self.batch('Refine (SHELXL)'):
+            shx = self._shx
+            resfile = cast(Path, shx.resfile).resolve()
+            if cycles is not None:
+                cast('LSCycles', shx.cycles).number = cycles
+            ref = ShelxlRefine(shx, resfile)
+            ref.remove_acta_card(cast('ACTA', shx.acta))
+
+            # ShelxlRefine builds file names from resfile.stem alone and
+            # assumes the current directory already holds them; make that
+            # true instead of depending on the caller's cwd.
+            previous_dir = Path.cwd()
+            os.chdir(resfile.parent)
+            try:
+                shx.write_shelx_file(resfile.stem + '.ins')
+                try:
+                    ref.run_shelxl(backup_before=backup_before)
+                except SystemExit as exc:
+                    message = str(exc.code) if exc.code else 'SHELXL refinement failed.'
+                    raise RuntimeError(message) from exc
+            finally:
+                os.chdir(previous_dir)
+
+            from shelxfile import Shelxfile
+            new_shx = Shelxfile(debug=shx.debug, verbose=shx.verbose)
+            new_shx.read_file(resfile)
+            new_shx.encoding = shx.encoding
+            self._shx = new_shx
+            self._graph = None
+        return True
 
     # ------------------------------------------------------------ output
 

@@ -101,9 +101,10 @@ class ShelxEditorWidget(QWidget):
         self.delete_atom_button = QPushButton('Delete selected atom(s)')
         self.add_restraint_button = QPushButton('Add restraint…')
         self.delete_restraint_button = QPushButton('Delete selected restraint')
+        self.refine_button = QPushButton('Refine (SHELXL)')
         for button in (
                 self.apply_button, self.add_atom_button, self.delete_atom_button,
-                self.add_restraint_button, self.delete_restraint_button,
+                self.add_restraint_button, self.delete_restraint_button, self.refine_button,
         ):
             toolbar.addWidget(button)
         toolbar.addStretch(1)
@@ -126,6 +127,7 @@ class ShelxEditorWidget(QWidget):
         self.delete_atom_button.clicked.connect(self.delete_selected_atoms)
         self.add_restraint_button.clicked.connect(self._on_add_restraint_clicked)
         self.delete_restraint_button.clicked.connect(self.delete_selected_restraint)
+        self.refine_button.clicked.connect(self._on_refine_clicked)
         self.editor.textChanged.connect(self._on_text_changed)
         self.editor.cursorPositionChanged.connect(self._on_cursor_position_changed)
 
@@ -319,6 +321,37 @@ class ShelxEditorWidget(QWidget):
             self._document.remove_card(restraint)
         self.model_changed.emit(self._document.shelxfile)
         return True
+
+    # --------------------------------------------------------------- refine
+
+    def refine(self, cycles: int | None = None, backup_before: bool = True) -> bool:
+        """
+        Save the editor's current text as the SHELXL instruction (``.ins``)
+        file, run SHELXL on it, and load the refined ``.res`` result back
+        into the editor.
+
+        Any unapplied hand-edits are committed first, exactly as
+        :meth:`apply` would. On success the editor shows the refined
+        result and :attr:`model_changed` is emitted; on failure (unparsable
+        text, no file path, no SHELXL executable, or a failed refinement)
+        the previous text and document are left untouched and the error is
+        shown via the inline error label.
+        """
+        if self._document is None:
+            return False
+        if self._dirty_since_apply and not self.apply():
+            return False
+        try:
+            self._document.refine(cycles=cycles, backup_before=backup_before)
+        except RuntimeError as exc:
+            self._show_error(str(exc), -1)
+            return False
+        self._hide_error()
+        self.model_changed.emit(self._document.shelxfile)
+        return True
+
+    def _on_refine_clicked(self) -> None:
+        self.refine()
 
     # -------------------------------------------- Fastmolwidget integration
 

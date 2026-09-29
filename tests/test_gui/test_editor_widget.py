@@ -8,6 +8,9 @@ boundary ``tests/test_layering.py`` guards (plan decision D-8b).
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
+
 import pytest
 
 from shelxfile import Shelxfile
@@ -189,6 +192,55 @@ def test_parse_error_signal_carries_a_line_number(qtbot, widget):
     message, line = blocker.args
     assert message
     assert isinstance(line, int)
+
+
+# --------------------------------------------------------------- refine
+
+
+def test_refine_without_a_file_path_shows_an_error(qtbot):
+    """No ``resfile`` -> a clear inline error, no attempt to run SHELXL."""
+    document = ShelxDocument.from_string(Path(RESOURCE).read_text())
+    w = ShelxEditorWidget(document)
+    qtbot.addWidget(w)
+    assert w.refine() is False
+    assert not w.error_label.isHidden()
+
+
+def test_refine_applies_pending_text_edits_first(qtbot, widget):
+    """A dirty editor should be committed, exactly like clicking Apply."""
+    widget.editor.setPlainText('this is not a shelx file at all')
+    assert widget.refine() is False
+    assert not widget.error_label.isHidden()
+
+
+@pytest.fixture
+def refine_widget(qtbot):
+    from shelxfile.refine.refine import find_shelxl_exe
+
+    if not find_shelxl_exe():
+        pytest.skip('SHELXL not found')
+    resource_dir = Path('tests/resources/model_finished')
+    shutil.copy(resource_dir / 'p21c.res', '.')
+    shutil.copy(resource_dir / 'p21c.hkl', '.')
+    w = ShelxEditorWidget(ShelxDocument.from_file('p21c.res'))
+    qtbot.addWidget(w)
+    yield w
+    for suffix in ('.res', '.ins', '.lst', '.fcf', '.fcf6', '.cif', '.hkl', '.shx-bak'):
+        Path(f'p21c{suffix}').unlink(missing_ok=True)
+    shutil.rmtree('shxsaves', ignore_errors=True)
+
+
+def test_refine_button_loads_the_refined_result(refine_widget):
+    old_shx = refine_widget.shelxfile
+    assert refine_widget.refine(cycles=1) is True
+    assert refine_widget.shelxfile is not old_shx
+    assert refine_widget.editor.toPlainText() == refine_widget.document.text
+    assert 'L.S. 1' in refine_widget.editor.toPlainText()
+
+
+def test_refine_emits_model_changed(qtbot, refine_widget):
+    with qtbot.waitSignal(refine_widget.model_changed, timeout=30000):
+        refine_widget.refine(cycles=1)
 
 
 # ---------------------------------------------------------------- dialogs

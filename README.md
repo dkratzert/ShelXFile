@@ -904,6 +904,14 @@ API above.
 - **Add restraint…** / **Delete selected restraint** —
   `document.add_restraint()` / `document.remove_card()`. Removing a
   restraint leaves its atoms in place.
+- **Refine (SHELXL)** — `document.refine()`: applies any pending text edits,
+  writes the model as a SHELXL instruction (`.ins`) file, runs `shelxl`/`xl`
+  on it, and replaces the document's model with a fresh one read straight
+  from the resulting `.res` file. Unlike `Shelxfile.refine()` (built for the
+  command line), this never mutates the previous model in place: on failure
+  (no file path, no SHELXL executable, or a failed refinement) the document
+  is left exactly as it was before, and the error is shown inline instead of
+  terminating the process.
 
 The view refreshes on *any* edit to the bound document, not only on its own
 toolbar actions, because it subscribes as an observer.
