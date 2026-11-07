@@ -214,10 +214,8 @@ class ShelxEditorWidget(QWidget):
         frame = self.editor.frameWidth() * 2
         scrollbar = self.editor.verticalScrollBar().sizeHint().width()
         margins = self.layout().contentsMargins()
-        return int(round(
-            text + document_margin + frame + scrollbar
-            + margins.left() + margins.right()
-        ))
+        return round(text + document_margin + frame + scrollbar
+                     + margins.left() + margins.right())
 
     # --------------------------------------------------------------- model
 
@@ -577,12 +575,12 @@ class AddAtomDialog(QDialog):
     def values(self) -> dict:
         """The dialog's contents as ``document.add_atom(**values())`` keyword arguments."""
         return {
-            'name': self.name_edit.text().strip(),
+            'name'       : self.name_edit.text().strip(),
             'coordinates': [self.x_edit.value(), self.y_edit.value(), self.z_edit.value()],
-            'element': self.element_edit.text().strip() or 'C',
-            'occupancy': self.occupancy_edit.value(),
-            'resi': self.resi_edit.value(),
-            'part': self.part_edit.value(),
+            'element'    : self.element_edit.text().strip() or 'C',
+            'occupancy'  : self.occupancy_edit.value(),
+            'resi'       : self.resi_edit.value(),
+            'part'       : self.part_edit.value(),
         }
 
 

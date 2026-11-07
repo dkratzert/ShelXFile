@@ -148,3 +148,5 @@ The project uses `uv` (`uv.lock` present). Dev deps (`pytest`, `ruff`, `ty`) liv
 - **DSR integration**: `REM DSR PUT/REPLACE` lines are collected into `shx.dsrlines` / `shx.dsrline_nums` for use by the DSR fragment-fitting tool.
 - **Include files**: `+filename` lines in `.res` files are inlined during `read_file()`; recursive inclusion is detected and raises `ValueError`.
 
+### Example structures
+- You find examples shelx .res files in D:\frames\Workordner and d:\frames\guest 

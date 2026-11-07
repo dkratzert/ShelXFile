@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Iterator, TYPE_CHECKING
+from typing import TYPE_CHECKING
+from collections.abc import Iterator
 
 import numpy as np
 
@@ -40,7 +41,7 @@ class Atom:
 
     def __init__(self, shx: Shelxfile) -> None:
         self.shx = shx
-        self._cell: CELL = shx.cell
+        self._cell: CELL | None = shx.cell
         self.sfac_num: int = 1
         self.resi: RESI | None = None
         self.part: PART = PART(shx, ['PART', '0'])
@@ -80,7 +81,7 @@ class Atom:
         # reference SHELXL uses to resolve a riding U, for any element.
         self.u_reference: Atom | None = None
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self.__str__() == other.__str__()
 
     @property
@@ -169,10 +170,7 @@ class Atom:
         """
         Returns True if the current atom is a hydrogen isotope.
         """
-        if self.element in {'H', 'D', 'T'}:
-            return True
-        else:
-            return False
+        return self.element in {'H', 'D', 'T'}
 
     @property
     def ishydrogen(self) -> bool:
@@ -376,7 +374,7 @@ class Atom:
         return (Ucif_n[0, 0], Ucif_n[1, 1], Ucif_n[2, 2],
                 Ucif_n[1, 2], Ucif_n[0, 2], Ucif_n[0, 1])
 
-    def _get_part_and_occupation(self, atline: list[str]) -> None:
+    def _get_part_and_occupation(self, atline: list[str]) -> float | int:
         # A sof of 11.0 means "not specified", thus the atoms own sof is used.
         part_sof = self.part.sof if self.part and self.part.sof != 11.0 else None
         afix_sof = self.afix.sof if self.afix and self.afix.sof != 11.0 else None
@@ -421,7 +419,7 @@ class Atom:
         return decoded[0], decoded[1], decoded[2]
 
     @property
-    def coordinates_as_written(self) -> tuple[float, float, float]:
+    def coordinates_as_written(self) -> tuple[float | int, ...]:
         """The coordinates re-encoded with whatever ``10*m + p`` codes they had.
 
         Re-encoding rather than echoing the source keeps a refined or
@@ -545,11 +543,10 @@ class Atom:
         return get_radius_from_element(self.element)
 
     def __iter__(self) -> Iterator[str]:
-        for x in self.__repr__().split():
-            yield x
+        yield from self.__repr__().split()
 
     def __repr__(self) -> str:
-        return 'Atom ID: {}'.format(self.atomid)
+        return f'Atom ID: {self.atomid}'
 
     def __str__(self) -> str:
         """
@@ -674,7 +671,7 @@ class BedeLoneResultAtom(Atom):
         self.owner_atom_name: str = ''
 
     def parse_result_line(self, pre_tokens: list[str], post_tokens: list[str],
-                           list_of_lines: list[int]) -> None:
+                          list_of_lines: list[int]) -> None:
         """
         Parses a "L*" bond/lone-pair result line.
 
@@ -702,9 +699,8 @@ class BedeLoneResultAtom(Atom):
         return self.shx.atoms.get_atom_by_name(self.owner_atom_name)
 
     def __str__(self) -> str:
-        line = '{:<5s}{:>2}{:>12.5f}{:>12.5f}{:>12.5f}'.format(
-            self.name, self.sfac_num, self.x, self.y, self.z)
-        line += '  !{:>10.5f}{:>10.5f}  {}'.format(self.b1, self.b2, self.owner_atom_name)
+        line = f'{self.name:<5s}{self.sfac_num:>2}{self.x:>12.5f}{self.y:>12.5f}{self.z:>12.5f}'
+        line += f'  !{self.b1:>10.5f}{self.b2:>10.5f}  {self.owner_atom_name}'
         return line
 
     def __repr__(self) -> str:

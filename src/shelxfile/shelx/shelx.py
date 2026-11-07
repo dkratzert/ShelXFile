@@ -260,10 +260,10 @@ class Shelxfile:
         self._unparsable_lines: set[int] = set()
         #: Pristine copy of the input lines, so parsing can restart.
         self._source_lines: list[ResListEntry] = []
-        #: Source line of the card currently being parsed, with '='
-        #: continuations glued on. Parse-time scratch used by
-        #: :meth:`_tag_lifetime`.
-        self._current_raw_line: str = ''
+        #: Physical source lines of the card currently being parsed, '='
+        #: continuations included. Parse-time scratch used by
+        #: :meth:`_tag_lifetime`, which joins them only after ``END``.
+        self._current_raw_lines: list[str] = []
 
     def touch(self) -> None:
         """Record that the structure changed."""
@@ -290,7 +290,7 @@ class Shelxfile:
     def write_shelx_file(self, filename: str | Path | None = None) -> None:
         if not self._reslist:
             print('*** No file was loaded for writing. ***')
-            return None
+            return
         if not filename:
             filename = self.resfile
         if isinstance(filename, str):
@@ -354,21 +354,16 @@ class Shelxfile:
         self.parse_cards()
 
     def parse_cards(self) -> None:
-        """Parse the instruction lines, tolerating individual bad ones.
+        """Replace the lines in ``_reslist`` with card objects and resolve restraint atoms.
 
-        A single malformed instruction used to cost the whole file: the
-        exception propagated out of :meth:`_parse_cards`, was swallowed
-        here, and the caller received a model silently missing every card
-        and atom below the failure.  In the reference corpus that hit
-        7.6 % of files -- one ``TEMP -100.0C`` discarded six ``MPLA``
-        cards and the atom list beneath it.
+        Like SHELXL, a malformed line does not abort parsing: it is recorded
+        in :attr:`self.parse_errors`, kept as plain text (so it still round-trips),
+        and parsing restarts without it. Parsing gives up after
+        :attr:`MAX_UNPARSABLE_LINES` such lines, or if the same line fails
+        twice. On success, restraint atom names are checked against the atom
+        list and problems are stored in :attr:`self.restraint_errors`.
 
-        SHELXL keeps reading past an instruction it cannot use, so the
-        offending line is recorded in :attr:`parse_errors`, quarantined,
-        and parsing restarts.  The line stays in ``_reslist`` as text, so
-        it still round-trips to the output.
-
-        Debug mode raises instead, which is what it is for.
+        In debug mode the first error is raised instead.
         """
         self._source_lines = list(self._reslist)
         for _ in range(self.MAX_UNPARSABLE_LINES + 1):
@@ -526,7 +521,7 @@ class Shelxfile:
             return None
         bad_atoms_before = len(bad_atoms)
         if residue_number_is_wildcard:
-            for num in self.residues.residue_numbers.keys():
+            for num in self.residues.residue_numbers:
                 residue_atom = f"{atom_name.split('_')[0]}_{num}"
                 if not self.atoms.get_atom_by_name(residue_atom):
                     bad_atoms.append(residue_atom)
@@ -541,7 +536,7 @@ class Shelxfile:
 
     def _test_if_file_is_valid(self, resfile: Path) -> None:
         if len(self._reslist) < 20 and (self.debug or self.verbose):
-            print('*** Not a SHELXL file: {} ***'.format(resfile))
+            print(f'*** Not a SHELXL file: {resfile} ***')
             if self.debug:
                 sys.exit()
 
@@ -586,7 +581,7 @@ class Shelxfile:
         includefiles.append(include_filename.name)
         try:
             newfile = include_filename.read_text().splitlines(keepends=False)
-        except IOError as e:
+        except OSError as e:
             if self.debug or self.verbose:
                 print(e)
                 print(f'*** CANNOT OPEN NESTED INPUT FILE {include_filename} ***')
@@ -650,20 +645,21 @@ class Shelxfile:
             # Storing the glued single line instead would be unstable: the
             # continuation's leading spaces end up inside the text and
             # wrap_line() adds a fresh indent on every round-trip.
-            # Trailing whitespace is dropped because it carries no meaning
-            # and can push a line past wrap_line()'s 79-character limit,
-            # which would make the output grow a continuation per round-trip.
-            self._current_raw_line = '\n'.join(x.rstrip() for x in raw_physical_lines)
+            # Joined lazily in _tag_lifetime(): only post-END cards need it.
+            self._current_raw_lines = raw_physical_lines
             # The current line split:
             spline: list[str] = line.split('!')[0].split()  # Ignore comments with "!"
             # The current line as string:
             line = line.upper().split('!')[0]  # Ignore comments with "!"
             word = line[:4]
-            # get RESI:
+            # END and HKLF act as a silent RESI 0, PART 0 and AFIX 0: the
+            # parser state is reset to a fresh card that is never written to
+            # _reslist. The open card itself must not be mutated, because
+            # atoms keep a reference to it and would move along.
             if line.startswith(('END', 'HKLF')) and self.resi:
-                setattr(self.resi, 'num', 0)
+                self.resi = RESI(self, ['RESI', '0'])
                 if self.debug or self.verbose:
-                    print('RESI in line {} was not closed'.format(line_num + 1))
+                    print(f'RESI in line {line_num + 1} was not closed')
                 # Do not continue here, otherwise HKLF is not parsed
                 # continue
             if word == 'RESI':
@@ -673,9 +669,9 @@ class Shelxfile:
                 continue
             # Now collect the PART:
             if line.startswith(('END', 'HKLF')) and self.part:
-                self.part.n = 0
+                self.part = PART(self, ['PART', '0'])
                 if self.debug or self.verbose:
-                    print('PART in line {} was not closed'.format(line_num + 1))
+                    print(f'PART in line {line_num + 1} was not closed')
                 # Do not continue here, otherwise HKLF is not parsed
                 # continue
             if word == 'PART':
@@ -683,9 +679,9 @@ class Shelxfile:
                 continue
             # collect AFIX:
             if line.startswith(('END', 'HKLF')) and self.afix:
-                self.afix.mn = 0
+                self.afix = AFIX(self, ['AFIX', '0'])
                 if self.debug or self.verbose:
-                    print('AFIX in line {} was not closed'.format(line_num + 1))
+                    print(f'AFIX in line {line_num + 1} was not closed')
                 # Deliberately not an 'elif' chain below: closing an open
                 # AFIX must not consume the dispatch, or the very HKLF line
                 # that triggered it never gets parsed. The RESI and PART
@@ -1608,8 +1604,11 @@ class Shelxfile:
             card.lifetime = CardLifetime.INPUT
             return
         card.lifetime = CardLifetime.POST_END_OUTPUT
-        raw = self._current_raw_line
-        if not isinstance(raw, str) or not raw:
+        # Trailing whitespace is dropped because it carries no meaning
+        # and can push a line past wrap_line()'s 79-character limit,
+        # which would make the output grow a continuation per round-trip.
+        raw = '\n'.join(x.rstrip() for x in self._current_raw_lines)
+        if not raw:
             return
         # Restraint renders from .textline, Command from ._textline.
         if hasattr(card, 'textline'):
