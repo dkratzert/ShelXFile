@@ -26,6 +26,43 @@ pip install shelxfile
 ```
 
 
+## Upgrading from Version 29
+
+Version 31 adds the [editing layer](#editing-structures) and an optional
+[GUI editor](#gui-editor-optional). No public method was removed or renamed, but
+some existing behaviour changed:
+
+- **`shx.eqiv` holds `EQIV` cards** instead of `list[str]`. Each card has `.number`,
+  `.id` (`'$2'`) and `.symmop`. Indexing and `len()` still give the raw tokens, so
+  `entry[0] == '$2'` keeps working. Comparing an entry with a list or serialising it
+  does not. Use `shx.eqiv_by_id('$2')` to look one up.
+- **Symmetry images are named after their parent.** Atoms returned by `grow()` and
+  `pack()` are now called `O1>>2` (parent name, `>>`, symmetry card number) rather
+  than getting new sequential names like `C12`. The new `atom.symm_mate` records the
+  parent, the operation and the lattice shift. `write_grown_file()` still writes
+  SHELXL-legal names.
+- **Renaming is validated.** `atom.name = ...` rejects names that are empty, longer
+  than four characters, do not start with a letter, or are already used in the same
+  residue and `PART`. A rejected name is ignored (a warning is printed with
+  `verbose=True`; `ValueError` is raised with `debug=True`). The setter does not update
+  instructions that reference the atom; use `ShelxDocument.rename_atom()` for that.
+- **Coordinates in `10*m + p` form are parsed.** Atoms such as
+  `C1 1 10.66660 0.25 0.5 ...` were previously left as plain text and are now real
+  atoms, so atom counts can change for such files. The code is written back unchanged
+  (`atom.coordinates_as_written`).
+- **Parsing continues after a bad line.** An unparsable instruction no longer stops
+  parsing: it is kept as text, reported in `shx.parse_errors`, and the rest of the file
+  is read. Parsing gives up after `Shelxfile.MAX_UNPARSABLE_LINES` (20) bad lines.
+- **Output is closer to the input.** An unedited instruction is written exactly as it
+  was read, including instructions after `END`. Files are read as UTF-8 with a
+  Latin-1 fallback and written in the same encoding (`shx.encoding`). Only a
+  *trailing* `=` continues a line, and trailing whitespace is stripped before
+  wrapping. `repr(shx)` now returns the same text as the new `shx.dumps()`.
+
+New on `Shelxfile`: `add_restraint()`, `dumps()`, `eqiv_by_id()`, `parse_errors`,
+`encoding` and `model_version`.
+
+
 ## Quick Start
 
 ```python
@@ -532,6 +569,11 @@ Complete or "grow" structures with higher symmetry:
 >>> len(p)
 208
 ```
+
+Generated atoms are named after the atom they came from plus the symmetry card
+number, e.g. `O1>>2`, and `atom.symm_mate` records the parent atom, the operation
+and the lattice shift. These names are longer than SHELXL allows in an input file.
+`write_grown_file()` replaces them with legal names when writing.
 
 ### Writing a Grown Structure to File
 
