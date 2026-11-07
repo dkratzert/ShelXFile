@@ -14,8 +14,8 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-          - os: macos-14        # arm64 + x86_64 via universal2
-            macos_deployment_target: "14.0"
+          - os: macos-latest        # arm64 + x86_64 via universal2
+            macos_deployment_target: "15.0"
           - os: windows-latest
 
     # Build and publish are gated on successful tests.
