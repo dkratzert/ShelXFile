@@ -36,6 +36,11 @@ dev = [
     "pytest-qt",
 ]
 
+doc = [
+    "sphinx>=8.1.3",
+    "sphinx-rtd-theme",
+]
+
 [project.urls]
 "Homepage" = "https://dkratzert.de/shelxfile.html"
 "Bug Tracker" = "https://github.com/dkratzert/ShelXFile/issues"
