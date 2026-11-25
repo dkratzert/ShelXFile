@@ -15,7 +15,7 @@ from shelxfile.edit.card_meta import (
     CardLifetime,
 )
 from shelxfile.edit.cascade import CascadeEngine, CascadePlan
-from shelxfile.edit.document import ParseAttempt, ShelxDocument, restraint_keywords
+from shelxfile.edit.document import ParseAttempt, RefinementJob, ShelxDocument, restraint_keywords
 from shelxfile.edit.eqiv_cleanup import EqivCleaner, validate_symmetry_arity
 from shelxfile.edit.eqiv_factory import EqivFactory, canonical_symmop
 from shelxfile.edit.graph import AtomRestraintGraph
@@ -56,6 +56,7 @@ __all__ = [
     'EqivFactory',
     'HistoryState',
     'ParseAttempt',
+    'RefinementJob',
     'RemovalReason',
     'RemovedItem',
     'RenameReport',

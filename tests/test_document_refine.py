@@ -58,6 +58,57 @@ def test_refine_notifies_observers(doc: ShelxDocument) -> None:
     assert seen and seen[-1] is doc
 
 
+def test_refine_streams_the_shelxl_output(doc: ShelxDocument) -> None:
+    lines: list[str] = []
+    doc.refine(cycles=1, output=lines.append)
+    assert lines
+    text = ''.join(lines)
+    assert 'SHELXL' in text
+    assert 'R1' in text
+
+
+def test_a_job_runs_on_another_thread_and_is_adopted_here(doc: ShelxDocument) -> None:
+    import threading
+
+    old_shx = doc.shelxfile
+    threads: set[str] = set()
+    finished = threading.Event()
+    job = doc.prepare_refinement(cycles=1)
+    job.start(output=lambda _line: threads.add(threading.current_thread().name),
+              done=lambda _job: finished.set())
+    assert finished.wait(60)
+    assert threads == {'SHELXL refinement'}
+    assert job.error is None
+    assert doc.shelxfile is old_shx  # nothing changes until adopt()
+    job.adopt()
+    assert doc.shelxfile is job.result
+    assert 'L.S. 1' in doc.text
+    assert doc.can_undo
+
+
+def test_a_job_is_not_adopted_over_a_newer_edit(doc: ShelxDocument) -> None:
+    job = doc.prepare_refinement(cycles=1)
+    job.run()
+    doc.apply_text(doc.text.replace('L.S. 10', 'L.S. 7'))
+    edited = doc.text
+    with pytest.raises(RuntimeError, match='changed while SHELXL was running'):
+        job.adopt()
+    assert doc.text == edited
+
+
+def test_a_failed_job_leaves_the_document_alone(doc: ShelxDocument) -> None:
+    Path('p21c.hkl').unlink()
+    before = doc.text
+    job = doc.prepare_refinement(cycles=1)
+    job.start()
+    assert job.wait(60)
+    assert job.result is None and job.error
+    with pytest.raises(RuntimeError):
+        job.adopt()
+    assert doc.text == before
+    assert not doc.can_undo
+
+
 def test_refine_without_resfile_raises() -> None:
     document = ShelxDocument.from_string(Path('tests/resources/p21c.res').read_text())
     with pytest.raises(RuntimeError, match='no file path'):

@@ -16,7 +16,7 @@ variant exists but has to be named explicitly:
 from __future__ import annotations
 
 import functools
-import os
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, Union, cast
@@ -43,7 +43,7 @@ from shelxfile.edit.token_resolver import (
 if TYPE_CHECKING:
     from shelxfile import Shelxfile
     from shelxfile.atoms.atom import Atom
-    from shelxfile.shelx.cards import ACTA, Command, LSCycles, Restraint
+    from shelxfile.shelx.cards import Command, Restraint
 
 #: An observer is called with the document after every successful edit.
 Observer = Callable[['ShelxDocument'], None]
@@ -956,11 +956,28 @@ class ShelxDocument:
 
     # ----------------------------------------------------------- refine
 
-    def refine(self, cycles: int | None = None, backup_before: bool = True) -> bool:
+    def prepare_refinement(self, cycles: int | None = None,
+                           backup_before: bool = True) -> RefinementJob:
+        """A SHELXL run of the model as it is now, ready to start.
+
+        Nothing is changed yet: the job holds a snapshot of the text and
+        runs on any thread (:meth:`RefinementJob.start`), so a GUI need not
+        wait for SHELXL.  Only :meth:`RefinementJob.adopt` touches this
+        document again, and it must be called on the thread that owns it.
+
+        :raises RuntimeError: if no file is associated with this document.
+        """
+        if self._shx.resfile is None:
+            raise RuntimeError('Cannot refine: this document has no file path (save it first).')
+        return RefinementJob(self, cycles=cycles, backup_before=backup_before)
+
+    def refine(self, cycles: int | None = None, backup_before: bool = True,
+               output: Callable[[str], None] | None = None) -> bool:
         """
         Save the current model as a SHELXL instruction (``.ins``) file, run
         SHELXL on it, and replace this document's model with the refined
-        result.
+        result.  Blocks until SHELXL is done; see :meth:`prepare_refinement`
+        for running it in the background.
 
         Like :meth:`apply`, a successful refinement swaps in a **fresh**
         model rather than mutating the old one in place: the replacement is
@@ -972,58 +989,25 @@ class ShelxDocument:
         reloads the same object in place (and does restore ``ACTA``, but
         only in memory, never on disk); that method is left untouched.
 
-        The whole attempt runs as one undo step: if refinement fails for any
-        reason, the document -- including its ``ACTA`` card -- is restored
-        to exactly the state it had before this call, and the failure is
-        raised as :class:`RuntimeError` instead of the underlying code's
-        ``sys.exit()``, so a caller such as a GUI can report it without
-        being killed.
+        The refined model replaces this one as a single undo step.  If
+        refinement fails for any reason the document is left exactly as it
+        was -- SHELXL works on a copy -- and the failure is raised as
+        :class:`RuntimeError`, so a caller such as a GUI can report it.
 
         :param cycles: overrides the number of least-squares cycles
             (``shx.cycles``) before refining, if given.
-        :param backup_before: whether :class:`ShelxlRefine` keeps a ``.res``
-            backup before overwriting it (see ``shxsaves/``).
+        :param backup_before: whether to keep a ``.res`` backup before
+            SHELXL overwrites it (see ``shxsaves/``).
+        :param output: called with every raw line of SHELXL's console
+            output while it runs.
         :raises RuntimeError: if no file is associated with this document,
             no SHELXL executable is found, or refinement fails.
         :returns: ``True`` once the refined result has replaced this
             document's model.
         """
-        from shelxfile.refine.refine import ShelxlRefine, find_shelxl_exe
-
-        if self._shx.resfile is None:
-            raise RuntimeError('Cannot refine: this document has no file path (save it first).')
-        if not find_shelxl_exe():
-            raise RuntimeError('No SHELXL executable (shelxl/xl) found on PATH.')
-
-        with self.batch('Refine (SHELXL)'):
-            shx = self._shx
-            resfile = cast(Path, shx.resfile).resolve()
-            if cycles is not None:
-                cast('LSCycles', shx.cycles).number = cycles
-            ref = ShelxlRefine(shx, resfile)
-            ref.remove_acta_card(cast('ACTA', shx.acta))
-
-            # ShelxlRefine builds file names from resfile.stem alone and
-            # assumes the current directory already holds them; make that
-            # true instead of depending on the caller's cwd.
-            previous_dir = Path.cwd()
-            os.chdir(resfile.parent)
-            try:
-                shx.write_shelx_file(resfile.stem + '.ins')
-                try:
-                    ref.run_shelxl(backup_before=backup_before)
-                except SystemExit as exc:
-                    message = str(exc.code) if exc.code else 'SHELXL refinement failed.'
-                    raise RuntimeError(message) from exc
-            finally:
-                os.chdir(previous_dir)
-
-            from shelxfile import Shelxfile
-            new_shx = Shelxfile(debug=shx.debug, verbose=shx.verbose)
-            new_shx.read_file(resfile)
-            new_shx.encoding = shx.encoding
-            self._shx = new_shx
-            self._graph = None
+        job = self.prepare_refinement(cycles=cycles, backup_before=backup_before)
+        job.run(output)
+        job.adopt()
         return True
 
     # ------------------------------------------------------------ output
@@ -1036,6 +1020,118 @@ class ShelxDocument:
     def __repr__(self) -> str:
         return (f'<ShelxDocument {len(self._shx.atoms)} atoms, '
                 f'{self.line_count} lines>')
+
+
+class RefinementJob:
+    """One SHELXL run of a :class:`ShelxDocument`, made by
+    :meth:`ShelxDocument.prepare_refinement`.
+
+    Split in two so the slow part can run off the thread that owns the
+    document -- a GUI's, typically -- without that thread ever waiting:
+
+    * :meth:`run` (or :meth:`start`, which calls it on a daemon thread)
+      refines a *copy* of the model taken when the job was made.  It never
+      touches the document, so it is safe on any thread.
+    * :meth:`adopt` puts the result into the document as one undo step and
+      notifies its observers.  Call it on the thread that owns the
+      document, once :attr:`done` is ``True``.
+
+    The job is Qt-free; a GUI marshals :meth:`start`'s callbacks onto its
+    own thread however its toolkit does that.
+    """
+
+    def __init__(self, document: ShelxDocument, *, cycles: int | None = None,
+                 backup_before: bool = True) -> None:
+        shx = document.shelxfile
+        self.document = document
+        #: The model SHELXL refines, as text.
+        self.text = document.text
+        self.resfile = Path(cast(Path, shx.resfile)).resolve()
+        self.cycles = cycles
+        self.backup_before = backup_before
+        self._encoding = shx.encoding
+        self._debug = shx.debug
+        self._verbose = shx.verbose
+        #: The refined model, once :meth:`run` succeeded.
+        self.result: Shelxfile | None = None
+        #: Why :meth:`run` failed, or ``None``.
+        self.error: str | None = None
+        self._thread: threading.Thread | None = None
+        self._finished = threading.Event()
+
+    @property
+    def done(self) -> bool:
+        """Whether :meth:`run` has finished, successfully or not."""
+        return self._finished.is_set()
+
+    def run(self, output: Callable[[str], None] | None = None) -> Shelxfile:
+        """Run SHELXL now, on the calling thread, and return the refined model.
+
+        :param output: called with every raw line SHELXL writes, while it runs.
+        :raises RuntimeError: if the refinement failed (also kept in :attr:`error`).
+        """
+        from shelxfile.refine.refine import run_refinement
+
+        try:
+            self.result = run_refinement(
+                self.text, self.resfile, cycles=self.cycles,
+                backup_before=self.backup_before, output=output,
+                encoding=self._encoding, debug=self._debug, verbose=self._verbose)
+        except Exception as exc:
+            self.error = str(exc) or 'SHELXL refinement failed.'
+            raise RuntimeError(self.error) from exc
+        finally:
+            self._finished.set()
+        return self.result
+
+    def start(self, output: Callable[[str], None] | None = None,
+              done: Callable[[RefinementJob], None] | None = None) -> None:
+        """Run SHELXL on a background thread and return at once.
+
+        Both callbacks are called **on that background thread**: *output*
+        with every line SHELXL writes, *done* with this job when it is over
+        (see :attr:`result` and :attr:`error`).  Neither may touch the
+        document; hand the job back to its own thread and :meth:`adopt` it
+        there.
+        """
+        if self._thread is not None:
+            raise RuntimeError('This refinement has already been started.')
+
+        def work() -> None:
+            try:
+                self.run(output)
+            except RuntimeError:
+                pass  # kept in self.error
+            finally:
+                if done is not None:
+                    done(self)
+
+        self._thread = threading.Thread(target=work, name='SHELXL refinement', daemon=True)
+        self._thread.start()
+
+    def wait(self, timeout: float | None = None) -> bool:
+        """Block until the job is done; ``False`` if *timeout* ran out first."""
+        return self._finished.wait(timeout)
+
+    def adopt(self) -> None:
+        """Replace the document's model with the refined one, as one undo step.
+
+        :raises RuntimeError: if the refinement is still running or failed,
+            or if the document changed while SHELXL was running -- its
+            result would silently throw that change away.
+        """
+        if not self.done:
+            raise RuntimeError('The refinement is still running.')
+        if self.result is None:
+            raise RuntimeError(self.error or 'SHELXL refinement failed.')
+        document = self.document
+        if document.text != self.text:
+            raise RuntimeError('The model was changed while SHELXL was running, so the '
+                               f'refined result was not loaded (it is in {self.resfile.stem}.res).')
+        with document.batch('Refine (SHELXL)'):
+            document._shx = self.result
+            document._graph = None
+            document.invalidate()
 
 
 def _names_a_single_atom(token: str) -> bool:

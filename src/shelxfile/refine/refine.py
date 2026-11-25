@@ -20,6 +20,8 @@ from shutil import which, copyfile
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from shelxfile import Shelxfile
 from shelxfile.misc.misc import remove_file, sep_line, find_line
 from shelxfile.shelx.cards import ACTA
@@ -292,6 +294,101 @@ class ShelxlRefine:
             print('*** Warning! The data/parameter ratio is getting low (ratio = {:.1f})! ***'
                   '\n*** but consider (data+restraints)/parameter = {:.1f} ***'
                   .format(data_to_parameter_ratio, restr_ratio))
+
+
+def _backup_res_file(res: Path) -> Path:
+    """Copy *res* to ``<stem>.shx-bak`` and to ``shxsaves/``, next to it.
+
+    The same backups :meth:`ShelxlRefine.backup_shx_file` makes, but with
+    absolute paths, so nothing depends on the current directory.
+    """
+    import datetime
+
+    backup = res.with_suffix('.shx-bak')
+    try:
+        copyfile(res, backup)
+    except OSError as exc:
+        raise RuntimeError(f'Unable to make a backup of {res}.') from exc
+    now = datetime.datetime.now()
+    timestamp = f'{now.year}_{now.month}_{now.day}_{now.hour}-{now.minute}-{now.second}'
+    saves = res.parent / 'shxsaves'
+    try:
+        saves.mkdir(exist_ok=True)
+        copyfile(res, saves / f'{res.stem}_{timestamp}.res')
+    except OSError:
+        print(f'*** Unable to make backup file from {res} in shxsaves. ***')
+    return backup
+
+
+def run_refinement(text: str, resfile: str | Path, *, cycles: int | None = None,
+                   backup_before: bool = True, output: Callable[[str], None] | None = None,
+                   encoding: str = 'utf-8', shelxpath: str | None = None,
+                   debug: bool = False, verbose: bool = False) -> Shelxfile:
+    """Refine the model in *text* with SHELXL and return the refined model.
+
+    Safe to call on any thread: it works on a model parsed from *text* rather
+    than on a caller's object, uses absolute paths and the subprocess' own
+    working directory instead of :func:`os.chdir`, and reports failure with
+    :class:`RuntimeError` instead of :func:`sys.exit`.
+
+    *text* is written as ``<stem>.ins`` next to *resfile* without its
+    ``ACTA`` card, SHELXL is run on it, and the ``<stem>.res`` it writes is
+    read back.  If SHELXL fails, the previous ``.res`` is restored.
+
+    :param cycles: overrides the number of least-squares cycles.
+    :param backup_before: back up the ``.res`` before SHELXL overwrites it.
+    :param output: called with every raw line SHELXL writes to its console
+        (newline included), from the calling thread, while it runs.
+    :param encoding: encoding of the ``.ins`` file and of the result.
+    :raises RuntimeError: no SHELXL executable, no ``.hkl`` file, or a
+        failed refinement.
+    """
+    from shelxfile import Shelxfile
+
+    exe = find_shelxl_exe(shelxpath)
+    if not exe:
+        raise RuntimeError('No SHELXL executable (shelxl/xl) found on PATH.')
+    resfile = Path(resfile).resolve()
+    directory, stem = resfile.parent, resfile.stem
+    if not (directory / f'{stem}.hkl').exists():
+        raise RuntimeError(f'Cannot refine: {stem}.hkl not found next to {resfile.name}.')
+
+    shx = Shelxfile(debug=debug, verbose=verbose)
+    shx.read_string(text)
+    shx.encoding = encoding
+    if cycles is not None and shx.cycles is not None:
+        shx.cycles.number = cycles
+    ref = ShelxlRefine(shx, resfile, shelxpath=exe)
+    ref.remove_acta_card(shx.acta)
+    shx.write_shelx_file(directory / f'{stem}.ins')
+
+    res = directory / f'{stem}.res'
+    backup = _backup_res_file(res) if backup_before and res.exists() else None
+    command = [exe, f'-b{ref.get_b_array()}', stem]
+    # A console window would flash up for every run from a GUI program.
+    flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if sys.platform == 'win32' else 0
+    try:
+        with subprocess.Popen(command, cwd=directory, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                              bufsize=1, text=True, encoding='latin-1',
+                              errors='replace', creationflags=flags) as process:
+            assert process.stdout is not None
+            for line in process.stdout:
+                if output is not None:
+                    output(line)
+    except OSError as exc:
+        raise RuntimeError(f'Could not start SHELXL ({exe}): {exc}') from exc
+    if process.returncode != 0 or not res.exists() or res.stat().st_size < 10:
+        if backup is not None:
+            copyfile(backup, res)
+            backup.unlink(missing_ok=True)
+        raise RuntimeError('SHELXL terminated unexpectedly. '
+                           'Check for errors in your SHELX input file!')
+
+    refined = Shelxfile(debug=debug, verbose=verbose)
+    refined.read_file(res)
+    refined.encoding = encoding
+    return refined
 
 
 if __name__ == '__main__':

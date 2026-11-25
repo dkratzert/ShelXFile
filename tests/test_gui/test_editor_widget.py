@@ -339,17 +339,81 @@ def refine_widget(qtbot):
     shutil.rmtree('shxsaves', ignore_errors=True)
 
 
-def test_refine_button_loads_the_refined_result(refine_widget):
+def _refine_and_wait(qtbot, widget, **kwargs) -> tuple[bool, str]:
+    with qtbot.waitSignal(widget.refine_finished, timeout=60000) as blocker:
+        assert widget.refine(**kwargs) is True
+    return tuple(blocker.args)
+
+
+def test_refine_button_loads_the_refined_result(qtbot, refine_widget):
     old_shx = refine_widget.shelxfile
-    assert refine_widget.refine(cycles=1) is True
+    assert _refine_and_wait(qtbot, refine_widget, cycles=1) == (True, '')
     assert refine_widget.shelxfile is not old_shx
     assert refine_widget.editor.toPlainText() == refine_widget.document.text
     assert 'L.S. 1' in refine_widget.editor.toPlainText()
 
 
+def test_refine_does_not_block(qtbot, refine_widget):
+    """refine() returns while SHELXL still runs; the text is locked meanwhile."""
+    old_shx = refine_widget.shelxfile
+    with qtbot.waitSignal(refine_widget.refine_finished, timeout=60000):
+        assert refine_widget.refine(cycles=1) is True
+        assert refine_widget.is_refining
+        assert refine_widget.shelxfile is old_shx
+        assert refine_widget.editor.isReadOnly()
+        assert not refine_widget.refine_button.isEnabled()
+        assert refine_widget.refine() is False  # one at a time
+    assert not refine_widget.is_refining
+    assert not refine_widget.editor.isReadOnly()
+    assert refine_widget.refine_button.isEnabled()
+
+
 def test_refine_emits_model_changed(qtbot, refine_widget):
-    with qtbot.waitSignal(refine_widget.model_changed, timeout=30000):
+    with qtbot.waitSignal(refine_widget.model_changed, timeout=60000):
         refine_widget.refine(cycles=1)
+
+
+def test_refine_reports_its_progress(qtbot, refine_widget):
+    events: list[tuple] = []
+    refine_widget.refine_started.connect(lambda: events.append(('started',)))
+    refine_widget.refine_output.connect(lambda line: events.append(('output', line)))
+    refine_widget.refine_finished.connect(lambda ok, msg: events.append(('finished', ok, msg)))
+    _refine_and_wait(qtbot, refine_widget, cycles=1)
+    assert events[0] == ('started',)
+    assert events[-1] == ('finished', True, '')
+    output = [event[1] for event in events[1:-1]]
+    assert output and all(event[0] == 'output' for event in events[1:-1])
+    assert 'R1' in ''.join(output)
+
+
+def test_binding_another_document_abandons_the_refinement(qtbot, refine_widget, document):
+    finished: list[tuple[bool, str]] = []
+    refine_widget.refine_finished.connect(lambda ok, msg: finished.append((ok, msg)))
+    job_document = refine_widget.document
+    assert refine_widget.refine(cycles=1) is True
+    job = refine_widget._refine_job
+    refine_widget.set_document(document)
+    assert finished and finished[0][0] is False
+    assert not refine_widget.is_refining
+    # The late result is ignored, not adopted into either document.
+    job_text = job_document.text
+    qtbot.waitUntil(lambda: job.done, timeout=60000)
+    qtbot.wait(200)  # let the queued completion arrive
+    assert job.result is not None
+    assert job_document.text == job_text
+    assert refine_widget.document is document
+    assert len(finished) == 1
+
+def test_a_failed_refine_reports_why(qtbot):
+    document = ShelxDocument.from_string(Path(RESOURCE).read_text())
+    w = ShelxEditorWidget(document)
+    qtbot.addWidget(w)
+    finished: list[tuple[bool, str]] = []
+    w.refine_finished.connect(lambda ok, msg: finished.append((ok, msg)))
+    assert w.refine() is False
+    assert len(finished) == 1
+    ok, message = finished[0]
+    assert ok is False and 'no file path' in message
 
 
 # ---------------------------------------------------------------- dialogs

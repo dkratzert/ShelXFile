@@ -34,7 +34,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from qtpy.QtCore import Signal
+from qtpy.QtCore import Qt, Signal
 from qtpy.QtGui import QColor, QFont, QFontMetricsF, QTextCharFormat, QTextCursor
 from qtpy.QtWidgets import (
     QDialog,
@@ -51,7 +51,7 @@ from qtpy.QtWidgets import (
 )
 
 from shelxfile.atoms.atom import Atom
-from shelxfile.edit import ShelxDocument, restraint_keywords
+from shelxfile.edit import RefinementJob, ShelxDocument, restraint_keywords
 from shelxfile.gui.syntax_highlighter import ShelxSyntaxHighlighter
 from shelxfile.shelx.cards import Restraint
 
@@ -132,6 +132,21 @@ class ShelxEditorWidget(QWidget):
     #: a feedback loop with a host's 3D viewer.
     atom_selected = Signal(str)
 
+    #: Emitted right before SHELXL is started by :meth:`refine`.
+    refine_started = Signal()
+
+    #: Emitted with every raw line SHELXL writes to its console while
+    #: :meth:`refine` runs (trailing newline included).
+    refine_output = Signal(str)
+
+    #: Emitted once SHELXL has stopped, after :attr:`refine_started`, with
+    #: whether the refinement succeeded and, if not, why.
+    refine_finished = Signal(bool, str)
+
+    # Emitted from the refinement's worker thread; queued onto this one.
+    _refine_line = Signal(str)
+    _refine_done = Signal(object)
+
     def __init__(self, shelxfile: Shelxfile | ShelxDocument | None = None,
                  parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -139,7 +154,11 @@ class ShelxEditorWidget(QWidget):
         self._dirty_since_apply: bool = False
         self._updating_text: bool = False
         self._jumping: bool = False
+        self._refine_job: RefinementJob | None = None
         self._build_ui()
+        queued = Qt.ConnectionType.QueuedConnection
+        self._refine_line.connect(self.refine_output, queued)
+        self._refine_done.connect(self._on_refine_done, queued)
         if shelxfile is not None:
             self.set_shelxfile(shelxfile)
 
@@ -231,6 +250,7 @@ class ShelxEditorWidget(QWidget):
 
     def set_document(self, document: ShelxDocument) -> None:
         """Bind *document* to this widget and refresh the text view from it."""
+        self._abandon_refinement()
         if self._document is not None:
             self._document.unsubscribe(self._on_document_changed)
         self._document = document
@@ -250,6 +270,7 @@ class ShelxEditorWidget(QWidget):
         an XYZ file -- calls this instead of leaving the previous file's
         text on screen, where editing it would apply to nothing.
         """
+        self._abandon_refinement()
         if self._document is not None:
             self._document.unsubscribe(self._on_document_changed)
         self._document = None
@@ -453,29 +474,89 @@ class ShelxEditorWidget(QWidget):
 
     def refine(self, cycles: int | None = None, backup_before: bool = True) -> bool:
         """
-        Save the editor's current text as the SHELXL instruction (``.ins``)
-        file, run SHELXL on it, and load the refined ``.res`` result back
-        into the editor.
+        Start refining the model with SHELXL in the background.
+
+        Returns at once: SHELXL runs on a worker thread
+        (:meth:`RefinementJob.start`), so the GUI never waits for it.  While
+        it runs the text is read-only and the toolbar is disabled -- a change
+        made meanwhile would be thrown away by the result -- and its console
+        output arrives line by line through :attr:`refine_output`, between
+        :attr:`refine_started` and :attr:`refine_finished`.
 
         Any unapplied hand-edits are committed first, exactly as
-        :meth:`apply` would. On success the editor shows the refined
-        result and :attr:`model_changed` is emitted; on failure (unparsable
-        text, no file path, no SHELXL executable, or a failed refinement)
-        the previous text and document are left untouched and the error is
-        shown via the inline error label.
+        :meth:`apply` would.  On success the refined ``.res`` replaces the
+        model as one undo step, the editor shows it and
+        :attr:`model_changed` is emitted; on failure (no file path, no
+        SHELXL executable, or a failed refinement) the document is left
+        untouched and the error is shown via the inline error label.
+
+        :returns: whether SHELXL was started.
         """
-        if self._document is None:
+        if self._document is None or self.is_refining:
             return False
         if self._dirty_since_apply and not self.apply():
             return False
         try:
-            self._document.refine(cycles=cycles, backup_before=backup_before)
+            job = self._document.prepare_refinement(cycles=cycles, backup_before=backup_before)
         except RuntimeError as exc:
-            self._show_error(str(exc), -1)
+            self.refine_started.emit()
+            self._end_refinement(False, str(exc))
             return False
-        self._hide_error()
-        self.model_changed.emit(self._document.shelxfile)
+        self._refine_job = job
+        self._set_actions_enabled(False)
+        # is_refining is already True for whoever handles this.
+        self.refine_started.emit()
+        job.start(output=self._forward_refine_line, done=self._forward_refine_done)
         return True
+
+    @property
+    def is_refining(self) -> bool:
+        """Whether a :meth:`refine` started here is still running."""
+        return self._refine_job is not None
+
+    # These two run on the worker thread: they only hand over to this one.
+    def _forward_refine_line(self, line: str) -> None:
+        try:
+            self._refine_line.emit(line)
+        except RuntimeError:
+            pass  # the widget was deleted while SHELXL ran
+
+    def _forward_refine_done(self, job: RefinementJob) -> None:
+        try:
+            self._refine_done.emit(job)
+        except RuntimeError:
+            pass
+
+    def _on_refine_done(self, job: RefinementJob) -> None:
+        if job is not self._refine_job:
+            return  # abandoned: another document was bound meanwhile
+        self._refine_job = None
+        self._set_actions_enabled(self._document is not None)
+        try:
+            job.adopt()
+        except RuntimeError as exc:
+            self._end_refinement(False, str(exc))
+            return
+        self._hide_error()
+        self.model_changed.emit(job.document.shelxfile)
+        self.refine_finished.emit(True, '')
+
+    def _end_refinement(self, success: bool, message: str) -> None:
+        if not success:
+            self._show_error(message, -1)
+        self.refine_finished.emit(success, message)
+
+    def _abandon_refinement(self) -> None:
+        """Stop waiting for a running refinement; its result is discarded.
+
+        SHELXL itself runs to the end and writes its files, but the model it
+        was started on is no longer the one shown here.
+        """
+        if self._refine_job is None:
+            return
+        self._refine_job = None
+        self.refine_finished.emit(
+            False, 'Another model was loaded; the running refinement will not be loaded.')
 
     def _on_refine_clicked(self) -> None:
         self.refine()
