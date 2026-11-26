@@ -1,6 +1,3 @@
-# -*- encoding: utf-8 -*-
-# möp
-#
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
 # <dkratzert@gmx.de> wrote this file. As long as you retain
@@ -16,14 +13,14 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from shutil import which, copyfile
+from shutil import copyfile, which
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from shelxfile import Shelxfile
-from shelxfile.misc.misc import remove_file, sep_line, find_line
+from shelxfile.misc.misc import find_line, remove_file, sep_line
 from shelxfile.shelx.cards import ACTA
 
 
@@ -44,7 +41,7 @@ def get_xl_version_string(exe: str) -> str:
                 return version.decode('ascii')
             else:
                 return ''
-    except IOError:
+    except OSError:
         print("Could not determine SHELXL version. Refinement might fail to run.")
         return ''
 
@@ -105,8 +102,7 @@ class ShelxlRefine:
         number_of_atoms = self.shx.atoms.number
         # This is a rough aproximation, but it works until you have a really high number of processors:
         barray = number_of_atoms * 8
-        if barray <= 3000:
-            barray = 3000
+        barray = max(3000, barray)
         return barray
 
     def remove_acta_card(self, acta_card: ACTA) -> None:
@@ -145,19 +141,19 @@ class ShelxlRefine:
         bakup_dir = os.path.abspath(os.path.dirname(resfile)) + os.path.sep + os.path.relpath('shxsaves')
         try:
             copyfile(resfile, self.backup_file)
-        except IOError:
-            print('*** Unable to make backup file from {}. ***'.format(resfile))
+        except OSError:
+            print(f'*** Unable to make backup file from {resfile}. ***')
             sys.exit()
         if not os.path.exists(bakup_dir):
             try:
                 os.makedirs(bakup_dir)
-            except(IOError, OSError):
-                print('*** Unable to create backup directory {}. ***'.format(bakup_dir))
+            except OSError:
+                print(f'*** Unable to create backup directory {bakup_dir}. ***')
         try:
             copyfile(resfile,
                      bakup_dir + os.path.sep + os.path.split(self.resfile_name)[1] + '_' + timestamp + '.res')
-        except IOError:
-            print('\n*** Unable to make backup file from {} in shxsaves. ***'.format(resfile))
+        except OSError:
+            print(f'\n*** Unable to make backup file from {resfile} in shxsaves. ***')
 
     def restore_shx_file(self) -> None:
         """
@@ -167,12 +163,12 @@ class ShelxlRefine:
         try:
             print('*** Restoring previous res file. ***')
             copyfile(self.backup_file, resfile)
-        except IOError:
-            print('Unable to restore res file from {}.'.format(self.backup_file))
+        except OSError:
+            print(f'Unable to restore res file from {self.backup_file}.')
         try:
             remove_file(self.backup_file)
-        except IOError:
-            print('Unable to delete backup file {}.'.format(self.backup_file))
+        except OSError:
+            print(f'Unable to delete backup file {self.backup_file}.')
 
     def pretty_shx_output(self, out: str) -> None:
         """
@@ -182,7 +178,7 @@ class ShelxlRefine:
             print(' SHELXL {}'.format(' '.join(out.split()[6:8])), end='')
         if out.startswith(' R1'):
             line = out[:].split()
-            print(' {}   {} {:>6}'.format(line[0], line[1], line[2][:6]), end='')
+            print(f' {line[0]}   {line[1]} {line[2][:6]:>6}', end='')
         if re.match(r'.*CANNOT RESOLVE (SAME|RIGU|SIMU|DELU)', out):
             print('\nWarning: Are you sure that all atoms are in the correct order?\n')
         if re.match(r'.*CANNOT\s+OPEN\s+FILE.*hkl.*', out):
@@ -221,8 +217,8 @@ class ShelxlRefine:
         if not os.path.exists(hklfile):
             print('You need a proper hkl file to run SHELXL.')
             sys.exit()
-        command_line = ['{}'.format(self._shelx_command), "-b{}".format(self.get_b_array()),
-                        '{}'.format(self.resfile_name)]
+        command_line = [f'{self._shelx_command}', f"-b{self.get_b_array()}",
+                        f'{self.resfile_name}']
         if backup_before:
             self.backup_shx_file()
         print(sep_line)
@@ -287,13 +283,13 @@ class ShelxlRefine:
             else:
                 centro = False
         if centro and data_to_parameter_ratio < 10:
-            print('*** Warning! The data/parameter ratio is getting low (ratio = {:.1f})! ***'
-                  '\n*** but consider (data+restraints)/parameter = {:.1f} ***'
-                  .format(data_to_parameter_ratio, restr_ratio))
+            print(f'*** Warning! The data/parameter ratio is getting low (ratio = {data_to_parameter_ratio:.1f})! ***'
+                  f'\n*** but consider (data+restraints)/parameter = {restr_ratio:.1f} ***'
+                  )
         if not centro and data_to_parameter_ratio < 7.5:
-            print('*** Warning! The data/parameter ratio is getting low (ratio = {:.1f})! ***'
-                  '\n*** but consider (data+restraints)/parameter = {:.1f} ***'
-                  .format(data_to_parameter_ratio, restr_ratio))
+            print(f'*** Warning! The data/parameter ratio is getting low (ratio = {data_to_parameter_ratio:.1f})! ***'
+                  f'\n*** but consider (data+restraints)/parameter = {restr_ratio:.1f} ***'
+                  )
 
 
 def _backup_res_file(res: Path) -> Path:
